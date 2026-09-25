@@ -1,7 +1,7 @@
 {
   "version": 1,
   "confirmed": false,
-  "source": "Kickoff Workflow Mapping Sprint, Board 4 (Ops, PO amendments), 12 Sep 2026, plus the program's Week 1 lesson that lead time and payment terms belong to the Category Manager. The 2K threshold and its currency are not confirmed yet.",
+  "source": "Kickoff Workflow Mapping Sprint, Board 4 (Ops, PO amendments), 12 Sep 2026, plus the program's Week 1 lesson that lead time and payment terms belong to the Category Manager. The 2K threshold and its currency are not confirmed yet. Gap cases (under 5 percent but 2K or more, and exactly 5 percent) go to the Category Manager as the safer default, decided by Lawrence on 25 Sep 2026 (D-013). Limits are exclusive: maxPercent and maxAmount mean strictly under, minPercent and minAmount mean at or above.",
   "rules": [
     {
       "id": "price-small",
@@ -15,13 +15,24 @@
       "plainEnglish": "Price change under 5 percent and under 2K: the Ops Buyer can change it in SAP."
     },
     {
+      "id": "price-small-high-value",
+      "when": {
+        "type": "price-change",
+        "maxPercent": 5,
+        "minAmount": 2000,
+        "currency": "TBD"
+      },
+      "decidedBy": "CM",
+      "plainEnglish": "Price change under 5 percent but 2K or more: the Category Manager must approve."
+    },
+    {
       "id": "price-large",
       "when": {
         "type": "price-change",
         "minPercent": 5
       },
       "decidedBy": "CM",
-      "plainEnglish": "Price change over 5 percent: the Category Manager must approve."
+      "plainEnglish": "Price change of 5 percent or more: the Category Manager must approve."
     },
     {
       "id": "quantity",

@@ -13,7 +13,7 @@ You are a QA engineer who also loves playtesting games. You find the bugs, and y
 2. Screens: `pnpm shots` at 1280x800, 1440x900 and 1920x1080. Look at every image.
 3. Console and network: no errors, no failed requests, no warnings that repeat every frame.
 4. Performance: read the r3f-perf overlay or the in-app FPS readout at the overview camera and in Walk around mode. Report average and worst frame time.
-5. Playtest as "Ms Arlene", a busy Sr. Manager with 5 minutes between meetings:
+5. Playtest as a busy Sr. Manager with 5 minutes between meetings:
    - Can she tell what the team is doing in 3 seconds?
    - Can she find and clear what needs her in under a minute?
    - Does anything feel fake, noisy, or slow?

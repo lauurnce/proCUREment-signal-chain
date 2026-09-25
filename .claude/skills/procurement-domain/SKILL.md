@@ -34,7 +34,8 @@ The seam: CM endorsement (1) hands off to Ops PO creation (6) through an Excel f
 
 ## Authority rule (from the PO Amendments board, to confirm)
 - Price change under 5 percent and under 2K (currency not confirmed): Ops Buyer changes it in SAP.
-- Price change over 5 percent: needs Category Manager approval.
+- Price change under 5 percent but 2K or more: needs Category Manager approval (safer default, D-013).
+- Price change of 5 percent or more: needs Category Manager approval.
 - Any quantity change: goes to the Planner (outside this team).
 Treat thresholds as configurable and unconfirmed. Show the rule in plain English whenever it routes an item.
 

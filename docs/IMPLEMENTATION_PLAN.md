@@ -41,7 +41,7 @@ Gates: every prompt ends with a stop. You answer "Go", "Change: ...", or "Stop".
 - Where: `p2-design-lab`. Personas: the full Design Council plus procurement-sme.
 - You get: each council member's point of view, a design direction with 2 or 3 style options, then in the Lab: design tokens, a type and color specimen with contrast, name tags and HUD components, a 3D desk-pod diorama with 4 characters and 3 lighting options, 2 floor plans for 26 seats, and the panel layout.
 - Done when: you have chosen a style, a floor plan, and the screen-only additions (D-011), and the council's Must fixes are done.
-- Gate: "Would you proudly show this look to Ms Arlene?"
+- Gate: "Would you proudly show this look to the Sr. Manager?"
 
 ### Phase 3. The office world
 - Where: `p3-office`. Personas: world-artist, r3f-engineer, motion-designer, qa-playtester.

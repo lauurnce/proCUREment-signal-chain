@@ -16,12 +16,10 @@ Now: Phase 0, kickoff and alignment. Orientation done, repo set up, first commit
 ## Open questions
 - Which Outlook account will we test with? (personal Outlook.com recommended)
 - Confirm the authority rule thresholds (5 percent, 2K, and the currency) before they drive real routing.
-- Authority rule gap: who decides a price change under 5 percent but over 2K, or exactly 5 percent? (from P0.1)
 - Which Leads cover which groups? Placeholder for now.
-- A real first name for the Sr. Manager appears in 3 committed docs. Replace it with "the Sr. Manager" or a fictional persona? (from P0.1)
-- How much ADI detail should stay in committed docs, and should CLAUDE.md say the repo must never be made public? (from P0.1)
 
 ## Log
+- 25 Sep 2026, P0.1 answers: real first name replaced with "the Sr. Manager" (D-012), authority rule gaps go to the CM (D-013), repo stays privately held (D-014).
 - 25 Sep 2026, P0.2: setup check all OK (Node 24, pnpm, gh, hooks, owner email). commit-msg hook tested, it removes a Co-Authored-By line. First commit prepared.
 - 25 Sep 2026, P0.1: orientation done. Claude read the docs, agents, skills and reference images, and raised 3 questions (listed above).
 - 25 Sep 2026: starter kit created (CLAUDE.md, council agents, skills, docs, roster, sample vault, hooks).
