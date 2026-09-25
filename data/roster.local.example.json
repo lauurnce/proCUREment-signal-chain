@@ -1,0 +1,14 @@
+{
+  "note": "Example only. Copy to data/roster.local.json (gitignored) if you ever want other display names on your own machine. Never commit real names.",
+  "overrides": {
+    "cm-01": {
+      "displayName": "Nickname here",
+      "helper": {
+        "name": "Helper name here"
+      }
+    },
+    "ops-01": {
+      "site": "PH"
+    }
+  }
+}

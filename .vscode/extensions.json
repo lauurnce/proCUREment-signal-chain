@@ -1,0 +1,11 @@
+{
+  "recommendations": [
+    "biomejs.biome",
+    "bradlc.vscode-tailwindcss",
+    "anthropic.claude-code",
+    "eamodio.gitlens",
+    "bierner.markdown-mermaid",
+    "ms-playwright.playwright",
+    "vitest.explorer"
+  ]
+}

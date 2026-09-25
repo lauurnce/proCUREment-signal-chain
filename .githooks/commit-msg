@@ -1,0 +1,28 @@
+#!/bin/sh
+# SignalChain HQ: keep Lawrence as the only contributor.
+# Removes co-author trailers and AI attribution lines that tools may add
+# to a commit message, then trims trailing blank lines.
+
+msg_file="$1"
+[ -f "$msg_file" ] || exit 0
+
+tmp_dir="${TMPDIR:-/tmp}"
+filtered="$(mktemp "$tmp_dir/hq-msg.XXXXXX")" || exit 1
+trimmed="$(mktemp "$tmp_dir/hq-msg.XXXXXX")" || exit 1
+
+grep -v -i -E \
+  -e '^[[:space:]]*co-authored-by:' \
+  -e 'generated (with|by) \[?claude' \
+  -e '^[[:space:]]*claude-session:' \
+  "$msg_file" > "$filtered" || true
+
+awk '{ line[NR] = $0; if ($0 ~ /[^[:space:]]/) last = NR }
+     END { for (i = 1; i <= last; i++) print line[i] }' "$filtered" > "$trimmed"
+
+if ! cmp -s "$msg_file" "$trimmed"; then
+  cat "$trimmed" > "$msg_file"
+  echo "SignalChain HQ: removed co-author or AI attribution lines, you stay the only contributor." >&2
+fi
+
+rm -f "$filtered" "$trimmed"
+exit 0

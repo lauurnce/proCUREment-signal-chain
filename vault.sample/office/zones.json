@@ -1,0 +1,130 @@
+{
+  "version": 1,
+  "note": "Zone list only. Positions, desk slots and walkways are designed in Phase 2 and written to layout.json in Phase 3.",
+  "zones": [
+    {
+      "id": "reception",
+      "name": "Reception",
+      "kind": "entrance",
+      "purpose": "Where you arrive. Product name sign, no company logo."
+    },
+    {
+      "id": "mgr-office",
+      "name": "Sr. Manager's Office",
+      "kind": "office",
+      "purpose": "The player's home base. The Needs You tray sits on this desk.",
+      "seats": [
+        "mgr-01"
+      ]
+    },
+    {
+      "id": "leads-row",
+      "name": "Leads' Row",
+      "kind": "desks",
+      "purpose": "Four lead desks with a view of both wings.",
+      "seats": [
+        "lead-01",
+        "lead-02",
+        "lead-03",
+        "lead-04"
+      ]
+    },
+    {
+      "id": "cm-wing",
+      "name": "CM Wing",
+      "kind": "desks",
+      "purpose": "Category Managers, commercial side.",
+      "pods": {
+        "cm-a": [
+          "cm-01",
+          "cm-02",
+          "cm-03",
+          "cm-04"
+        ],
+        "cm-b": [
+          "cm-05",
+          "cm-06",
+          "cm-07",
+          "cm-08"
+        ],
+        "cm-c": [
+          "cm-09",
+          "cm-10",
+          "cm-11"
+        ]
+      }
+    },
+    {
+      "id": "ops-wing",
+      "name": "Ops Wing",
+      "kind": "desks",
+      "purpose": "Ops Buyers, transactional side.",
+      "pods": {
+        "ops-a": [
+          "ops-01",
+          "ops-02",
+          "ops-03",
+          "ops-04"
+        ],
+        "ops-b": [
+          "ops-05",
+          "ops-06",
+          "ops-07",
+          "ops-08"
+        ],
+        "ops-c": [
+          "ops-09",
+          "ops-10"
+        ]
+      }
+    },
+    {
+      "id": "endorsement-bridge",
+      "name": "Endorsement Bridge",
+      "kind": "handoff",
+      "purpose": "Hero landmark between the wings. CM endorses approved PRs here and Ops picks them up for PO creation."
+    },
+    {
+      "id": "sap-station",
+      "name": "SAP Station",
+      "kind": "station",
+      "purpose": "Where helpers go to pull lists, load PRs (ME57), convert and amend POs."
+    },
+    {
+      "id": "mail-dock",
+      "name": "Mail Dock",
+      "kind": "station",
+      "purpose": "Where Outlook email arrives and leaves. Helpers come here for supplier and A/P emails."
+    },
+    {
+      "id": "contract-corner",
+      "name": "Contract Corner",
+      "kind": "station",
+      "purpose": "Conga SOW templates and DocuSign routing."
+    },
+    {
+      "id": "negotiation-room",
+      "name": "Negotiation Room",
+      "kind": "room",
+      "purpose": "Supplier calls, SOW finalization, negotiation and award."
+    },
+    {
+      "id": "huddle-room",
+      "name": "Huddle Room",
+      "kind": "room",
+      "purpose": "Team huddles, escalations, and AI Enablement sessions."
+    },
+    {
+      "id": "merienda-corner",
+      "name": "Merienda Corner",
+      "kind": "pantry",
+      "purpose": "Coffee and snacks. Helpers on break hang out here."
+    },
+    {
+      "id": "logistics-window",
+      "name": "Logistics Window",
+      "kind": "landmark",
+      "purpose": "Big window over a small loading dock. Deliveries arrive when POs are received."
+    }
+  ]
+}

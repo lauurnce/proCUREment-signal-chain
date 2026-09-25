@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "confirmed": false,
+  "source": "Kickoff Workflow Mapping Sprint, Board 4 (Ops, PO amendments), 12 Sep 2026, plus the program's Week 1 lesson that lead time and payment terms belong to the Category Manager. The 2K threshold and its currency are not confirmed yet.",
+  "rules": [
+    {
+      "id": "price-small",
+      "when": {
+        "type": "price-change",
+        "maxPercent": 5,
+        "maxAmount": 2000,
+        "currency": "TBD"
+      },
+      "decidedBy": "OPS",
+      "plainEnglish": "Price change under 5 percent and under 2K: the Ops Buyer can change it in SAP."
+    },
+    {
+      "id": "price-large",
+      "when": {
+        "type": "price-change",
+        "minPercent": 5
+      },
+      "decidedBy": "CM",
+      "plainEnglish": "Price change over 5 percent: the Category Manager must approve."
+    },
+    {
+      "id": "quantity",
+      "when": {
+        "type": "quantity-change"
+      },
+      "decidedBy": "PLANNER",
+      "plainEnglish": "Any quantity change goes to the Planner."
+    },
+    {
+      "id": "commercial-terms",
+      "when": {
+        "type": "commercial-terms"
+      },
+      "decidedBy": "CM",
+      "plainEnglish": "Lead time changes, payment terms and other commercial terms belong to the Category Manager, not Ops."
+    }
+  ]
+}

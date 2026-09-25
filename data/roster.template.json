@@ -1,0 +1,594 @@
+{
+  "version": 1,
+  "note": "Seat identity and desk placement. Placeholders only, no real names. Real names, if ever needed, go in data/roster.local.json (gitignored). Live status lives in vault/team/<seat>/profile.md.",
+  "source": "Program attendee list and progress tracker, Sep 2026: 1 Sr. Manager, 4 Leads, 11 Category Managers, 10 Ops Buyers.",
+  "counts": {
+    "MGR": 1,
+    "LEAD": 4,
+    "CM": 11,
+    "OPS": 10,
+    "total": 26
+  },
+  "tracks": {
+    "MGR": {
+      "label": "Sr. Manager",
+      "badge": "star"
+    },
+    "LEAD": {
+      "label": "Leads",
+      "badge": "triangle"
+    },
+    "CM": {
+      "label": "Category Managers",
+      "badge": "diamond"
+    },
+    "OPS": {
+      "label": "Ops Buyers",
+      "badge": "square"
+    }
+  },
+  "seats": [
+    {
+      "id": "mgr-01",
+      "track": "MGR",
+      "displayName": "Sr. Manager",
+      "roleTitle": "Senior Manager, Procurement",
+      "isPlayer": true,
+      "zone": "mgr-office",
+      "pod": null,
+      "site": "TBD",
+      "helper": {
+        "name": null,
+        "bio": null
+      },
+      "workflows": [
+        "mgr-decisions"
+      ],
+      "defaultApprover": null,
+      "avatarSeed": 1001,
+      "placeholder": true
+    },
+    {
+      "id": "lead-01",
+      "track": "LEAD",
+      "displayName": "Lead 01",
+      "roleTitle": "Team Lead (scope to define)",
+      "isPlayer": false,
+      "zone": "leads-row",
+      "pod": null,
+      "site": "TBD",
+      "helper": {
+        "name": null,
+        "bio": null
+      },
+      "workflows": [
+        "lead-review"
+      ],
+      "defaultApprover": "mgr-01",
+      "avatarSeed": 2001,
+      "placeholder": true
+    },
+    {
+      "id": "lead-02",
+      "track": "LEAD",
+      "displayName": "Lead 02",
+      "roleTitle": "Team Lead (scope to define)",
+      "isPlayer": false,
+      "zone": "leads-row",
+      "pod": null,
+      "site": "TBD",
+      "helper": {
+        "name": null,
+        "bio": null
+      },
+      "workflows": [
+        "lead-review"
+      ],
+      "defaultApprover": "mgr-01",
+      "avatarSeed": 2002,
+      "placeholder": true
+    },
+    {
+      "id": "lead-03",
+      "track": "LEAD",
+      "displayName": "Lead 03",
+      "roleTitle": "Team Lead (scope to define)",
+      "isPlayer": false,
+      "zone": "leads-row",
+      "pod": null,
+      "site": "TBD",
+      "helper": {
+        "name": null,
+        "bio": null
+      },
+      "workflows": [
+        "lead-review"
+      ],
+      "defaultApprover": "mgr-01",
+      "avatarSeed": 2003,
+      "placeholder": true
+    },
+    {
+      "id": "lead-04",
+      "track": "LEAD",
+      "displayName": "Lead 04",
+      "roleTitle": "Team Lead (scope to define)",
+      "isPlayer": false,
+      "zone": "leads-row",
+      "pod": null,
+      "site": "TBD",
+      "helper": {
+        "name": null,
+        "bio": null
+      },
+      "workflows": [
+        "lead-review"
+      ],
+      "defaultApprover": "mgr-01",
+      "avatarSeed": 2004,
+      "placeholder": true
+    },
+    {
+      "id": "cm-01",
+      "track": "CM",
+      "displayName": "CM 01",
+      "roleTitle": "Category Manager",
+      "isPlayer": false,
+      "zone": "cm-wing",
+      "pod": "cm-a",
+      "site": "TBD",
+      "helper": {
+        "name": null,
+        "bio": null
+      },
+      "workflows": [
+        "cm-pr-stock-item-approval",
+        "cm-rfq-process",
+        "cm-contract-generation-conga"
+      ],
+      "defaultApprover": "mgr-01",
+      "avatarSeed": 3001,
+      "placeholder": true
+    },
+    {
+      "id": "cm-02",
+      "track": "CM",
+      "displayName": "CM 02",
+      "roleTitle": "Category Manager",
+      "isPlayer": false,
+      "zone": "cm-wing",
+      "pod": "cm-a",
+      "site": "TBD",
+      "helper": {
+        "name": null,
+        "bio": null
+      },
+      "workflows": [
+        "cm-pr-stock-item-approval",
+        "cm-rfq-process",
+        "cm-contract-generation-conga"
+      ],
+      "defaultApprover": "mgr-01",
+      "avatarSeed": 3002,
+      "placeholder": true
+    },
+    {
+      "id": "cm-03",
+      "track": "CM",
+      "displayName": "CM 03",
+      "roleTitle": "Category Manager",
+      "isPlayer": false,
+      "zone": "cm-wing",
+      "pod": "cm-a",
+      "site": "TBD",
+      "helper": {
+        "name": null,
+        "bio": null
+      },
+      "workflows": [
+        "cm-pr-stock-item-approval",
+        "cm-rfq-process",
+        "cm-contract-generation-conga"
+      ],
+      "defaultApprover": "mgr-01",
+      "avatarSeed": 3003,
+      "placeholder": true
+    },
+    {
+      "id": "cm-04",
+      "track": "CM",
+      "displayName": "CM 04",
+      "roleTitle": "Category Manager",
+      "isPlayer": false,
+      "zone": "cm-wing",
+      "pod": "cm-a",
+      "site": "TBD",
+      "helper": {
+        "name": null,
+        "bio": null
+      },
+      "workflows": [
+        "cm-pr-stock-item-approval",
+        "cm-rfq-process",
+        "cm-contract-generation-conga"
+      ],
+      "defaultApprover": "mgr-01",
+      "avatarSeed": 3004,
+      "placeholder": true
+    },
+    {
+      "id": "cm-05",
+      "track": "CM",
+      "displayName": "CM 05",
+      "roleTitle": "Category Manager",
+      "isPlayer": false,
+      "zone": "cm-wing",
+      "pod": "cm-b",
+      "site": "TBD",
+      "helper": {
+        "name": null,
+        "bio": null
+      },
+      "workflows": [
+        "cm-pr-stock-item-approval",
+        "cm-rfq-process",
+        "cm-contract-generation-conga"
+      ],
+      "defaultApprover": "mgr-01",
+      "avatarSeed": 3005,
+      "placeholder": true
+    },
+    {
+      "id": "cm-06",
+      "track": "CM",
+      "displayName": "CM 06",
+      "roleTitle": "Category Manager",
+      "isPlayer": false,
+      "zone": "cm-wing",
+      "pod": "cm-b",
+      "site": "TBD",
+      "helper": {
+        "name": null,
+        "bio": null
+      },
+      "workflows": [
+        "cm-pr-stock-item-approval",
+        "cm-rfq-process",
+        "cm-contract-generation-conga"
+      ],
+      "defaultApprover": "mgr-01",
+      "avatarSeed": 3006,
+      "placeholder": true
+    },
+    {
+      "id": "cm-07",
+      "track": "CM",
+      "displayName": "CM 07",
+      "roleTitle": "Category Manager",
+      "isPlayer": false,
+      "zone": "cm-wing",
+      "pod": "cm-b",
+      "site": "TBD",
+      "helper": {
+        "name": null,
+        "bio": null
+      },
+      "workflows": [
+        "cm-pr-stock-item-approval",
+        "cm-rfq-process",
+        "cm-contract-generation-conga"
+      ],
+      "defaultApprover": "mgr-01",
+      "avatarSeed": 3007,
+      "placeholder": true
+    },
+    {
+      "id": "cm-08",
+      "track": "CM",
+      "displayName": "CM 08",
+      "roleTitle": "Category Manager",
+      "isPlayer": false,
+      "zone": "cm-wing",
+      "pod": "cm-b",
+      "site": "TBD",
+      "helper": {
+        "name": null,
+        "bio": null
+      },
+      "workflows": [
+        "cm-pr-stock-item-approval",
+        "cm-rfq-process",
+        "cm-contract-generation-conga"
+      ],
+      "defaultApprover": "mgr-01",
+      "avatarSeed": 3008,
+      "placeholder": true
+    },
+    {
+      "id": "cm-09",
+      "track": "CM",
+      "displayName": "CM 09",
+      "roleTitle": "Category Manager",
+      "isPlayer": false,
+      "zone": "cm-wing",
+      "pod": "cm-c",
+      "site": "TBD",
+      "helper": {
+        "name": null,
+        "bio": null
+      },
+      "workflows": [
+        "cm-pr-stock-item-approval",
+        "cm-rfq-process",
+        "cm-contract-generation-conga"
+      ],
+      "defaultApprover": "mgr-01",
+      "avatarSeed": 3009,
+      "placeholder": true
+    },
+    {
+      "id": "cm-10",
+      "track": "CM",
+      "displayName": "CM 10",
+      "roleTitle": "Category Manager",
+      "isPlayer": false,
+      "zone": "cm-wing",
+      "pod": "cm-c",
+      "site": "TBD",
+      "helper": {
+        "name": null,
+        "bio": null
+      },
+      "workflows": [
+        "cm-pr-stock-item-approval",
+        "cm-rfq-process",
+        "cm-contract-generation-conga"
+      ],
+      "defaultApprover": "mgr-01",
+      "avatarSeed": 3010,
+      "placeholder": true
+    },
+    {
+      "id": "cm-11",
+      "track": "CM",
+      "displayName": "CM 11",
+      "roleTitle": "Category Manager",
+      "isPlayer": false,
+      "zone": "cm-wing",
+      "pod": "cm-c",
+      "site": "TBD",
+      "helper": {
+        "name": null,
+        "bio": null
+      },
+      "workflows": [
+        "cm-pr-stock-item-approval",
+        "cm-rfq-process",
+        "cm-contract-generation-conga"
+      ],
+      "defaultApprover": "mgr-01",
+      "avatarSeed": 3011,
+      "placeholder": true
+    },
+    {
+      "id": "ops-01",
+      "track": "OPS",
+      "displayName": "Ops 01",
+      "roleTitle": "Ops Buyer",
+      "isPlayer": false,
+      "zone": "ops-wing",
+      "pod": "ops-a",
+      "site": "TBD",
+      "helper": {
+        "name": null,
+        "bio": null
+      },
+      "workflows": [
+        "ops-pr-to-po-stock-item",
+        "ops-erfq-to-po",
+        "ops-po-amendments"
+      ],
+      "defaultApprover": "mgr-01",
+      "avatarSeed": 4001,
+      "placeholder": true
+    },
+    {
+      "id": "ops-02",
+      "track": "OPS",
+      "displayName": "Ops 02",
+      "roleTitle": "Ops Buyer",
+      "isPlayer": false,
+      "zone": "ops-wing",
+      "pod": "ops-a",
+      "site": "TBD",
+      "helper": {
+        "name": null,
+        "bio": null
+      },
+      "workflows": [
+        "ops-pr-to-po-stock-item",
+        "ops-erfq-to-po",
+        "ops-po-amendments"
+      ],
+      "defaultApprover": "mgr-01",
+      "avatarSeed": 4002,
+      "placeholder": true
+    },
+    {
+      "id": "ops-03",
+      "track": "OPS",
+      "displayName": "Ops 03",
+      "roleTitle": "Ops Buyer",
+      "isPlayer": false,
+      "zone": "ops-wing",
+      "pod": "ops-a",
+      "site": "TBD",
+      "helper": {
+        "name": null,
+        "bio": null
+      },
+      "workflows": [
+        "ops-pr-to-po-stock-item",
+        "ops-erfq-to-po",
+        "ops-po-amendments"
+      ],
+      "defaultApprover": "mgr-01",
+      "avatarSeed": 4003,
+      "placeholder": true
+    },
+    {
+      "id": "ops-04",
+      "track": "OPS",
+      "displayName": "Ops 04",
+      "roleTitle": "Ops Buyer",
+      "isPlayer": false,
+      "zone": "ops-wing",
+      "pod": "ops-a",
+      "site": "TBD",
+      "helper": {
+        "name": null,
+        "bio": null
+      },
+      "workflows": [
+        "ops-pr-to-po-stock-item",
+        "ops-erfq-to-po",
+        "ops-po-amendments"
+      ],
+      "defaultApprover": "mgr-01",
+      "avatarSeed": 4004,
+      "placeholder": true
+    },
+    {
+      "id": "ops-05",
+      "track": "OPS",
+      "displayName": "Ops 05",
+      "roleTitle": "Ops Buyer",
+      "isPlayer": false,
+      "zone": "ops-wing",
+      "pod": "ops-b",
+      "site": "TBD",
+      "helper": {
+        "name": null,
+        "bio": null
+      },
+      "workflows": [
+        "ops-pr-to-po-stock-item",
+        "ops-erfq-to-po",
+        "ops-po-amendments"
+      ],
+      "defaultApprover": "mgr-01",
+      "avatarSeed": 4005,
+      "placeholder": true
+    },
+    {
+      "id": "ops-06",
+      "track": "OPS",
+      "displayName": "Ops 06",
+      "roleTitle": "Ops Buyer",
+      "isPlayer": false,
+      "zone": "ops-wing",
+      "pod": "ops-b",
+      "site": "TBD",
+      "helper": {
+        "name": null,
+        "bio": null
+      },
+      "workflows": [
+        "ops-pr-to-po-stock-item",
+        "ops-erfq-to-po",
+        "ops-po-amendments"
+      ],
+      "defaultApprover": "mgr-01",
+      "avatarSeed": 4006,
+      "placeholder": true
+    },
+    {
+      "id": "ops-07",
+      "track": "OPS",
+      "displayName": "Ops 07",
+      "roleTitle": "Ops Buyer",
+      "isPlayer": false,
+      "zone": "ops-wing",
+      "pod": "ops-b",
+      "site": "TBD",
+      "helper": {
+        "name": null,
+        "bio": null
+      },
+      "workflows": [
+        "ops-pr-to-po-stock-item",
+        "ops-erfq-to-po",
+        "ops-po-amendments"
+      ],
+      "defaultApprover": "mgr-01",
+      "avatarSeed": 4007,
+      "placeholder": true
+    },
+    {
+      "id": "ops-08",
+      "track": "OPS",
+      "displayName": "Ops 08",
+      "roleTitle": "Ops Buyer",
+      "isPlayer": false,
+      "zone": "ops-wing",
+      "pod": "ops-b",
+      "site": "TBD",
+      "helper": {
+        "name": null,
+        "bio": null
+      },
+      "workflows": [
+        "ops-pr-to-po-stock-item",
+        "ops-erfq-to-po",
+        "ops-po-amendments"
+      ],
+      "defaultApprover": "mgr-01",
+      "avatarSeed": 4008,
+      "placeholder": true
+    },
+    {
+      "id": "ops-09",
+      "track": "OPS",
+      "displayName": "Ops 09",
+      "roleTitle": "Ops Buyer",
+      "isPlayer": false,
+      "zone": "ops-wing",
+      "pod": "ops-c",
+      "site": "TBD",
+      "helper": {
+        "name": null,
+        "bio": null
+      },
+      "workflows": [
+        "ops-pr-to-po-stock-item",
+        "ops-erfq-to-po",
+        "ops-po-amendments"
+      ],
+      "defaultApprover": "mgr-01",
+      "avatarSeed": 4009,
+      "placeholder": true
+    },
+    {
+      "id": "ops-10",
+      "track": "OPS",
+      "displayName": "Ops 10",
+      "roleTitle": "Ops Buyer",
+      "isPlayer": false,
+      "zone": "ops-wing",
+      "pod": "ops-c",
+      "site": "TBD",
+      "helper": {
+        "name": null,
+        "bio": null
+      },
+      "workflows": [
+        "ops-pr-to-po-stock-item",
+        "ops-erfq-to-po",
+        "ops-po-amendments"
+      ],
+      "defaultApprover": "mgr-01",
+      "avatarSeed": 4010,
+      "placeholder": true
+    }
+  ]
+}

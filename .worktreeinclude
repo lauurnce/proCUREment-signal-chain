@@ -1,0 +1,6 @@
+# Gitignored files that Claude Code copies into every new worktree.
+# Only files that are gitignored AND match a line below are copied.
+.env
+.env.local
+data/roster.local.json
+docs/references/private/

@@ -1,0 +1,26 @@
+#!/bin/sh
+# SignalChain HQ: only the repo owner can author and commit.
+# The owner email is stored in this repo's git config as hq.ownerEmail.
+
+owner="$(git config --get hq.ownerEmail)"
+if [ -z "$owner" ]; then
+  echo "SignalChain HQ: the owner email is not set for this repo." >&2
+  echo "Run this once in your own terminal (use the email on your GitHub account):" >&2
+  echo "  git config hq.ownerEmail \"you@example.com\"" >&2
+  exit 1
+fi
+
+email_of() { git var "$1" | sed -n 's/^.*<\(.*\)>.*$/\1/p' | tr '[:upper:]' '[:lower:]'; }
+owner_lc="$(printf '%s' "$owner" | tr '[:upper:]' '[:lower:]')"
+author="$(email_of GIT_AUTHOR_IDENT)"
+committer="$(email_of GIT_COMMITTER_IDENT)"
+
+if [ "$author" != "$owner_lc" ] || [ "$committer" != "$owner_lc" ]; then
+  echo "SignalChain HQ: this repo only accepts commits from $owner." >&2
+  echo "  author:    $author" >&2
+  echo "  committer: $committer" >&2
+  echo "Fix it in your own terminal: git config user.email \"$owner\"" >&2
+  exit 1
+fi
+
+exit 0

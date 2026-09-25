@@ -1,0 +1,35 @@
+# Dependencies and builds
+node_modules/
+dist/
+build/
+.vite/
+coverage/
+*.tsbuildinfo
+
+# Test output
+playwright-report/
+test-results/
+blob-report/
+
+# Secrets and local settings (never commit)
+.env
+.env.local
+.env.*.local
+.secrets/
+
+# Claude Code local files
+.claude/worktrees/
+.claude/settings.local.json
+CLAUDE.local.md
+
+# Private or personal data (never commit)
+vault/
+vault-demo/
+data/roster.local.json
+docs/references/private/
+docs/qa/shots/
+
+# OS and editor noise
+.DS_Store
+*.log
+.idea/

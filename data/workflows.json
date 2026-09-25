@@ -1,0 +1,267 @@
+{
+  "version": 1,
+  "source": "Kickoff Workflow Mapping Sprint, six group boards (3 CM, 3 Ops), extracted 12 Sep 2026. Items marked confirm are handwriting or terms still to verify.",
+  "zonesNote": "zone 'own-desk' means the seat's own desk. Other zone ids come from vault.sample/office/zones.json.",
+  "workflows": [
+    {
+      "id": "cm-pr-stock-item-approval",
+      "track": "CM",
+      "name": "PR stock item approval",
+      "handoffTo": "ops-pr-to-po-stock-item",
+      "steps": [
+        {
+          "id": "extract",
+          "label": "Extract the list of pending stock item PRs from SAP",
+          "zone": "sap-station",
+          "aiAssist": "Clean and sort the extract, flag PRs with missing details",
+          "needsHuman": false
+        },
+        {
+          "id": "review",
+          "label": "Review each PR before it becomes a PO",
+          "zone": "own-desk",
+          "aiAssist": "Summarize each PR against the last price and supplier",
+          "needsHuman": true,
+          "decidedBy": "CM"
+        },
+        {
+          "id": "endorse",
+          "label": "Endorse approved PRs to Ops for PO creation",
+          "zone": "endorsement-bridge",
+          "aiAssist": "Prepare the PR-PO list file for Ops",
+          "needsHuman": true,
+          "decidedBy": "CM"
+        }
+      ]
+    },
+    {
+      "id": "cm-contract-generation-conga",
+      "track": "CM",
+      "name": "Contract generation in Conga",
+      "steps": [
+        {
+          "id": "gather",
+          "label": "Gather project details: supplier, scope of work, authorized signatory",
+          "zone": "own-desk",
+          "aiAssist": "Build a checklist from the request and list what is missing",
+          "needsHuman": false
+        },
+        {
+          "id": "generate",
+          "label": "Generate the SOW from the Conga template",
+          "zone": "contract-corner",
+          "aiAssist": "Draft the SOW sections from the gathered details",
+          "needsHuman": false
+        },
+        {
+          "id": "finalize",
+          "label": "Finalize the SOW with the requestor and vendor",
+          "zone": "negotiation-room",
+          "aiAssist": "Summarize requested changes and open points",
+          "needsHuman": true,
+          "decidedBy": "CM"
+        },
+        {
+          "id": "route",
+          "label": "Upload and route for approval and signature in DocuSign (confirm wording)",
+          "zone": "contract-corner",
+          "aiAssist": "Prepare the routing note and signer list",
+          "needsHuman": true,
+          "decidedBy": "CM"
+        }
+      ]
+    },
+    {
+      "id": "cm-rfq-process",
+      "track": "CM",
+      "name": "RFQ process",
+      "steps": [
+        {
+          "id": "requirement",
+          "label": "Clarify the requirement: OEM, non-OEM, or sole source",
+          "zone": "own-desk",
+          "aiAssist": "Turn the request into a clear spec and question list",
+          "needsHuman": false
+        },
+        {
+          "id": "sourcing",
+          "label": "Sourcing: identify, qualify and benchmark vendors",
+          "zone": "own-desk",
+          "aiAssist": "Draft a shortlist with pros and cons from available data",
+          "needsHuman": false
+        },
+        {
+          "id": "analysis",
+          "label": "Bid and quote analysis: commercial vs technical, tabulation",
+          "zone": "own-desk",
+          "aiAssist": "Normalize the quotes into one comparison table",
+          "needsHuman": false
+        },
+        {
+          "id": "negotiate",
+          "label": "Negotiate terms, align the quote, and award",
+          "zone": "negotiation-room",
+          "aiAssist": "Prepare a negotiation brief and the award email draft",
+          "needsHuman": true,
+          "decidedBy": "CM"
+        }
+      ]
+    },
+    {
+      "id": "ops-pr-to-po-stock-item",
+      "track": "OPS",
+      "name": "PR to PO processing (stock item)",
+      "handoffFrom": "cm-pr-stock-item-approval",
+      "steps": [
+        {
+          "id": "receive",
+          "label": "Receive the PR-PO list from CM",
+          "zone": "endorsement-bridge",
+          "aiAssist": "Check the file is complete and log it",
+          "needsHuman": false
+        },
+        {
+          "id": "load",
+          "label": "Load PRs to process in SAP (ME57)",
+          "zone": "sap-station",
+          "aiAssist": "Prepare the PR list in the order to process",
+          "needsHuman": false
+        },
+        {
+          "id": "countercheck",
+          "label": "Counter-check the CM Excel file against SAP details",
+          "zone": "own-desk",
+          "aiAssist": "Compare line by line and list every mismatch",
+          "needsHuman": true,
+          "decidedBy": "OPS"
+        },
+        {
+          "id": "convert",
+          "label": "Convert PRs to POs when all details match",
+          "zone": "sap-station",
+          "aiAssist": "Prepare the conversion list",
+          "needsHuman": false
+        },
+        {
+          "id": "acknowledge",
+          "label": "PO auto-sends to the vendor, confirm acknowledgment",
+          "zone": "mail-dock",
+          "aiAssist": "Draft a polite acknowledgment follow-up for vendors who have not replied",
+          "needsHuman": true,
+          "decidedBy": "OPS"
+        }
+      ]
+    },
+    {
+      "id": "ops-erfq-to-po",
+      "track": "OPS",
+      "name": "eRFQ to PO",
+      "steps": [
+        {
+          "id": "check-quote",
+          "label": "Check the quotation: description, price, receivable item (confirm), validity",
+          "zone": "own-desk",
+          "aiAssist": "Checklist the quotation and flag anything expired or unclear",
+          "needsHuman": false
+        },
+        {
+          "id": "vendor-code",
+          "label": "Verify the vendor code in the SAP master file, local vs foreign currency (codes to confirm)",
+          "zone": "sap-station",
+          "aiAssist": "Look up and show the vendor setup to confirm",
+          "needsHuman": false
+        },
+        {
+          "id": "convert",
+          "label": "Convert to PO",
+          "zone": "sap-station",
+          "aiAssist": "Prepare the PO details for review",
+          "needsHuman": true,
+          "decidedBy": "OPS"
+        }
+      ]
+    },
+    {
+      "id": "ops-po-amendments",
+      "track": "OPS",
+      "name": "PO amendments",
+      "steps": [
+        {
+          "id": "inbox",
+          "label": "Check email from A/P or the vendor",
+          "zone": "mail-dock",
+          "aiAssist": "Sort the request and pull out the PO number and the ask",
+          "needsHuman": false
+        },
+        {
+          "id": "identify",
+          "label": "Identify the mismatch: price, quantity, freight or other",
+          "zone": "own-desk",
+          "aiAssist": "Compare PO and invoice or vendor request line by line",
+          "needsHuman": false
+        },
+        {
+          "id": "decide",
+          "label": "Apply the authority rule: change in SAP, send to CM, or send to Planner",
+          "zone": "own-desk",
+          "aiAssist": "Explain which rule applies and draft the note to the right person",
+          "needsHuman": true,
+          "decidedBy": "RULE"
+        },
+        {
+          "id": "amend",
+          "label": "Verify the price and amend the PO in SAP",
+          "zone": "sap-station",
+          "aiAssist": "Prepare the amendment summary",
+          "needsHuman": true,
+          "decidedBy": "OPS"
+        }
+      ]
+    },
+    {
+      "id": "lead-review",
+      "track": "LEAD",
+      "name": "Review and unblock (placeholder)",
+      "steps": [
+        {
+          "id": "review",
+          "label": "Review helper outputs from the group",
+          "zone": "leads-row",
+          "aiAssist": "Summarize what changed and what looks risky",
+          "needsHuman": true,
+          "decidedBy": "LEAD"
+        },
+        {
+          "id": "unblock",
+          "label": "Unblock stuck items and escalate when needed",
+          "zone": "huddle-room",
+          "aiAssist": "Draft the escalation note",
+          "needsHuman": true,
+          "decidedBy": "LEAD"
+        }
+      ]
+    },
+    {
+      "id": "mgr-decisions",
+      "track": "MGR",
+      "name": "Decisions and direction (placeholder)",
+      "steps": [
+        {
+          "id": "decide",
+          "label": "Decide on items that need the Sr. Manager",
+          "zone": "mgr-office",
+          "aiAssist": "Prepare a one-screen summary with a recommendation",
+          "needsHuman": true,
+          "decidedBy": "MGR"
+        },
+        {
+          "id": "digest",
+          "label": "Read the daily digest and set priorities",
+          "zone": "mgr-office",
+          "aiAssist": "Write the daily digest",
+          "needsHuman": false
+        }
+      ]
+    }
+  ]
+}
