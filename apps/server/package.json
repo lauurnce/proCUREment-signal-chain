@@ -1,0 +1,26 @@
+{
+  "name": "@hq/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --clear-screen=false src/main.ts",
+    "start": "tsx src/main.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "vault:reset": "tsx src/vault/reset-cli.ts"
+  },
+  "dependencies": {
+    "@fastify/cors": "11.3.0",
+    "@hq/shared": "workspace:*",
+    "chokidar": "5.0.0",
+    "fastify": "5.12.5",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.6",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2",
+    "vitest": "5.0.2"
+  }
+}
