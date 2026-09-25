@@ -14,7 +14,8 @@ blob-report/
 # Secrets and local settings (never commit)
 .env
 .env.local
-.env.*.local
+.env.*
+!.env.example
 .secrets/
 
 # Claude Code local files
@@ -25,6 +26,7 @@ CLAUDE.local.md
 # Private or personal data (never commit)
 vault/
 vault-demo/
+vault-backups/
 data/roster.local.json
 docs/references/private/
 docs/qa/shots/

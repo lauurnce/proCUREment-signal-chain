@@ -14,7 +14,7 @@ What it is not: an ADI product, a real-data system, or a tool that watches peopl
 ## Status
 Starter kit, Phase 0. Progress: [docs/PROGRESS.md](docs/PROGRESS.md).
 
-## Quick start (Phase 0)
+## First-time setup (Phase 0)
 You need: macOS, Node 24 LTS (`nvm install 24`), pnpm (`npm install -g pnpm`), git, the GitHub CLI (`brew install gh`), VS Code, and Claude Code.
 
 ```bash
@@ -34,6 +34,26 @@ bash scripts/setup.sh
 claude
 ```
 Then paste **P0.1** from [docs/PROMPTS.md](docs/PROMPTS.md) and follow the prompts in order.
+
+## Run the app (from Phase 1)
+Run these in the main checkout or in any worktree. Each folder needs its own install.
+
+```bash
+pnpm install          # once per folder
+pnpm e2e:install      # once per machine: the Chromium browser for tests and screenshots
+pnpm dev              # starts the web app and the local server, and prints both addresses
+```
+
+| Command | What it does |
+|---|---|
+| `pnpm dev` | Web app and server. The main checkout uses ports 5173 and 4317. Each worktree gets its own ports |
+| `pnpm check` | Type check, lint, unit tests, and a check of `data/` and `vault.sample/` |
+| `pnpm e2e` | Browser tests (starts the app if it is not running) |
+| `pnpm shots` | Screenshots to `docs/qa/shots/<date>/` |
+| `pnpm vault:reset` | Saves your live `vault/` to `vault-backups/`, then makes a fresh copy of `vault.sample/` |
+| `pnpm format` | Formats all files with Biome |
+
+The first `pnpm dev` copies `vault.sample/` into `vault/` (gitignored). Later runs only add files that are missing. They never overwrite your edits.
 
 ## What is in this starter kit
 

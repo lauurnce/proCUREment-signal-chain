@@ -1,0 +1,30 @@
+{
+  "name": "signalchain-hq",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.6.0",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm validate",
+    "typecheck": "pnpm -r run typecheck",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "test": "pnpm -r run test",
+    "validate": "pnpm --filter @hq/shared run validate",
+    "e2e": "pnpm --filter @hq/web run e2e",
+    "e2e:install": "pnpm --filter @hq/web exec playwright install chromium",
+    "shots": "pnpm --filter @hq/web run shots",
+    "vault:reset": "tsx apps/server/src/vault/reset-cli.ts"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.14",
+    "@types/node": "24.13.6",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2",
+    "vitest": "5.0.2"
+  }
+}

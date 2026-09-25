@@ -1,0 +1,15 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+allowBuilds:
+  esbuild: true
+minimumReleaseAgeExclude:
+  - '@vitest/mocker@5.0.2'
+  - '@vitest/spy@5.0.2'
+  - vitest@5.0.2
+  - '@react-three/fiber@9.8.1'
+  - framer-motion@13.4.3
+  - its-fine@2.1.1
+  - motion@13.4.3
+  - three@0.186.1
+  - vite@8.3.1
