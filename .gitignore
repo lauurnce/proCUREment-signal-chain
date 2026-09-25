@@ -24,9 +24,11 @@ blob-report/
 CLAUDE.local.md
 
 # Private or personal data (never commit)
-vault/
-vault-demo/
-vault-backups/
+# Anchored with a leading slash so only the live vaults at the repo root match,
+# not code folders that are also named "vault" (like packages/shared/src/vault/).
+/vault/
+/vault-demo/
+/vault-backups/
 data/roster.local.json
 docs/references/private/
 docs/qa/shots/
