@@ -1,7 +1,7 @@
 ---
 seat: cm-02
 status: waiting-on-you
-workingOn: "Price change above 5 percent on PO-452114 needs a CM decision"
+workingOn: "Price change of 5 percent or more on PO-452114 needs a CM decision"
 currentWorkflow: ops-po-amendments
 currentStep: decide
 updated: 2026-09-25T09:30:00+08:00

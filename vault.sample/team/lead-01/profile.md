@@ -1,7 +1,7 @@
 ---
 seat: lead-01
-status: working
-workingOn: "Reviewing CM helper summaries from pod A"
+status: waiting-on-you
+workingOn: "Weekly digest draft is ready for your review"
 currentWorkflow: lead-review
 currentStep: review
 updated: 2026-09-25T09:30:00+08:00
