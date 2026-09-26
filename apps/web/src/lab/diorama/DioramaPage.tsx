@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { TagLayer } from "../../scene/tags/TagLayer";
 import type { TagRegistry } from "../../scene/tags/TagProjector";
+import { useStore } from "../../state/store";
 import { typeStyle } from "../../theme/style";
 import { AboutNote } from "../../ui/AboutNote";
 import { PanelTitle } from "../../ui/PanelTitle";
 import { DioramaScene } from "./DioramaScene";
-import { HELPERS } from "./helpers";
+import { HELPERS, withLiveStatus } from "./helpers";
 import { LookToggle } from "./LookToggle";
 import { LOOKS, type LookId, lightingFor, readParams, type TimeOfDay } from "./looks";
 
@@ -17,6 +18,7 @@ const prefersStill = window.matchMedia("(prefers-reduced-motion: reduce)").match
 /** P2.3: one desk pod and 4 helpers, to judge light and materials before Phase 3. */
 export function DioramaPage() {
   const [choice, setChoice] = useState(() => readParams(window.location.search));
+  const seats = useStore((s) => s.data?.seats);
   const tags = useMemo<TagRegistry>(() => new Map(), []);
 
   useEffect(() => {
@@ -48,7 +50,7 @@ export function DioramaPage() {
           still={prefersStill}
           tags={tags}
         />
-        <TagLayer tags={HELPERS} registry={tags} />
+        <TagLayer tags={withLiveStatus(HELPERS, seats)} registry={tags} />
       </div>
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-4 p-6">
         <div className="pointer-events-auto flex flex-col gap-2 rounded-card border border-hairline bg-white p-4 shadow-float">

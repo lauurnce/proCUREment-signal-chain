@@ -23,3 +23,9 @@ export function typeStyle(key: TypeKey, colorKey?: ColorKey): CSSProperties {
     color: cssColor(colorKey ?? t.colorKey),
   };
 }
+
+/** A token easing like "cubic-bezier(0.2, 0.8, 0.2, 1)" as the four numbers motion needs. */
+export function bezier(css: string): [number, number, number, number] {
+  const [a = 0, b = 0, c = 1, d = 1] = (css.match(/-?[\d.]+/g) ?? []).map(Number);
+  return [a, b, c, d];
+}

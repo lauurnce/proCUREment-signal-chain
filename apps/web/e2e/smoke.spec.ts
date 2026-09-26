@@ -37,30 +37,41 @@ test("the panel works with the keyboard only, and nothing is sent", async ({ pag
   const tab = page.getByRole("tab", { name: /Needs you/ });
   await expect(tab).toContainText("3");
 
-  // Keys work only when the panel has focus (D-031).
-  await page.keyboard.press("a");
-  await expect(page.getByTestId("undo-bar")).toHaveCount(0);
+  // The first card has focus on load, so keys work at once (D-031, panel spec section 5).
+  await expect(page.getByTestId("decision-card")).toBeFocused();
 
-  await page.getByTestId("hq-panel").focus();
+  // Two decisions in a row with no clicks: focus must move to the next card by itself.
   await page.keyboard.press("j");
   await page.keyboard.press("a");
   await expect(page.getByTestId("undo-bar")).toContainText("Approved by you");
   await expect(page.getByTestId("undo-bar")).toContainText("Lab only, nothing is saved or sent.");
   await expect(tab).toContainText("2");
+  await expect(page.getByTestId("decision-card")).toBeFocused();
+  await page.keyboard.press("h");
+  await expect(tab).toContainText("1");
 
+  // Undo brings the item back and focuses it.
   await page.keyboard.press("u");
-  await expect(tab).toContainText("3");
+  await expect(tab).toContainText("2");
+  await expect(page.getByTestId("decision-card")).toBeFocused();
 
-  // No shortcut fires while typing in the instruction box.
+  // No shortcut fires while typing in the instruction box. Esc goes back to the card.
   await page.getByRole("textbox", { name: "Instruction" }).fill("Ask for a firm date");
   await page.keyboard.press("h");
-  await expect(tab).toContainText("3");
+  await expect(tab).toContainText("2");
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("decision-card")).toBeFocused();
 
-  // Enter opens the item, Esc goes back.
-  await page.getByTestId("hq-panel").focus();
+  // Enter opens the item, Esc goes back to its card.
   await page.keyboard.press("Enter");
   await expect(page.getByTestId("item-detail")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByTestId("item-detail")).toHaveCount(0);
+  await expect(page.getByTestId("decision-card")).toBeFocused();
+
+  // Keys outside the panel do nothing.
+  await page.locator("body").click({ position: { x: 20, y: 400 } });
+  await page.keyboard.press("a");
+  await expect(tab).toContainText("2");
   expect(errors).toEqual([]);
 });

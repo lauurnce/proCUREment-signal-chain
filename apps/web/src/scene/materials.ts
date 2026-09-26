@@ -1,5 +1,6 @@
 import { createContext, useContext } from "react";
 import { MeshStandardMaterial } from "three";
+import { world } from "../theme/tokens";
 
 /** Surface settings that a look or the time of day can change. */
 export type Surface = {
@@ -31,7 +32,7 @@ export function sharedMaterial(color: string, surface: Surface, options: Options
       color,
       roughness,
       metalness: 0,
-      emissive: glow > 0 ? color : "#000000",
+      emissive: glow > 0 ? color : world.noGlow,
       emissiveIntensity: glow,
       transparent: opacity < 1,
       opacity,

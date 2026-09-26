@@ -176,18 +176,20 @@ export function PlanDrawing({ plan, zones, workflows, visibleRoutes }: Props) {
         );
       })}
 
-      {/* Route start markers with their number, on top of everything */}
+      {/* Route start markers, on top of everything. A white circle with a track-color ring and a
+          navy number: white on gold or teal is too low for text (council review, Must 2).
+          Markers spread a little more than their lines, so routes that start together stay apart. */}
       {routes.map((r) => {
         const start = r.points[0] as Point;
         return (
-          <g key={r.id} transform={`translate(${r.offset[0]} ${r.offset[1]})`}>
+          <g key={r.id} transform={`translate(${r.offset[0] * 2.8} ${r.offset[1] * 2.2})`}>
             <circle
               cx={start[0]}
               cy={start[1]}
-              r={0.3}
-              fill={r.style.color}
-              stroke={color.white}
-              strokeWidth={0.06}
+              r={0.32}
+              fill={color.white}
+              stroke={r.style.color}
+              strokeWidth={0.1}
             />
             <text
               x={start[0]}
@@ -195,7 +197,7 @@ export function PlanDrawing({ plan, zones, workflows, visibleRoutes }: Props) {
               fontSize={0.34}
               fontWeight={700}
               textAnchor="middle"
-              fill={color.white}
+              fill={color.navy}
             >
               {r.style.number}
             </text>

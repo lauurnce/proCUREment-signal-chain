@@ -111,6 +111,7 @@ export const world = {
   keyLightNight: color.blueLight,
   lampLight: "#FFD9A0",
   contactShadow: color.navy,
+  noGlow: "#000000", // emissive color for materials that do not glow
 } as const;
 
 /** Light intensities in three.js physical units, tuned in the P2.3 diorama. */

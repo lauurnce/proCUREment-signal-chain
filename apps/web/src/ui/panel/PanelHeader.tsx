@@ -46,7 +46,7 @@ export function PanelHeader({
         style={typeStyle("small")}
         title={`${seatCount} seats, each with an AI helper.`}
       >
-        {seatCount} on the team
+        {seatCount} helpers
       </span>
       <button
         type="button"

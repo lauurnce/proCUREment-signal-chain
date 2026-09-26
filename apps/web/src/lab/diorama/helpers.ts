@@ -1,3 +1,4 @@
+import type { Seat } from "@hq/shared";
 import type { Activity } from "../../scene/characters/motion";
 import type { TagData } from "../../scene/tags/TagLayer";
 
@@ -39,3 +40,15 @@ export const HELPERS: Helper[] = [
     activity: "typing",
   },
 ];
+
+/**
+ * The helpers with their live status from the vault, so a tag never shows a status the data
+ * does not have (council review, Must 4). Falls back to the defaults above before data loads.
+ */
+export function withLiveStatus(helpers: Helper[], seats: Seat[] | undefined): Helper[] {
+  if (!seats) return helpers;
+  return helpers.map((h) => ({
+    ...h,
+    status: seats.find((s) => s.id === h.id)?.status ?? h.status,
+  }));
+}

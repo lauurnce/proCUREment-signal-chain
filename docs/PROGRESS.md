@@ -1,11 +1,11 @@
 # Progress
 
-Now: Phase 2 in `p2-design-lab`. P2.5 built: the HQ panel at `/lab/panel`, docked next to the diorama. Lawrence chose the panel keys, Hold and Board order (D-039 to D-041). Next: P2.6, the council review.
+Now: Phase 2 done in `p2-design-lab`, waiting for commit and merge (P2.7). Next: Phase 3, the office world. Start a new session with `claude -w p3-office`, then paste P3.1 from `docs/PROMPTS.md`.
 
 ## Phases
 - [x] 0. Kickoff and alignment (main checkout)
 - [x] 1. Scaffold and tooling (`p1-scaffold`)
-- [ ] 2. Design direction in the Lab (`p2-design-lab`)
+- [x] 2. Design direction in the Lab (`p2-design-lab`)
 - [ ] 3. The office world (`p3-office`)
 - [ ] 4. The team, characters and movement (`p4-team`, parallel with 5)
 - [ ] 5. The HQ panel (`p5-panel`, parallel with 4)
@@ -21,6 +21,7 @@ Now: Phase 2 in `p2-design-lab`. P2.5 built: the HQ panel at `/lab/panel`, docke
 - Confirm the pnpm release-age exceptions for new package versions (D-024).
 
 ## Log
+- 27 Sep 2026, P2.6 and P2.7: Design Council review (`docs/design/reviews/2026-09-27-design-lab.md`), then applied the 5 Must fixes and Lawrence's decisions (D-042 to D-048): panel focus, accessibility floor, no jumps, truthful name tags, copy trust pass, new stats tiles, q-0001 as a real escalation. Final values written to DESIGN_DIRECTION and both skills. Phase 2 done.
 - 26 Sep 2026, P2.5: the ux-architect wrote the panel spec and the ux-writer the copy deck (`docs/design/panel/`). Built the panel in `apps/web/src/ui/panel/` with sample data: header, 4 tabs, Needs you cards and detail, decisions with keys and a 5 s undo, Team, Board, Office, and the instruction box. A keyboard-only smoke test passes.
 - 26 Sep 2026, P2.4: the procurement-sme and ux-architect wrote adjacency and readability notes, the world-artist drew 2 options as data, shown at `/lab/floorplan` with the six workflow routes and their walk lengths. Lawrence chose Option 1, Central Bridge (D-037), and one Leads' Row for now (D-038).
 - 26 Sep 2026, P2.3: diorama study with one desk pod, 4 seated helpers (one per track), idle and typing loops, name tags, and 3 looks with a dev toggle. The world-artist picked A, Soft daylight (D-034), and its fixes were applied. 60 fps on the M4 Pro, but 284 draw calls for 4 helpers, so Phase 3 and 4 must merge helper meshes.

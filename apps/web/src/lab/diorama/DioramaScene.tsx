@@ -17,7 +17,8 @@ import type { Lighting } from "./looks";
 
 const POD_CENTER: [number, number] = [3.2, 2.6];
 const SEATS = podSeats(POD_CENTER);
-const TAG_HEIGHT = 2.05;
+/** Tag anchor height: 0.35 m above the top of the hair (council review, Must 4). */
+const TAG_HEIGHT = 2.4;
 
 const ANCHORS: TagAnchor[] = HELPERS.flatMap((h, i) => {
   const seat = SEATS[i];

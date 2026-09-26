@@ -1,6 +1,6 @@
 import type { QueueItem, Seat, Workflow } from "@hq/shared";
 import { describe, expect, it } from "vitest";
-import { stepInfo, toDecisionItem, whyText } from "./itemView";
+import { keepCodesTogether, stepInfo, toDecisionItem, whyText } from "./itemView";
 import { type KeyInput, panelAction } from "./keys";
 import { firstLine, sections } from "./markdown";
 
@@ -129,5 +129,14 @@ describe("focused card from a queue item", () => {
     expect(card.sendBackTo).toBe("Ops 07 helper");
     expect(card.ruleConfirmed).toBe(false);
     expect(card.suggestion).toBe("Approve the new price.");
+  });
+});
+
+describe("titles", () => {
+  it("keeps PO and PR numbers on one line", () => {
+    expect(keepCodesTogether("Price change on PO-452114 and PR-10")).toBe(
+      "Price change on PO\u2011452114 and PR\u201110",
+    );
+    expect(keepCodesTogether("A well-known supplier")).toBe("A well-known supplier");
   });
 });

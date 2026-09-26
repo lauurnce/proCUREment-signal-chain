@@ -1,6 +1,6 @@
 # Design direction
 
-Status: direction chosen 26 Sep 2026 (A with B's rules, D-025). All 6 open decisions are decided (D-026 to D-031). It combines the 7 council points of view in `docs/design/pov/`. Lawrence approved the choices, and they are logged in `docs/DECISIONS.md`.
+Status: **final**, 27 Sep 2026, end of Phase 2. Direction A, Warm Diorama with B's rules (D-025). Every open choice is decided (D-011, D-025 to D-044) and logged in `docs/DECISIONS.md`. The approved values live in the `adi-theme` and `isometric-office` skills and in `apps/web/src/theme/tokens.ts`. Sections 4 and 6 are kept as the record of how we chose.
 
 ## 1. North star
 
@@ -69,7 +69,7 @@ A is the only direction that makes the real CM to Ops handoff something you can 
 - **Floating or docked panel.** The brand spec allows a floating panel with a shadow. The UX architect wants it docked. **Call: docked**, with `shadow-float` kept only for small overlays like the stats bar and toasts. Principle 1.
 - **Instruction button.** Options were "Send to helper" or a button that names its audience. **Call: name the audience**, for example "Send to CM Wing (11 helpers)", with a "To" field.
 
-## 6. Open decisions for Lawrence
+## 6. Decisions from the direction round (all decided)
 
 1. **Approve green.** White text on #1E8E5A is 4.14:1 and fails for button text. Options: **(a) use #1A7F50 (about 5.0:1) for the button and the "working" dot, recommended**, (b) change the button only, (c) keep #1E8E5A with larger text.
 2. **The Sr. Manager and seat-level items.** Options: **(a) by default her Needs you shows her own items, and a "Team items (demo)" filter lets her decide others with a "Deciding as CM 03 (demo)" label, recommended**, (b) always show everything with the label, (c) show her own items only. This matches how the real authority rule works (procurement-sme).
@@ -84,3 +84,33 @@ A is the only direction that makes the real CM to Ops handoff something you can 
 
    **Recommended: accept all** and add them to the brand guide (adi-theme skill). Option (b): try them in the Lab first.
 6. **Keyboard conflict.** W A S D walk, and A H S I decide. Options: **(a) scope keys by mode, recommended.** Walk keys work only in walk mode, decision keys and J/K only when the panel has focus, and no shortcut fires while typing. (b) Move the decisions to Shift plus a letter. (c) Walk with the arrow keys only.
+
+Answers: 1 (a) D-026, 2 (a) D-027, 3 (a) D-028, 4 yes D-029, 5 accept D-030, 6 (a) D-031.
+
+## 7. Final values at the end of Phase 2
+
+| Area | Final choice | Where it lives |
+|---|---|---|
+| Style | Direction A, Warm Diorama, with a docked panel, a tag budget and at most 6 walkers | D-025 |
+| UI palette | Deck palette plus 14 approved screen-only additions | D-011, `docs/design/SCREEN_EXCEPTIONS.md`, adi-theme skill |
+| 3D palette | World palette, look A Soft daylight, night with moon, lamps and glowing windows | D-034, D-035, `docs/design/WORLD_PALETTE.md`, isometric-office skill |
+| Helpers | Chunky, big head, seeded look, badge and lanyard in the track color, seated breathing and typing loops | D-035, isometric-office skill |
+| Name tags | White pill, 0.35 m above the hair (anchor 2.4 m), no overlaps, dot and name only at overview, status from the vault | D-045 |
+| Floor plan | Option 1, Central Bridge, 28 x 18 m, one Leads' Row | D-037, D-038, `apps/web/src/lab/floorplan/plans.ts` |
+| Panel | Docked right, clamp(440px, 36vw, 600px), 14 px corner, no shadow; Needs you, Team, Board, Office; keys follow the mode | D-025, D-033, D-039 to D-041, `docs/design/panel/spec.md` |
+| Stats card | Needs you, Drafts to review, Waiting on others ("Handoffs today" later) | D-042 |
+| Copy | Helpers never people: "26 helpers", "Waiting for a CM decision", "CM 03 helper" | D-028, D-046, `docs/design/panel/copy.md` |
+| Performance | 60 fps; overview under 150 draw calls is a gate at the start of Phase 4 | D-044 |
+
+## 8. Backlog for Phase 3 and later (from the 27 Sep council review)
+
+- **Draw calls (Phase 4 gate, L).** Instanced helper body parts, one shared rounded box, shadows only from torso and head. Today about 221 calls for 4 helpers.
+- **Floor plan lanes (M).** Straight, flat #F2F4F7 walkway lanes under the labels, and routes that stay on the lanes (route 1 cuts through Contract Corner).
+- **Card motion (M).** A decided card fades and collapses in 220 ms, the detail content fades in 60 ms later, and presses use the pop spring.
+- **Offline state (M).** Pause decisions while offline: "Reconnecting. What you see is from {time}."
+- **Detail view at 900 px tall (M).** Summary above the facts, one row of 4 decisions under 1000 px tall, and a one-line composer until focused.
+- **Night look (S).** A #8FB8DD rim glow and warmer back walls.
+- **Helper variety (S).** More top colors (today 3 of 4 are light blue) and hair shapes, and a rounded plant.
+- **Signature moment (S).** On Approve, the sending helper nods and lifts its chest (pop spring, 360 ms).
+- **3D selection sync.** Selecting a card highlights its helper in the office. It comes with the full office.
+- **To picker.** A searchable combobox instead of the grouped select (panel spec, section 4).

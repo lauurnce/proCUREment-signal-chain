@@ -1,6 +1,7 @@
 import type { Track } from "@hq/shared";
 import { typeStyle } from "../../theme/style";
 import { TrackBadge } from "../TrackBadge";
+import { keepCodesTogether } from "./itemView";
 
 type Props = {
   workflowLine: string;
@@ -30,7 +31,7 @@ export function QueueCard(p: Props) {
         </span>
       </div>
       <h3 className="m-0 line-clamp-2" style={typeStyle("sectionTitle")}>
-        {p.title}
+        {keepCodesTogether(p.title)}
       </h3>
       <div className="flex items-center gap-3">
         <span

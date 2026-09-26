@@ -80,6 +80,7 @@ export function NeedsYouTab(p: Props) {
                     item={toDecisionItem(p.seats, p.workflows, item)}
                     onDecide={p.onDecide}
                     onOpen={() => p.onOpen(item.id)}
+                    focusId={`card-${item.id}`}
                   />
                 ) : (
                   <QueueCard

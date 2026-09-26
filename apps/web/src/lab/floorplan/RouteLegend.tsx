@@ -65,7 +65,11 @@ export function RouteLegend({ plan, workflows, visible, onToggle }: Props) {
               <span className="flex-1" style={typeStyle("small", "ink")}>
                 {style.number}. {w.name}
               </span>
-              <span className="tabular-nums" style={typeStyle("label", "inkMuted")}>
+              {/* Numbers keep their lowercase unit: "16.9 m", never "16.9 M" (mega). */}
+              <span
+                className="tabular-nums"
+                style={{ ...typeStyle("label", "inkMuted"), textTransform: "none" }}
+              >
                 {meters} m
               </span>
             </label>

@@ -4,11 +4,11 @@ import type { TagRegistry } from "../../scene/tags/TagProjector";
 import { useStore } from "../../state/store";
 import { typeStyle } from "../../theme/style";
 import { AboutNote } from "../../ui/AboutNote";
-import { Panel } from "../../ui/panel/Panel";
+import { Panel, type PanelCounts } from "../../ui/panel/Panel";
 import type { TabId } from "../../ui/panel/PanelTabs";
 import { StatsCard } from "../../ui/StatsCard";
 import { DioramaScene } from "../diorama/DioramaScene";
-import { HELPERS } from "../diorama/helpers";
+import { HELPERS, withLiveStatus } from "../diorama/helpers";
 import { LOOKS, lightingFor } from "../diorama/looks";
 
 const params = new URLSearchParams(window.location.search);
@@ -26,12 +26,14 @@ const panelWidth = (w: number) => Math.min(600, Math.max(440, Math.round(w * 0.3
 /** P2.5: the HQ panel, docked next to the P2.3 diorama, with sample data from vault.sample. */
 export function PanelLabPage() {
   const data = useStore((s) => s.data);
+  const seats = data?.seats;
   const connection = useStore((s) => s.connection);
   const [width, setWidth] = useState(() => panelWidth(window.innerWidth));
-  const [needs, setNeeds] = useState(0);
+  const [counts, setCounts] = useState<PanelCounts>({ needsYou: 0, drafts: 0, waitingOnOthers: 0 });
+  const needs = counts.needsYou;
   const [walkNote, setWalkNote] = useState(false);
   const tags = useMemo<TagRegistry>(() => new Map(), []);
-  const onNeedsCount = useCallback((n: number) => setNeeds(n), []);
+  const onCounts = useCallback((c: PanelCounts) => setCounts(c), []);
 
   useEffect(() => {
     const onResize = () => setWidth(panelWidth(window.innerWidth));
@@ -50,9 +52,10 @@ export function PanelLabPage() {
   const covered = width + EDGE * 2;
   const stats = data
     ? [
-        { label: "Needs you", value: String(needs) },
-        { label: "Helpers working", value: String(data.stats.working) },
-        { label: "Open tasks", value: String(data.stats.openTasks) },
+        // D-042: items only. "Handoffs today" joins when the handoff data exists.
+        { label: "Needs you", value: String(counts.needsYou) },
+        { label: "Drafts to review", value: String(counts.drafts) },
+        { label: "Waiting on others", value: String(counts.waitingOnOthers) },
       ]
     : [];
 
@@ -72,7 +75,7 @@ export function PanelLabPage() {
               tags={tags}
               rightInset={covered}
             />
-            <TagLayer tags={HELPERS} registry={tags} />
+            <TagLayer tags={withLiveStatus(HELPERS, seats)} registry={tags} />
           </section>
 
           {/* Over the scene, inside the free area */}
@@ -119,7 +122,7 @@ export function PanelLabPage() {
               data={data}
               connection={connection}
               now={NOW ?? new Date()}
-              onNeedsCount={onNeedsCount}
+              onCounts={onCounts}
               initial={{ tab: TAB as TabId | undefined, openFirst: OPEN_FIRST }}
             />
           </div>

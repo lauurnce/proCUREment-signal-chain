@@ -6,7 +6,7 @@ import { TrackBadge } from "../TrackBadge";
 import { BodySection } from "./BodySection";
 import { Chip } from "./Chip";
 import { EmailPreview } from "./EmailPreview";
-import { reference, stepInfo, whyText } from "./itemView";
+import { keepCodesTogether, reference, stepInfo, whyText } from "./itemView";
 import { sections } from "./markdown";
 import { decidingAs, helperName } from "./queue";
 import { fullTime } from "./time";
@@ -27,7 +27,7 @@ const TITLES: Record<string, string> = { "Recommendation from the helper": "Help
 const SKIP = new Set(["Draft email"]);
 
 const LINK =
-  "rounded-button px-2 py-1 hover:bg-panel focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+  "inline-flex min-h-6 min-w-6 items-center justify-center rounded-button px-2 py-1 hover:bg-panel focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
 /** One item in full: facts, why it came to you, the body, the email draft, and the decisions. */
 export function ItemDetail({
@@ -96,7 +96,9 @@ export function ItemDetail({
           {item.kind === "email-draft" && <Chip text="Email draft" />}
           {as && <Chip text={`Deciding as ${as} (demo)`} />}
         </div>
-        <PanelTitle as="h3">{item.title}</PanelTitle>
+        <div tabIndex={-1} data-focus-id={`detail-${item.id}`} className="outline-none">
+          <PanelTitle as="h3">{keepCodesTogether(item.title)}</PanelTitle>
+        </div>
         {info.stepLabel && (
           <p className="m-0 -mt-2" style={typeStyle("small")}>
             {info.stepLabel}
@@ -142,7 +144,7 @@ export function ItemDetail({
 
       <div className="sticky bottom-0 flex flex-col gap-2 border-t border-hairline bg-white px-5 py-3">
         <span style={typeStyle("label", "inkMuted")}>Your decision</span>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-[3fr_2fr] gap-2">
           <DecisionButton
             decision="approve"
             label="Approve"

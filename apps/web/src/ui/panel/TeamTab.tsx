@@ -5,6 +5,14 @@ import { StatusDot } from "../StatusDot";
 import { TrackBadge } from "../TrackBadge";
 import { helperName, PLAYER_SEAT } from "./queue";
 
+// Who decides, by track, without naming a seat (a seat maps to a real person).
+const DECISION_BY: Record<string, string> = {
+  CM: "a CM decision",
+  OPS: "an Ops decision",
+  LEAD: "a Lead decision",
+  MGR: "your decision",
+};
+
 type Group = { label: string; seats: Seat[]; pods?: { label: string; seats: Seat[] }[] };
 
 function groups(seats: Seat[]): Group[] {
@@ -22,10 +30,10 @@ function groups(seats: Seat[]): Group[] {
   const cm = seats.filter((s) => s.zone === "cm-wing");
   const ops = seats.filter((s) => s.zone === "ops-wing");
   return [
-    { label: `Sr. Manager · ${count(mgr.length)}`, seats: mgr },
-    { label: `Leads' Row · ${count(leads.length)}`, seats: leads },
-    { label: `CM Wing · ${count(cm.length)}`, seats: cm, pods: podsOf("cm-wing", "CM") },
-    { label: `Ops Wing · ${count(ops.length)}`, seats: ops, pods: podsOf("ops-wing", "Ops") },
+    { label: "Sr. Manager", seats: mgr },
+    { label: `Leads · ${count(leads.length)}`, seats: leads },
+    { label: `Category Managers · ${count(cm.length)}`, seats: cm, pods: podsOf("cm-wing", "CM") },
+    { label: `Ops Buyers · ${count(ops.length)}`, seats: ops, pods: podsOf("ops-wing", "Ops") },
   ];
 }
 
@@ -49,7 +57,8 @@ export function TeamTab({
       queue.find((q) => q.from === seat.id && q.status === "needs-you") ??
       queue.find((q) => q.approver === seat.id && q.status === "needs-you");
     if (!waiting || waiting.approver === PLAYER_SEAT) return "Waiting on you";
-    return `Waiting on ${seats.find((s) => s.id === waiting.approver)?.displayName ?? waiting.approver}`;
+    const track = seats.find((s) => s.id === waiting.approver)?.track;
+    return `Waiting for ${DECISION_BY[track ?? ""] ?? "a team decision"}`;
   };
   const stepLine = (seat: Seat) => {
     const w = workflows.find((x) => x.id === seat.currentWorkflow);

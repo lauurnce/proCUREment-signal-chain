@@ -106,9 +106,9 @@ Never shrink text to fit. Cut words instead.
 
 Materials are matte: roughness 0.8 to 0.9, metalness 0. Characters use a varied, respectful set of skin tones and hair colors chosen by seed.
 
-## 7. Motion tokens (from the motion-designer)
+## 7. Motion tokens (final, end of Phase 2)
 
-Durations: instant 80 ms, fast 140 ms, base 220 ms, slow 360 ms, camera 700 to 900 ms.
+Durations: instant 80 ms, fast 140 ms, base 220 ms, slow 360 ms, camera 800 ms (the code uses 800).
 Easing: enter `cubic-bezier(0.2, 0.8, 0.2, 1)`, exit `cubic-bezier(0.4, 0, 1, 1)`, move `cubic-bezier(0.65, 0, 0.35, 1)`.
 Springs: panel `{ stiffness: 260, damping: 26 }`, pop `{ stiffness: 420, damping: 18 }`.
 Always provide a `prefers-reduced-motion` version.
@@ -120,20 +120,40 @@ Approved 26 Sep 2026 (D-030):
 - A folder slides across the Endorsement Bridge in 600 ms.
 - Buttons scale to 0.97 in 80 ms when pressed.
 
-## 8. Copy rules
+Seated helper loops, approved 26 Sep 2026 (D-035), in `motion.character`:
+- Breath: one slow breath every 4 s, chest rises about 1.2 cm. Each helper's timing is offset by its seed, so no two move in sync.
+- Idle: a gentle head tilt of about 2 degrees.
+- Typing: 7 taps a second, hands lift about 1.8 cm, a tiny nod, in bursts of 2.4 s typing and 1.2 s reading.
+- Reduced motion: helpers hold still.
+
+Panel motion, approved 27 Sep 2026 (D-047):
+- The undo bar floats over the list, slides up 8 px and fades in 220 ms (enter easing), and leaves in 140 ms. Nothing above it moves.
+- When the docked panel changes the free space, the 3D view eases its offset over 360 ms. A plain window resize keeps the user's pan and zoom.
+
+## 8. Panel, stats card and name tags (final, end of Phase 2)
+
+- Panel: docked on the right, `clamp(440px, 36vw, 600px)` wide, 12 px from the edges, white, 1 px hairline border, 14 px corner, no shadow (D-025, D-033). Full layout and keys: `docs/design/panel/spec.md`.
+- Decision buttons: a 2 x 2 grid with 3fr and 2fr columns. Approve and Send back sit in the wide column. Labels may wrap to 2 lines, never shrink or cut.
+- Stats card over the scene (D-042): big number over a mono label. "Needs you", "Drafts to review", "Waiting on others". "Handoffs today" is added once the handoff data exists. Items only, never people.
+- Name tags (D-045): white pill with a track badge, the name ("CM 03 helper") and a status dot. The role line shows when zoomed in, and hides at overview (compact). Tags never overlap, and status always comes from the vault.
+- Codes like PO-451208 never break across lines (non-breaking hyphen).
+
+## 9. Copy rules
 
 - Plain English, short sentences, common words. English is a second language for most users.
 - Sentence case for buttons and titles ("Send back", "Needs you"). UPPERCASE only for tiny mono labels and tabs.
 - No em dashes anywhere. Use commas or periods.
 - Dates "25 Sep 2026", times "5:30 PM", time zone Asia/Manila unless stated.
 - Never "monitoring", "tracking", or "productivity score" about people.
+- Helpers, never people: "26 helpers", not "26 on the team". Say which kind of decision an item waits for ("Waiting for a CM decision"), never which seat, because a seat maps to a real person (D-046).
+- Full copy deck for the panel: `docs/design/panel/copy.md`.
 
-## 9. Logo and trademark safety
+## 10. Logo and trademark safety
 
 - Never draw, trace, embed, or import the ADI logo, the "Analog Devices" wordmark, or the "Ahead of What's Possible" tagline.
 - The product is "SignalChain HQ". The About area and the footer of emails say "Unofficial prototype · Fictional data".
 - If Lawrence later gets written approval to use ADI branding, record it in `docs/DECISIONS.md` first.
 
-## 10. Where tokens live in code
+## 11. Where tokens live in code
 
 `apps/web/src/theme/tokens.ts` is the single source. Tailwind v4 reads them through CSS variables in `apps/web/src/theme/theme.css`. 3D materials import from the same tokens. No hard-coded hex values outside the theme folder.

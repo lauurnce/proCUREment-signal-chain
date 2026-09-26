@@ -15,7 +15,7 @@ updated: "2026-09-25T09:20:00+08:00"
 decision: null
 ---
 ## Summary
-The invoice for PO-452114 is 6.5 percent above the PO price. Under the authority rule (to confirm), a price change over 5 percent needs Category Manager approval, so the Ops helper routed it to CM 02 instead of changing it in SAP.
+The invoice for PO-452114 is 6.5 percent above the PO price. Under the authority rule (to confirm), a price change of 5 percent or more needs Category Manager approval, so the Ops helper routed it to CM 02 instead of changing it in SAP.
 
 ## What the helper checked
 - PO price vs invoice price, line by line.

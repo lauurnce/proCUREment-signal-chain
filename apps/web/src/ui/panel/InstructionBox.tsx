@@ -27,7 +27,7 @@ const GROUP_ORDER = ["One helper", "A pod", "A wing", "Everyone"];
 export function InstructionBox(p: Props) {
   const audience = p.audiences.find((a) => a.id === p.audienceId);
   const ready = Boolean(audience && p.text.trim());
-  const buttonLabel = audience ? `Send to ${audience.label}` : "Choose who to send to";
+  const buttonLabel = audience ? `Send to ${audience.label}` : "Send";
   return (
     <section
       aria-label="Give an instruction"
@@ -68,7 +68,7 @@ export function InstructionBox(p: Props) {
               type="button"
               onClick={p.onDetach}
               aria-label={`Remove ${p.about}`}
-              className="px-1 focus-visible:outline-2 focus-visible:outline-accent"
+              className="grid size-6 place-items-center focus-visible:outline-2 focus-visible:outline-accent"
             >
               ×
             </button>
@@ -89,7 +89,7 @@ export function InstructionBox(p: Props) {
           rows={2}
           placeholder={p.placeholder}
           aria-label="Instruction"
-          className="min-h-11 flex-1 resize-none rounded-button border border-hairline px-2.5 py-2 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
+          className="min-h-11 flex-1 resize-none rounded-button border border-hairline px-2.5 py-2 placeholder:text-ink-muted focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
           style={typeStyle("small", "ink")}
         />
         <button

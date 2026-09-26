@@ -3,10 +3,10 @@ import { world } from "../../theme/tokens";
 import { StatsCard } from "../../ui/StatsCard";
 
 const STATS = [
-  { label: "Needs you", value: "4" },
-  { label: "Handoffs today", value: "12" },
-  { label: "Drafts to review", value: "3" },
-  { label: "Orders acknowledged", value: "9" },
+  // D-042: items only, never people. "Handoffs today" joins when the handoff data exists.
+  { label: "Needs you", value: "3" },
+  { label: "Drafts to review", value: "1" },
+  { label: "Waiting on others", value: "1" },
 ];
 
 export function HudSection() {

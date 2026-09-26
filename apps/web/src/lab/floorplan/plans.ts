@@ -56,7 +56,7 @@ const option1: FloorPlan = {
   size: { width: 28, depth: 18 },
   zones: [
     // Back wall z = 0, from the back corner toward the right corner.
-    { id: "mgr-office", rect: [0, 0, 5, 4.5], anchor: [2.4, 3.3], landmark: "Needs You tray" },
+    { id: "mgr-office", rect: [0, 0, 5, 4.5], anchor: [2.4, 3.3], landmark: "Needs you tray" },
     { id: "huddle-room", rect: [5, 0, 5, 4.5], anchor: [7.5, 3.9], landmark: "Whiteboard wall" },
     { id: "sap-station", rect: [10, 0, 5, 4.5], anchor: [12.6, 3.9], landmark: "SAP terminal" },
     { id: "ops-wing", rect: [15, 0, 13, 7], anchor: [17.5, 6.4], landmark: "Teal pennant" },
@@ -241,7 +241,7 @@ const option2: FloorPlan = {
       anchor: [7.25, 3.5],
       landmark: "Coffee cart",
     },
-    { id: "mgr-office", rect: [11, 0, 6, 3], anchor: [14, 2.4], landmark: "Needs You tray" },
+    { id: "mgr-office", rect: [11, 0, 6, 3], anchor: [14, 2.4], landmark: "Needs you tray" },
     { id: "sap-station", rect: [18.5, 0, 5, 4.5], anchor: [21, 3.5], landmark: "SAP terminal" },
     // Two leads on each side of the street, facing down it toward the bridge.
     { id: "leads-row", rect: [9.5, 3, 9, 3], anchor: [14, 5], landmark: "Review rail" },

@@ -68,3 +68,8 @@ export function toDecisionItem(
     sendBackTo: helperName(seats, item.from),
   };
 }
+
+/** Keeps codes like "PO-451208" on one line, so a title never breaks at the hyphen. */
+export function keepCodesTogether(text: string): string {
+  return text.replace(/\b(PO|PR|RFQ|INV)-(\d+)/g, "$1\u2011$2");
+}
