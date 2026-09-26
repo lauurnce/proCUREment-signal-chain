@@ -24,6 +24,12 @@ const pages = [
     path: `/lab/diorama?shots=1&look=${look}&time=day`,
     fullPage: false,
   })),
+  // P2.4 floor plan options, drawn top-down with the workflow routes.
+  ...(["1", "2"] as const).map((plan) => ({
+    name: `floorplan-${plan}`,
+    path: `/lab/floorplan?plan=${plan}`,
+    fullPage: true,
+  })),
   ...(FAVORITE
     ? [
         {

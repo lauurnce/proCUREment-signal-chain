@@ -1,6 +1,6 @@
 # Progress
 
-Now: Phase 2 in `p2-design-lab`. P2.3 built: the 3D diorama study at `/lab/diorama`, look A chosen (D-034). Lawrence said OK (D-035 accepted). Next: P2.4 in `docs/PROMPTS.md`.
+Now: Phase 2 in `p2-design-lab`. P2.4 done: floor plan Option 1, Central Bridge, chosen (D-037). Next: P2.5, the panel layout.
 
 ## Phases
 - [x] 0. Kickoff and alignment (main checkout)
@@ -21,6 +21,7 @@ Now: Phase 2 in `p2-design-lab`. P2.3 built: the 3D diorama study at `/lab/diora
 - Confirm the pnpm release-age exceptions for new package versions (D-024).
 
 ## Log
+- 26 Sep 2026, P2.4: the procurement-sme and ux-architect wrote adjacency and readability notes, the world-artist drew 2 options as data, shown at `/lab/floorplan` with the six workflow routes and their walk lengths. Lawrence chose Option 1, Central Bridge (D-037), and one Leads' Row for now (D-038).
 - 26 Sep 2026, P2.3: diorama study with one desk pod, 4 seated helpers (one per track), idle and typing loops, name tags, and 3 looks with a dev toggle. The world-artist picked A, Soft daylight (D-034), and its fixes were applied. 60 fps on the M4 Pro, but 284 draw calls for 4 helpers, so Phase 3 and 4 must merge helper meshes.
 - 26 Sep 2026, P2.2: the brand-guardian wrote the UI tokens and `docs/design/SCREEN_EXCEPTIONS.md`, the world-artist wrote `docs/design/WORLD_PALETTE.md`, merged into `tokens.ts`. The Lab shows colors with contrast, type, status and track, name tags, stats and the decision card. The brand-guardian reviewed the screenshots, fixes applied (D-032, D-033). 57 unit tests pass.
 - 26 Sep 2026, P2.1: 7 council members wrote points of view (`docs/design/pov/`). The creative-director combined them into `docs/design/DESIGN_DIRECTION.md`. Lawrence chose A, Warm Diorama with B's rules (D-025), Approve green #1A7F50 (D-026), and a demo filter for seat items (D-027). Then decided the rest: helper naming (D-028), navy slab edge and capiz lamp (D-029), motion values (D-030), keys follow the mode (D-031).
