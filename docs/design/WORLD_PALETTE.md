@@ -42,7 +42,7 @@ Tints are thin rugs (a plane 0.005 m above the floor, soft 0.08 m rounded corner
 | `door` | #D8C29C | 1 | Door leaves, light oak |
 | `glass` | #CFE0F1 | 0.35 | Office glass (Sr. Manager, Negotiation, Huddle) |
 | `glassNight` | #CFE0F1 | 0.2 | Same glass at night, so warm rooms read through it |
-| `windowDay` | #EAF2FB | 1 | Window panes in day, a flat pale sky |
+| `windowDay` | #D6E4F2 | 1 | Window panes in day, a flat pale sky. Deepened from #EAF2FB in P2.3 so the window reads |
 | `windowGlow` | #FFE2A8 | 1 | Window panes at night, emissive (see section 2) |
 | `sunPatch` | #FFF1D6 | 0.22 | Fake window light stripes on the floor in day and late afternoon. A flat plane, no extra light |
 
@@ -137,9 +137,9 @@ Face: `eye` #1A1A1A (two dots, same as `color.ink`). No mouth, no blush.
 | `backdropDay` | #E9EEF5 | | Background in day (kept) |
 | `backdropDusk` | #EFE7DC | | Background in late afternoon |
 | `backdropNight` | #0E1F3B | | Background at night (kept) |
-| `skyLight` | #F5F8FF | 0.9 | Day hemisphere sky (kept) |
+| `skyLight` | #F5F8FF | 2.4 | Day hemisphere sky (intensity tuned in P2.3) |
 | `groundLight` | #E6D3B3 | | Day hemisphere ground |
-| `keyLight` | #FFF4E0 | 1.4 | Day key light, high front left, elevation about 55 degrees (kept) |
+| `keyLight` | #FFF4E0 | 2.4 | Day key light, high from the front right of the view (tuned in P2.3) |
 | `skyLightDusk` | #F3ECE2 | 0.75 | Late afternoon hemisphere sky |
 | `groundLightDusk` | #E2C9A4 | | Late afternoon hemisphere ground |
 | `keyLightDusk` | #FFD6A3 | 1.25 | Late afternoon key, lower, elevation about 30 degrees, from the window side. Longer, softer shadows |
@@ -149,7 +149,7 @@ Face: `eye` #1A1A1A (two dots, same as `color.ink`). No mouth, no blush.
 | `lampLight` | #FFD9A0 | 3 (distance 5, decay 2) | Night point lights. Max 4: capiz lamp, Bridge pendant, Sr. Manager's desk, Reception |
 | `contactShadow` | #12284C | opacity 0.35 day, 0.5 night | Contact shadows, navy tinted instead of black, blur about 2.5 |
 
-Intensities assume three.js physical light units and neutral tone mapping. Check them in the Lab, as renderer settings change the result.
+Intensities assume three.js physical light units and neutral tone mapping. P2.3 tuned the final values in the diorama: day sky 2.4 and key 2.4, dusk sky 1.8 and key 3.4, night sky 0.9 and key 0.5, night screens 0.45. The code (`worldLight` in tokens.ts) is the source of truth. Also changed in P2.3: `topColors` drops navy and oak (they matched the chairs and floor) and adds #A8C0DE and #CBAE84, and hair weights now show more browns.
 
 ## 2. Material rules
 

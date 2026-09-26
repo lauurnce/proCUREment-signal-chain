@@ -1,6 +1,6 @@
 # Progress
 
-Now: Phase 2 in `p2-design-lab`. P2.2 built: design tokens and the Lab page, Lawrence said OK and approved all screen-only additions (D-011). Next: P2.3, the 3D diorama study.
+Now: Phase 2 in `p2-design-lab`. P2.3 built: the 3D diorama study at `/lab/diorama`, look A chosen (D-034). Lawrence said OK (D-035 accepted). Next: P2.4 in `docs/PROMPTS.md`.
 
 ## Phases
 - [x] 0. Kickoff and alignment (main checkout)
@@ -14,12 +14,14 @@ Now: Phase 2 in `p2-design-lab`. P2.2 built: design tokens and the Lab page, Law
 - [ ] 8. Polish and v0.1.0 (`p8-polish`)
 
 ## Open questions
+- Night: the navy slab rim almost disappears on the navy backdrop. Kept quiet for now, or add a faint lighter edge at night?
 - Which Outlook account will we test with? (personal Outlook.com recommended)
 - Confirm the authority rule thresholds (5 percent, 2K, and the currency) before they drive real routing.
 - Which Leads cover which groups? Placeholder for now.
 - Confirm the pnpm release-age exceptions for new package versions (D-024).
 
 ## Log
+- 26 Sep 2026, P2.3: diorama study with one desk pod, 4 seated helpers (one per track), idle and typing loops, name tags, and 3 looks with a dev toggle. The world-artist picked A, Soft daylight (D-034), and its fixes were applied. 60 fps on the M4 Pro, but 284 draw calls for 4 helpers, so Phase 3 and 4 must merge helper meshes.
 - 26 Sep 2026, P2.2: the brand-guardian wrote the UI tokens and `docs/design/SCREEN_EXCEPTIONS.md`, the world-artist wrote `docs/design/WORLD_PALETTE.md`, merged into `tokens.ts`. The Lab shows colors with contrast, type, status and track, name tags, stats and the decision card. The brand-guardian reviewed the screenshots, fixes applied (D-032, D-033). 57 unit tests pass.
 - 26 Sep 2026, P2.1: 7 council members wrote points of view (`docs/design/pov/`). The creative-director combined them into `docs/design/DESIGN_DIRECTION.md`. Lawrence chose A, Warm Diorama with B's rules (D-025), Approve green #1A7F50 (D-026), and a demo filter for seat items (D-027). Then decided the rest: helper naming (D-028), navy slab edge and capiz lamp (D-029), motion values (D-030), keys follow the mode (D-031).
 - 25 Sep 2026, P1.3 and P1.4: Playwright smoke tests, `pnpm shots` (office and Lab at 1440x900 and 1920x1080), a test per schema (49 unit tests). The qa-playtester tested a clean install and found 10 bugs, all fixed (reconnect, clean shutdown, port collisions, plain warnings, Host check). Decisions D-015 to D-024.

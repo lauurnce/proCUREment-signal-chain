@@ -56,7 +56,7 @@ export const world = {
   wallTrim: color.navy,
   door: "#D8C29C",
   glass: "#CFE0F1", // opacity 0.35 by day, 0.2 at night
-  windowDay: "#EAF2FB",
+  windowDay: "#D6E4F2", // a little deeper, so the window reads by day (P2.3)
   windowGlow: "#FFE2A8",
   sunPatch: "#FFF1D6", // opacity 0.22
 
@@ -113,14 +113,14 @@ export const world = {
   contactShadow: color.navy,
 } as const;
 
-/** Light intensities in three.js physical units. To be tuned in the P2.3 diorama. */
+/** Light intensities in three.js physical units, tuned in the P2.3 diorama. */
 export const worldLight = {
-  skyDay: 0.9,
-  keyDay: 1.4,
-  skyDusk: 0.75,
-  keyDusk: 1.25,
-  skyNight: 0.25,
-  keyNight: 0.3,
+  skyDay: 2.4,
+  keyDay: 2.4,
+  skyDusk: 1.8,
+  keyDusk: 3.4,
+  skyNight: 0.9,
+  keyNight: 0.5,
   lamp: { intensity: 3, distance: 5, decay: 2, max: 4 },
   contactShadowOpacity: { day: 0.35, night: 0.5 },
 } as const;
@@ -138,23 +138,24 @@ export const worldCharacter = {
     { hex: "#563320", weight: 1 },
   ],
   hairColors: [
-    { hex: "#1B1613", weight: 4 },
-    { hex: "#2C211B", weight: 3 },
+    { hex: "#1B1613", weight: 3 },
+    { hex: "#2C211B", weight: 2 },
     { hex: "#3F2C21", weight: 3 },
-    { hex: "#5C3F2C", weight: 2 },
-    { hex: "#85603F", weight: 1 },
-    { hex: "#6A3B2E", weight: 1 },
+    { hex: "#5C3F2C", weight: 3 },
+    { hex: "#85603F", weight: 2 },
+    { hex: "#6A3B2E", weight: 2 },
     { hex: "#B9B3AB", weight: 1 },
   ],
+  // No navy (same as the chairs) and no oak (same as the floor), so helpers stand out.
   topColors: [
-    color.navy,
+    color.blueLight,
     color.accent,
     color.blueMid,
     "#F5F2EC",
     "#D8C29C",
     "#7FA88A",
     color.inkMuted,
-    "#E6D3B3",
+    "#CBAE84",
   ],
   bottomColors: ["#2E3A4E", color.inkMuted, "#CBAE84"],
   eye: color.ink,
@@ -342,6 +343,16 @@ export const motion = {
   folderSlideMs: 600, // a folder crosses the Endorsement Bridge
   pressScale: 0.97, // buttons scale down when pressed
   pressMs: 80,
+  // Seated helper loops (proposed in P2.3). Amounts in meters or radians.
+  character: {
+    breathSeconds: 4, // one slow breath
+    breathLift: 0.012, // chest rises about 1 cm
+    headSway: 0.035, // gentle side to side tilt while idle
+    typingTapsPerSecond: 7,
+    typingLift: 0.018, // each hand lifts about 2 cm
+    typingNod: 0.03, // tiny head nod while typing
+    typingBurstSeconds: [2.4, 1.2], // type, then pause to read
+  },
 } as const;
 
 // Every screen-only addition to the deck palette (D-011).

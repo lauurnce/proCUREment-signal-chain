@@ -2,6 +2,7 @@ import { mkdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
+import { FAVORITE } from "../src/lab/diorama/looks";
 import { collectErrors, waitForReady } from "./helpers";
 
 // pnpm shots: PNGs of each page at each size, saved to docs/qa/shots/<YYYY-MM-DD>/ (Manila date).
@@ -17,6 +18,21 @@ const pages = [
   { name: "office", path: "/?shots=1", fullPage: false },
   // The Lab is a long page, so it is captured top to bottom.
   { name: "lab", path: "/lab", fullPage: true },
+  // P2.3 diorama study: the three looks by day, plus the favorite at night.
+  ...(["a", "b", "c"] as const).map((look) => ({
+    name: `diorama-${look}-day`,
+    path: `/lab/diorama?shots=1&look=${look}&time=day`,
+    fullPage: false,
+  })),
+  ...(FAVORITE
+    ? [
+        {
+          name: `diorama-${FAVORITE}-night`,
+          path: `/lab/diorama?shots=1&look=${FAVORITE}&time=night`,
+          fullPage: false,
+        },
+      ]
+    : []),
 ];
 
 test.beforeAll(() => {

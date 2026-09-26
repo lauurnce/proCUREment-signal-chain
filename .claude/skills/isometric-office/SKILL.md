@@ -57,9 +57,12 @@ debug/               perf overlay, leva controls (dev only)
 - Zoomed out: dot and name only. Zoomed in: add the role. Off-duty seats show no tag.
 - Avoid ugly overlaps with a simple vertical nudge. Tags do not block camera drags, only clicks on the tag itself.
 
-## Lighting and look (starting recipe)
-- Day: hemisphere light (sky #F5F8FF, ground #E6D3B3, intensity about 0.9) plus one warm directional key light (#FFF4E0, about 1.4) from high front-left with soft shadows. Contact shadows under furniture and people.
-- Night: navy backdrop #0E1F3B, hemisphere dimmed to about 0.25, emissive windows #FFE2A8, a few desk lamps. No more than 4 real point lights.
+## Lighting and look (look A, Soft daylight, chosen in P2.3, D-034)
+- Values live in `worldLight` in `apps/web/src/theme/tokens.ts`. Neutral tone mapping, PCF shadows.
+- Day: hemisphere light (sky #F5F8FF, ground #E6D3B3, 2.4) plus one warm key light (#FFF4E0, 2.4) high from the front right of the view (offset about [2, 10, 7] from the target), soft shadow radius 4.
+- Night: navy backdrop #0E1F3B, hemisphere #3A5A8C over #12284C at 0.9, cool moon key #A8C0DE at 0.5, glowing windows #FFE2A8 (1.2), screens (0.45), and desk lamps. No more than 4 real point lights.
+- Back walls never cast shadows (they are stage walls in a cutaway). Only torsos, heads, desk tops, chair seats and big plant parts cast shadows.
+- Late afternoon (look B) is kept as a short warm blend on the way to night. Clay studio (look C, contact shadows only) is the fallback when frames drop.
 - Matte materials, colors from tokens only. Optional subtle post effects (ambient occlusion, very light bloom at night) only if the frame budget allows.
 - Theme changes blend over about 1.2 s.
 
