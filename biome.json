@@ -46,6 +46,20 @@
       "tailwindDirectives": true
     }
   },
+  "overrides": [
+    {
+      "includes": [
+        "apps/web/src/theme/theme.css"
+      ],
+      "linter": {
+        "rules": {
+          "complexity": {
+            "noImportantStyles": "off"
+          }
+        }
+      }
+    }
+  ],
   "assist": {
     "enabled": true,
     "actions": {

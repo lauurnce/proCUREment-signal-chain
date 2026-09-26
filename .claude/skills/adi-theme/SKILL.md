@@ -7,7 +7,7 @@ description: The ADI-inspired visual language of SignalChain HQ, including color
 
 Source of truth for the base palette and font: the program deck theme, measured from "PPT Part One.pptx" on 8 Sep 2026. Full spec: [reference/deck-theme-spec.md](reference/deck-theme-spec.md). This skill adapts it for screens and 3D.
 
-Status of screen-only additions: **proposed**. They become final only when Lawrence approves them in Phase 2 and they are logged in `docs/DECISIONS.md`.
+Status of screen-only additions: **approved** by Lawrence on 26 Sep 2026 (D-011). Full list with contrast and limits: `docs/design/SCREEN_EXCEPTIONS.md`.
 
 ## 1. Base palette (from the decks, final)
 
@@ -24,14 +24,14 @@ Status of screen-only additions: **proposed**. They become final only when Lawre
 
 Role rules: navy and accent never swap roles. Light blue appears only on navy. Panel grey is the only card fill on white. UI chrome has no gradients.
 
-## 2. Screen-only additions (proposed)
+## 2. Screen-only additions (approved, D-011)
 
 | Token | Hex | Why |
 |---|---|---|
 | `ink-muted` | #4B5565 | Secondary text. `footer` #98A2B3 is only 2.58:1 on white, too low for text |
-| `status-working` | #1E8E5A filled dot | 4.14:1 on white |
+| `status-working` | #1A7F50 filled dot, also the Approve button | About 5.0:1 on white. Was #1E8E5A (4.14:1, failed for button text), changed by D-026 |
 | `status-waiting` | #B45309 filled dot with "!" | "Waiting on you", 5.02:1 |
-| `status-meeting` | #0067B9 filled dot | "In a meeting" |
+| `status-meeting` | #0067B9 pair of dots (big and small) | "In a meeting", own shape so it differs from "working" |
 | `status-break` | #0067B9 hollow ring | "On break", shape differs from meeting |
 | `status-off` | #98A2B3 hollow ring plus text label | "Off duty", always with text |
 | `track-mgr` | #12284C, star badge | Sr. Manager |
@@ -45,7 +45,7 @@ Rule: status and track are never shown by color alone. Always pair with a shape,
 ## 3. Typography
 
 - UI font: Quattrocento Sans 400 and 700, self-hosted with `@fontsource/quattrocento-sans`.
-- Label font (proposed): IBM Plex Mono 500, only for small UPPERCASE labels, tabs, IDs and numbers (like the reference's status labels). `@fontsource/ibm-plex-mono`.
+- Label font (approved, D-011): IBM Plex Mono 500, only for small UPPERCASE labels, tabs, IDs and numbers (like the reference's status labels). `@fontsource/ibm-plex-mono`.
 
 | Style | Size / line height | Weight | Color |
 |---|---|---|---|
@@ -67,7 +67,7 @@ Never shrink text to fit. Cut words instead.
 - Radii: 6 (chips), 10 (buttons, inputs), 14 (cards), 20 (floating panels), 999 (pills and name tags).
 - Borders: 1 px `hairline`.
 - Elevation: UI is flat. Only panels that float over the 3D scene use `shadow-float`.
-- Buttons: primary = accent fill, white text. Approve = `status-working` fill, white text (4.14:1, use 15 px bold). Hold = panel fill, navy text. Send back = white fill, hairline border, navy text. Instruct = white fill, accent text, accent border.
+- Buttons: primary = accent fill, white text. Approve = `status-working` fill (#1A7F50), white text (about 5.0:1). Hold = panel fill, navy text. Send back = white fill, hairline border, navy text. Instruct = white fill, accent text, accent border.
 
 ## 5. Contrast reference (computed)
 
@@ -83,7 +83,7 @@ Never shrink text to fit. Cut words instead.
 | footer on white | 2.58 (decorative only) |
 | blue-mid on white | 2.09 (fills only, never text) |
 
-## 6. 3D world palette (proposed, refined by the world-artist)
+## 6. 3D world palette (approved, D-011). Full list: `docs/design/WORLD_PALETTE.md`, code: `world` in tokens.ts
 
 | Token | Hex | Use |
 |---|---|---|
@@ -112,6 +112,13 @@ Durations: instant 80 ms, fast 140 ms, base 220 ms, slow 360 ms, camera 700 to 9
 Easing: enter `cubic-bezier(0.2, 0.8, 0.2, 1)`, exit `cubic-bezier(0.4, 0, 1, 1)`, move `cubic-bezier(0.65, 0, 0.35, 1)`.
 Springs: panel `{ stiffness: 260, damping: 26 }`, pop `{ stiffness: 420, damping: 18 }`.
 Always provide a `prefers-reduced-motion` version.
+
+Approved 26 Sep 2026 (D-030):
+- At most 6 helpers walk at the same time.
+- Undo bar stays 5 s after a normal decision. Email sends never get undo.
+- Card content fades in 60 ms after the card opens.
+- A folder slides across the Endorsement Bridge in 600 ms.
+- Buttons scale to 0.97 in 80 ms when pressed.
 
 ## 8. Copy rules
 

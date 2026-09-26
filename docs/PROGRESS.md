@@ -1,6 +1,6 @@
 # Progress
 
-Now: Phase 1 built and checked in `p1-scaffold`, waiting for commit and merge (P1.4). Next: Phase 2, Design direction in the Lab. Start a new session with `claude -w p2-design-lab`, then paste P2.1 from `docs/PROMPTS.md`.
+Now: Phase 2 in `p2-design-lab`. P2.2 built: design tokens and the Lab page, Lawrence said OK and approved all screen-only additions (D-011). Next: P2.3, the 3D diorama study.
 
 ## Phases
 - [x] 0. Kickoff and alignment (main checkout)
@@ -20,6 +20,8 @@ Now: Phase 1 built and checked in `p1-scaffold`, waiting for commit and merge (P
 - Confirm the pnpm release-age exceptions for new package versions (D-024).
 
 ## Log
+- 26 Sep 2026, P2.2: the brand-guardian wrote the UI tokens and `docs/design/SCREEN_EXCEPTIONS.md`, the world-artist wrote `docs/design/WORLD_PALETTE.md`, merged into `tokens.ts`. The Lab shows colors with contrast, type, status and track, name tags, stats and the decision card. The brand-guardian reviewed the screenshots, fixes applied (D-032, D-033). 57 unit tests pass.
+- 26 Sep 2026, P2.1: 7 council members wrote points of view (`docs/design/pov/`). The creative-director combined them into `docs/design/DESIGN_DIRECTION.md`. Lawrence chose A, Warm Diorama with B's rules (D-025), Approve green #1A7F50 (D-026), and a demo filter for seat items (D-027). Then decided the rest: helper naming (D-028), navy slab edge and capiz lamp (D-029), motion values (D-030), keys follow the mode (D-031).
 - 25 Sep 2026, P1.3 and P1.4: Playwright smoke tests, `pnpm shots` (office and Lab at 1440x900 and 1920x1080), a test per schema (49 unit tests). The qa-playtester tested a clean install and found 10 bugs, all fixed (reconnect, clean shutdown, port collisions, plain warnings, Host check). Decisions D-015 to D-024.
 - 25 Sep 2026, P1.2: pnpm monorepo with shared zod schemas and validator, Fastify server (health, state, live events, vault seeding and reset), web app with the isometric camera over a placeholder floor and the `/lab` page, and per-worktree ports.
 - 25 Sep 2026, P1.1: web and server plans drafted in parallel and merged into one plan.

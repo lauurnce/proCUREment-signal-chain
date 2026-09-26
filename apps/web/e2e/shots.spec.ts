@@ -14,8 +14,9 @@ const sizes = [
   { width: 1920, height: 1080 },
 ];
 const pages = [
-  { name: "office", path: "/?shots=1" },
-  { name: "lab", path: "/lab" },
+  { name: "office", path: "/?shots=1", fullPage: false },
+  // The Lab is a long page, so it is captured top to bottom.
+  { name: "lab", path: "/lab", fullPage: true },
 ];
 
 test.beforeAll(() => {
@@ -31,7 +32,7 @@ for (const size of sizes) {
       await waitForReady(page);
       await page.evaluate(() => document.fonts.ready);
       const file = join(outDir, `${target.name}-${size.width}x${size.height}.png`);
-      await page.screenshot({ path: file });
+      await page.screenshot({ path: file, fullPage: target.fullPage });
       expect(errors).toEqual([]);
     });
   }
