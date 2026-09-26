@@ -1,0 +1,70 @@
+import type { QueueItem, Seat, Workflow } from "@hq/shared";
+import type { DecisionItem } from "../DecisionCard";
+import { firstLine, sections } from "./markdown";
+import { decidingAs, helperName } from "./queue";
+
+/** "PO amendments" and "Step 3 of 4" for an item, from data/workflows.json. */
+export function stepInfo(workflows: Workflow[], item: QueueItem) {
+  const workflow = workflows.find((w) => w.id === item.workflow);
+  const index = workflow?.steps.findIndex((s) => s.id === item.step) ?? -1;
+  return {
+    workflow: workflow?.name ?? item.workflow,
+    step: index >= 0 && workflow ? `Step ${index + 1} of ${workflow.steps.length}` : "",
+    stepLabel: index >= 0 ? (workflow?.steps[index]?.label ?? "") : "",
+  };
+}
+
+/** The PO, PR or RFQ number in a title, like "PO-452114". */
+export function reference(item: QueueItem): string | null {
+  return /\b(PO|PR|RFQ|INV)-\d+/.exec(`${item.title} ${item.body}`)?.[0] ?? null;
+}
+
+/** "Why this came to you", in plain words (copy deck, section 3). */
+export function whyText(seats: Seat[], item: QueueItem): string {
+  const helper = helperName(seats, item.from);
+  if (item.rule === "price-large") {
+    const pct = /(\d+(?:\.\d+)?) percent/.exec(item.title)?.[1];
+    return `Price is up ${pct ?? "5 or more"} percent. Changes of 5 percent or more need a Category Manager.`;
+  }
+  if (item.kind === "email-draft") {
+    return `${helper} drafted this email. It needs your OK before it is saved to Outlook.`;
+  }
+  return `${helper} prepared this for your review.`;
+}
+
+/** The helper's suggestion: its recommendation, or else the first option. */
+export function suggestion(item: QueueItem): string | undefined {
+  const s = sections(item.body);
+  return (
+    firstLine(s.find((x) => x.heading.startsWith("Recommendation"))) ??
+    firstLine(s.find((x) => x.heading === "Options")) ??
+    undefined
+  );
+}
+
+/** Maps a queue item to the focused card (P2.2 DecisionCard). */
+export function toDecisionItem(
+  seats: Seat[],
+  workflows: Workflow[],
+  item: QueueItem,
+): DecisionItem {
+  const info = stepInfo(workflows, item);
+  const as = decidingAs(seats, item);
+  const fromSeat = seats.find((s) => s.id === item.from);
+  return {
+    workflow: info.workflow,
+    step: info.step,
+    title: item.title,
+    facts: [
+      ...(item.supplier ? [{ label: "Supplier", value: item.supplier }] : []),
+      { label: "From", value: helperName(seats, item.from) },
+      { label: "Decides", value: as ? `${as} (you decide for the seat in this demo)` : "You" },
+    ],
+    fromTrack: fromSeat?.track ?? item.track,
+    why: whyText(seats, item),
+    ruleConfirmed: !item.rule,
+    decidingAs: as ?? undefined,
+    suggestion: suggestion(item),
+    sendBackTo: helperName(seats, item.from),
+  };
+}

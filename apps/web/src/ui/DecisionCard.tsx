@@ -13,7 +13,8 @@ export type DecisionItem = {
   ruleConfirmed: boolean;
   /** Set when the Sr. Manager decides an item that belongs to another seat (D-027). */
   decidingAs?: string;
-  suggestion: string;
+  /** The helper's suggestion, when it made one. */
+  suggestion?: string;
   sendBackTo: string;
 };
 
@@ -28,9 +29,12 @@ const BUTTONS: { decision: Decision; label: (item: DecisionItem) => string; key:
 export function DecisionCard({
   item,
   onDecide,
+  onOpen,
 }: {
   item: DecisionItem;
   onDecide: (d: Decision) => void;
+  /** Opens the item detail. Shown as a small link under the title. */
+  onOpen?: () => void;
 }) {
   return (
     <article
@@ -55,6 +59,16 @@ export function DecisionCard({
         <h3 className="m-0" style={typeStyle("sectionTitle")}>
           {item.title}
         </h3>
+        {onOpen && (
+          <button
+            type="button"
+            onClick={onOpen}
+            className="-mt-2 self-start underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            style={typeStyle("small", "accent")}
+          >
+            Open details (Enter)
+          </button>
+        )}
         <dl className="m-0 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1">
           {item.facts.map((f) => (
             <div key={f.label} className="contents">
@@ -82,9 +96,11 @@ export function DecisionCard({
             {item.why}
           </p>
         </div>
-        <p className="m-0" style={typeStyle("body")}>
-          <span style={{ fontWeight: 700 }}>Helper suggests:</span> {item.suggestion}
-        </p>
+        {item.suggestion && (
+          <p className="m-0" style={typeStyle("body")}>
+            <span style={{ fontWeight: 700 }}>Helper suggests:</span> {item.suggestion}
+          </p>
+        )}
       </div>
       <div className="grid grid-cols-2 gap-2 border-t border-hairline bg-white px-5 py-4">
         {BUTTONS.map((b) => (

@@ -42,7 +42,7 @@ export function DecisionButton({ decision, label, shortcut, onClick }: Props) {
       whileTap={{ scale: motion.pressScale }}
       transition={{ duration: motion.pressMs / 1000 }}
       style={{ ...typeStyle("body"), fontWeight: 700, ...LOOK[decision] }}
-      className="flex min-h-10 w-full items-center justify-between gap-2 whitespace-nowrap rounded-button border px-4 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+      className="flex min-h-10 w-full items-center justify-between gap-2 rounded-button border px-4 py-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
     >
       {label}
       <span

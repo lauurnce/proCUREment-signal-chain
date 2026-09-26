@@ -14,18 +14,28 @@ function fitZoom(width: number, height: number) {
   return Math.min(Math.max(Math.min(width / (isoWidth * 1.7), height / 5.4), ZOOM.min), ZOOM.max);
 }
 
-/** The same fixed isometric angle as the office. Drag to pan, wheel to zoom. */
-export function DioramaCamera() {
+/**
+ * The same fixed isometric angle as the office. Drag to pan, wheel to zoom.
+ * `rightInset` is the width a docked panel covers. The view shifts so the scene centers in the
+ * free space, and the canvas itself never changes size (panel spec, section 1).
+ */
+export function DioramaCamera({ rightInset = 0 }: { rightInset?: number }) {
   const controls = useRef<CameraControlsImpl>(null);
   const size = useThree((state) => state.size);
+  const camera = useThree((state) => state.camera);
 
   useEffect(() => {
     const cc = controls.current;
     if (!cc) return;
+    if (rightInset > 0) {
+      camera.setViewOffset(size.width, size.height, rightInset / 2, 0, size.width, size.height);
+    } else {
+      camera.clearViewOffset();
+    }
     cc.setTarget(...TARGET, false);
     cc.rotateTo(ISO_AZIMUTH, ISO_POLAR, false);
-    cc.zoomTo(fitZoom(size.width, size.height), false);
-  }, [size.width, size.height]);
+    cc.zoomTo(fitZoom(size.width - rightInset, size.height), false);
+  }, [camera, rightInset, size.width, size.height]);
 
   return (
     <CameraControls

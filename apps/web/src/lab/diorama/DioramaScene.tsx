@@ -32,9 +32,11 @@ type Props = {
   frozenAt: number | null;
   still: boolean;
   tags: TagRegistry;
+  /** Width in px covered by a docked panel on the right. */
+  rightInset?: number;
 };
 
-export function DioramaScene({ lighting, night, frozenAt, still, tags }: Props) {
+export function DioramaScene({ lighting, night, frozenAt, still, tags, rightInset }: Props) {
   const surface = useMemo(
     () => ({ roughnessBoost: lighting.roughnessBoost, night }),
     [lighting.roughnessBoost, night],
@@ -79,7 +81,7 @@ export function DioramaScene({ lighting, night, frozenAt, still, tags }: Props) 
           );
         })}
       </SurfaceContext.Provider>
-      <DioramaCamera />
+      <DioramaCamera rightInset={rightInset} />
       <TagProjector anchors={ANCHORS} registry={tags} />
       <ReadySignal />
     </Canvas>

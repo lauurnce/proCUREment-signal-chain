@@ -6,14 +6,24 @@ const LabPage = lazy(() => import("./lab/LabPage").then((m) => ({ default: m.Lab
 const FloorPlanPage = lazy(() =>
   import("./lab/floorplan/FloorPlanPage").then((m) => ({ default: m.FloorPlanPage })),
 );
+const PanelLabPage = lazy(() =>
+  import("./lab/panel/PanelLabPage").then((m) => ({ default: m.PanelLabPage })),
+);
 const DioramaPage = lazy(() =>
   import("./lab/diorama/DioramaPage").then((m) => ({ default: m.DioramaPage })),
 );
 
-/** Routes: the office "/", the design Lab "/lab", and its studies "/lab/diorama" and "/lab/floorplan". */
+/** Routes: the office "/", the design Lab "/lab", and its studies "/lab/diorama", "/lab/floorplan" and "/lab/panel". */
 export function App() {
   useEffect(() => connectToServer(), []);
 
+  if (window.location.pathname.startsWith("/lab/panel")) {
+    return (
+      <Suspense fallback={null}>
+        <PanelLabPage />
+      </Suspense>
+    );
+  }
   if (window.location.pathname.startsWith("/lab/floorplan")) {
     return (
       <Suspense fallback={null}>

@@ -70,3 +70,13 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* The undo bar line shrinks over the undo time (D-030). */
+@keyframes undo-shrink {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}

@@ -29,3 +29,38 @@ test("the Lab page opens with no console errors", async ({ page }) => {
   await expect(page.getByTestId("office-canvas")).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test("the panel works with the keyboard only, and nothing is sent", async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto("/lab/panel?shots=1");
+  await waitForReady(page);
+  const tab = page.getByRole("tab", { name: /Needs you/ });
+  await expect(tab).toContainText("3");
+
+  // Keys work only when the panel has focus (D-031).
+  await page.keyboard.press("a");
+  await expect(page.getByTestId("undo-bar")).toHaveCount(0);
+
+  await page.getByTestId("hq-panel").focus();
+  await page.keyboard.press("j");
+  await page.keyboard.press("a");
+  await expect(page.getByTestId("undo-bar")).toContainText("Approved by you");
+  await expect(page.getByTestId("undo-bar")).toContainText("Lab only, nothing is saved or sent.");
+  await expect(tab).toContainText("2");
+
+  await page.keyboard.press("u");
+  await expect(tab).toContainText("3");
+
+  // No shortcut fires while typing in the instruction box.
+  await page.getByRole("textbox", { name: "Instruction" }).fill("Ask for a firm date");
+  await page.keyboard.press("h");
+  await expect(tab).toContainText("3");
+
+  // Enter opens the item, Esc goes back.
+  await page.getByTestId("hq-panel").focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByTestId("item-detail")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("item-detail")).toHaveCount(0);
+  expect(errors).toEqual([]);
+});

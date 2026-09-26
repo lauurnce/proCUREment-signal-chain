@@ -14,7 +14,17 @@ const sizes = [
   { width: 1440, height: 900 },
   { width: 1920, height: 1080 },
 ];
-const pages = [
+// The panel also needs the smallest desktop size (D-021).
+const PANEL_SIZES = [{ width: 1280, height: 800 }, ...sizes];
+
+type Target = {
+  name: string;
+  path: string;
+  fullPage: boolean;
+  only?: { width: number; height: number }[];
+};
+
+const pages: Target[] = [
   { name: "office", path: "/?shots=1", fullPage: false },
   // The Lab is a long page, so it is captured top to bottom.
   { name: "lab", path: "/lab", fullPage: true },
@@ -39,14 +49,18 @@ const pages = [
         },
       ]
     : []),
+  // P2.5 HQ panel, docked next to the diorama: Needs you, one item open, and the Team tab.
+  { name: "panel", path: "/lab/panel?shots=1", fullPage: false, only: PANEL_SIZES },
+  { name: "panel-detail", path: "/lab/panel?shots=1&open=1", fullPage: false },
+  { name: "panel-team", path: "/lab/panel?shots=1&tab=team", fullPage: false },
 ];
 
 test.beforeAll(() => {
   mkdirSync(outDir, { recursive: true });
 });
 
-for (const size of sizes) {
-  for (const target of pages) {
+for (const target of pages) {
+  for (const size of target.only ?? sizes) {
     test(`${target.name} at ${size.width}x${size.height}`, async ({ page }) => {
       const errors = collectErrors(page);
       await page.setViewportSize(size);
