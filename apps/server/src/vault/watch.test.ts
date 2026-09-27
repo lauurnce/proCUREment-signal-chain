@@ -38,6 +38,10 @@ describe("watchVault", () => {
     await writeFile(join(vaultDir, "board", "t-0002.md"), "edit 2");
 
     await vi.waitFor(() => expect(onChange).toHaveBeenCalledTimes(1), { timeout: 3_000 });
+    expect([...(onChange.mock.calls[0]?.[0] ?? [])].sort()).toEqual([
+      join("board", "t-0001.md"),
+      join("board", "t-0002.md"),
+    ]);
   });
 
   it("keeps working after the whole vault folder is replaced", async () => {

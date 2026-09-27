@@ -1,4 +1,4 @@
-import type { DeskSlot, FloorPlan } from "./types";
+import type { DeskSlot, FloorPlan, Point, ZonePlacement } from "./types";
 
 // Two floor plan options for P2.4. 1 unit = 1 m, floor 28 x 18.
 // Back walls are x = 0 and z = 0. Open edges are x = 28 and z = 18.
@@ -68,7 +68,7 @@ const option1: FloorPlan = {
       id: "endorsement-bridge",
       rect: [12, 7, 4, 4],
       anchor: [14, 9],
-      landmark: "Handoff bridge",
+      landmark: "Endorsement Bridge",
     },
     // Front left and front center.
     { id: "cm-wing", rect: [0, 11, 12.5, 7], anchor: [10.6, 12], landmark: "Gold pennant" },
@@ -251,7 +251,7 @@ const option2: FloorPlan = {
       id: "endorsement-bridge",
       rect: [11.5, 7, 5, 4],
       anchor: [14, 9],
-      landmark: "Handoff bridge",
+      landmark: "Endorsement Bridge",
     },
     {
       id: "ops-wing",
@@ -391,4 +391,225 @@ const option2: FloorPlan = {
   ],
 };
 
-export const PLANS: FloorPlan[] = [option1, option2];
+// ---------------------------------------------------------------- Phase 3 variants (D-049)
+// Option 1 with review fix 4 (a smaller bridge), plus the two ways to put Contract Corner
+// next to the Negotiation Room (review fix 1). Numbers from the world-artist, 27 Sep 2026.
+
+type Edge = [string, string];
+
+/** Option 1 with some zones, desks and walkways changed. */
+function variant(
+  base: FloorPlan,
+  change: {
+    id: FloorPlan["id"];
+    name: string;
+    idea: string;
+    zones: ZonePlacement[];
+    desks?: (desks: DeskSlot[]) => DeskSlot[];
+    removeNodes?: (id: string) => boolean;
+    addNodes?: Record<string, Point>;
+    removeEdges?: (edge: Edge) => boolean;
+    addEdges?: Edge[];
+    doors?: FloorPlan["doors"];
+  },
+): FloorPlan {
+  const replaced = new Map(change.zones.map((z) => [z.id, z]));
+  const drop = change.removeNodes ?? (() => false);
+  const nodes = Object.fromEntries(Object.entries(base.walkways.nodes).filter(([id]) => !drop(id)));
+  const edges = base.walkways.edges.filter(
+    (edge) => !drop(edge[0]) && !drop(edge[1]) && !change.removeEdges?.(edge),
+  );
+  return {
+    ...base,
+    id: change.id,
+    name: change.name,
+    idea: change.idea,
+    zones: base.zones.map((z) => replaced.get(z.id) ?? z),
+    desks: change.desks ? change.desks(base.desks) : base.desks,
+    walkways: {
+      nodes: { ...nodes, ...change.addNodes },
+      edges: [...edges, ...(change.addEdges ?? [])],
+    },
+    doors: change.doors ?? base.doors,
+  };
+}
+
+const bridgeFix: ZonePlacement = {
+  id: "endorsement-bridge",
+  rect: [12.5, 7, 3, 4],
+  anchor: [14, 9],
+  landmark: "Endorsement Bridge",
+};
+const notCm = (d: DeskSlot) => !d.pod.startsWith("cm-");
+const isOldCmNode = (id: string) => /^cm-(a|b|c|g1|g2)-(back|front)$/.test(id);
+
+// 1a: Contract Corner at the front, beside the Negotiation Room. CM pods in a 2 x 2 grid.
+// The mid aisle (1.6 m) is walked as two lanes, one per pod row.
+const option1a = variant(option1, {
+  id: "1a",
+  name: "Contract Corner at the front",
+  idea: "Contract Corner moves to the front, next to the Negotiation Room, so visiting suppliers sign and negotiate a few steps from Reception. The CM pods sit in a 2 by 2 grid on the left.",
+  zones: [
+    bridgeFix,
+    {
+      id: "contract-corner",
+      rect: [9, 14.5, 3.5, 3.5],
+      anchor: [10.75, 16],
+      landmark: "Signing screen",
+    },
+    { id: "leads-row", rect: [5, 6, 6.2, 3], anchor: [8.05, 8.6], landmark: "Review board" },
+    { id: "cm-wing", rect: [0, 9, 9, 9], anchor: [8.8, 12.6], landmark: "Gold pennant" },
+  ],
+  desks: (desks) => [
+    ...desks.filter(notCm),
+    ...pod("cm-a", CM_A, 2.25, 10.5),
+    ...pod("cm-b", CM_B, 6.75, 10.5),
+    ...pod("cm-c", CM_C, 6.75, 15),
+  ],
+  removeNodes: (id) =>
+    isOldCmNode(id) || ["contract", "wl-s", "leads-w", "leads-mid", "leads-e"].includes(id),
+  addNodes: {
+    // Shared back lane, in front of the Leads' Row.
+    "cm-n-w": [2.25, 8.75],
+    "cm-n-g": [4.5, 8.75],
+    "leads-w": [5.6, 8.75],
+    "cm-n-b": [6.75, 8.75],
+    "leads-mid": [8.05, 8.75],
+    "leads-e": [9.7, 8.75],
+    // Mid aisle: a north lane and a south lane.
+    "cm-mn-a": [2.25, 12.25],
+    "cm-mn-g": [4.5, 12.25],
+    "cm-mn-b": [6.75, 12.25],
+    "cm-e": [9.7, 12.25],
+    "cm-ms-g": [4.5, 13.25],
+    "cm-ms-c": [6.75, 13.25],
+    // Front
+    "cm-f-g": [4.5, 16.75],
+    "cm-f-c": [6.75, 16.75],
+    contract: [10.75, 13.85],
+    "contract-in": [10.75, 15.6],
+    "nego-in": [14.5, 15.6],
+  },
+  addEdges: [
+    ["wl-n", "cm-n-g"],
+    ["cm-n-w", "cm-n-g"],
+    ["cm-n-g", "leads-w"],
+    ["leads-w", "cm-n-b"],
+    ["cm-n-b", "leads-mid"],
+    ["leads-mid", "leads-e"],
+    ["leads-e", "ring-w"],
+    ["leads-e", "cm-e"],
+    ["cm-e", "ring-sw"],
+    ["cm-n-g", "cm-mn-g"],
+    ["cm-mn-g", "cm-ms-g"],
+    ["cm-ms-g", "cm-f-g"],
+    ["cm-mn-a", "cm-mn-g"],
+    ["cm-mn-g", "cm-mn-b"],
+    ["cm-mn-b", "cm-e"],
+    ["cm-ms-g", "cm-ms-c"],
+    ["cm-ms-c", "contract"],
+    ["cm-e", "contract"],
+    ["cm-f-g", "cm-f-c"],
+    ["contract", "contract-in"],
+    ["contract-in", "nego-in"],
+    ["nego-in", "nego"],
+  ],
+});
+
+// 1b: the Negotiation Room moves to the back left, next to Contract Corner.
+const option1b = variant(option1, {
+  id: "1b",
+  name: "Negotiation Room at the back",
+  idea: "The Negotiation Room moves to the back left wall, next to Contract Corner. The CM pods take its old place along the front, with a back lane just south of the ring.",
+  zones: [
+    bridgeFix,
+    { id: "negotiation-room", rect: [0, 11, 4, 4.5], anchor: [2, 13.25], landmark: "Round table" },
+    {
+      id: "cm-wing",
+      rect: [4, 12.8, 12.5, 5.2],
+      anchor: [12.5, 13.3],
+      landmark: "Gold pennant",
+    },
+  ],
+  desks: (desks) => [
+    ...desks.filter(notCm),
+    ...pod("cm-a", CM_A, 5.75, 15.3),
+    ...pod("cm-b", CM_B, 10.25, 15.3),
+    ...pod("cm-c", CM_C, 14.75, 15.3),
+  ],
+  removeNodes: isOldCmNode,
+  removeEdges: ([a, b]) => {
+    const key = [a, b].sort().join("|");
+    return ["nego|ring-s", "nego|recep"].includes(key);
+  },
+  addNodes: {
+    nego: [4.6, 13.25],
+    "wl-s": [4.5, 12.2],
+    "nego-in": [2, 13.25],
+    "contract-in": [2, 9.4],
+    "cm-a-back": [5.75, 13.55],
+    "cm-g1-back": [8, 13.55],
+    "cm-b-back": [10.25, 13.55],
+    "cm-g2-back": [12.5, 13.55],
+    "cm-c-back": [14.75, 13.55],
+    "cm-a-front": [5.75, 17.05],
+    "cm-g1-front": [8, 17.05],
+    "cm-b-front": [10.25, 17.05],
+    "cm-g2-front": [12.5, 17.05],
+    "cm-c-front": [14.75, 17.05],
+  },
+  addEdges: [
+    ["wl-s", "ring-sw"],
+    ["wl-s", "cm-a-back"],
+    ["cm-a-back", "cm-g1-back"],
+    ["cm-g1-back", "cm-b-back"],
+    ["cm-b-back", "cm-g2-back"],
+    ["cm-g2-back", "cm-c-back"],
+    ["cm-b-back", "ring-sw"],
+    ["cm-c-back", "ring-s"],
+    ["cm-a-front", "cm-g1-front"],
+    ["cm-g1-front", "cm-b-front"],
+    ["cm-b-front", "cm-g2-front"],
+    ["cm-g2-front", "cm-c-front"],
+    ["cm-g1-back", "cm-g1-front"],
+    ["cm-g2-back", "cm-g2-front"],
+    ["wl-s", "nego"],
+    ["nego", "nego-in"],
+    ["contract", "contract-in"],
+    ["contract-in", "nego-in"],
+  ],
+});
+
+// 1a plus optional review fix 9: the Logistics Window and the Merienda Corner swap, so the
+// loading dock opens on the front edge, away from the docked panel.
+const option1aDock = variant(option1a, {
+  id: "1a-dock",
+  name: "1a, dock on the front edge",
+  idea: "Variant 1a, with the Logistics Window and the Merienda Corner swapped, so the truck backs up to the front edge instead of the right edge, away from the docked panel.",
+  zones: [
+    {
+      id: "logistics-window",
+      rect: [22, 14.5, 6, 3.5],
+      anchor: [25, 16.4],
+      landmark: "Dock window",
+    },
+    {
+      id: "merienda-corner",
+      rect: [22, 11, 6, 3.5],
+      anchor: [24.5, 12.75],
+      landmark: "Coffee cart",
+    },
+  ],
+  removeNodes: (id) => id === "logi" || id === "mer",
+  addNodes: { logi: [25, 16.2], mer: [24.5, 12.75] },
+  addEdges: [
+    ["el-c", "mer"],
+    ["el-d", "logi"],
+  ],
+  doors: [
+    { id: "entrance", at: [19.2, 18], label: "Entrance" },
+    { id: "loading-dock", at: [25, 18], label: "Loading dock" },
+  ],
+});
+
+export const PLANS: FloorPlan[] = [option1, option2, option1a, option1b, option1aDock];

@@ -1,5 +1,6 @@
 import type { AuthorityRule } from "../schemas/authority-rule";
 import type { OfficeState } from "../schemas/events";
+import { deskCorners, insideRect, type LayoutFile } from "../schemas/layout";
 import type { QueueItem } from "../schemas/queue-item";
 import type { Seat, SeatProfile } from "../schemas/seat";
 import type { Task } from "../schemas/task";
@@ -18,6 +19,63 @@ export interface ReferenceInput {
    * gives one warning instead of a long list of follow-on problems.
    */
   broken: { roster: boolean; zones: boolean; workflows: boolean; rules: boolean };
+}
+
+/** Checks office/layout.json against office/zones.json: every zone placed, every seat at one desk. */
+function findLayoutProblems(layout: LayoutFile, zones: OfficeState["zones"]): string[] {
+  const problems: string[] = [];
+  const where = "office/layout.json";
+  const rects = new Map(layout.zones.map((zone) => [zone.id, zone.rect]));
+  const zoneIds = new Set(zones.map((zone) => zone.id));
+
+  for (const zone of layout.zones) {
+    if (!zoneIds.has(zone.id))
+      problems.push(`${where} places zone "${zone.id}", which is not in office/zones.json`);
+  }
+  for (const zone of zones) {
+    if (!rects.has(zone.id)) problems.push(`${where} has no place for zone "${zone.id}"`);
+  }
+
+  // Where each seat belongs, from office/zones.json.
+  const seatHome = new Map<string, { zone: string; pod: string | null }>();
+  for (const zone of zones) {
+    for (const seat of zone.seats ?? []) seatHome.set(seat, { zone: zone.id, pod: null });
+    for (const [pod, seats] of Object.entries(zone.pods ?? {})) {
+      for (const seat of seats) seatHome.set(seat, { zone: zone.id, pod });
+    }
+  }
+
+  const desksPerSeat = new Map<string, number>();
+  for (const slot of layout.deskSlots) {
+    desksPerSeat.set(slot.seat, (desksPerSeat.get(slot.seat) ?? 0) + 1);
+    const home = seatHome.get(slot.seat);
+    if (!home) {
+      problems.push(`${where}: desk ${slot.id} is for seat "${slot.seat}", which no zone has`);
+      continue;
+    }
+    if ((slot.pod ?? null) !== home.pod)
+      problems.push(
+        `${where}: desk ${slot.id} says pod "${slot.pod ?? "none"}", but office/zones.json says "${home.pod ?? "none"}"`,
+      );
+    const rect = rects.get(home.zone);
+    if (rect && !deskCorners(slot).every((corner) => insideRect(corner, rect)))
+      problems.push(`${where}: desk ${slot.id} is not inside zone ${home.zone}`);
+  }
+  for (const seat of seatHome.keys()) {
+    const count = desksPerSeat.get(seat) ?? 0;
+    if (count !== 1) problems.push(`${where}: seat ${seat} has ${count} desks, it needs exactly 1`);
+  }
+
+  for (const landmark of layout.landmarks) {
+    const rect = rects.get(landmark.zone);
+    if (!rect)
+      problems.push(
+        `${where}: landmark ${landmark.id} points to zone "${landmark.zone}", which has no place`,
+      );
+    else if (!insideRect(landmark.pos, rect))
+      problems.push(`${where}: landmark ${landmark.id} is not inside zone ${landmark.zone}`);
+  }
+  return problems;
 }
 
 /** Checks that ids used in one file point to records that exist. Returns plain-English problems. */
@@ -77,8 +135,16 @@ export function findReferenceProblems(input: ReferenceInput): string[] {
     }
   }
 
+  if (input.office.layout && !broken.zones) {
+    problems.push(...findLayoutProblems(input.office.layout, input.office.zones));
+  }
+
   for (const accessory of input.office.accessories) {
     checkZone(accessory.zone, `Accessory ${accessory.id}`);
+    if (accessory.enabled && !accessory.pos)
+      problems.push(
+        `Accessory ${accessory.id} has no position (pos), so it is not shown. Add pos in office/accessories.json.`,
+      );
   }
 
   for (const workflow of input.workflows) {

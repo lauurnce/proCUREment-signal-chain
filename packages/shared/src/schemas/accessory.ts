@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { Id } from "./common";
 
-/** A decorative prop. Position is [x, z] in meters, added in Phase 3. */
+/** A decorative prop. Position is [x, z] in meters, rot is degrees around the vertical axis. */
 export const Accessory = z.object({
   id: Id,
   kind: Id,

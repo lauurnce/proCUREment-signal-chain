@@ -6,9 +6,16 @@ import { useMaterial } from "../materials";
 import { PLANK, SLAB } from "./diorama";
 
 /** Oak floor planks in one instanced mesh, with a seeded mix of three oak tones. */
-export function Planks() {
+export function Planks({
+  width = SLAB.width,
+  depth = SLAB.depth,
+}: {
+  width?: number;
+  depth?: number;
+}) {
   const ref = useRef<InstancedMesh>(null);
-  const count = Math.round(SLAB.width / PLANK);
+  const count = Math.round(width / PLANK);
+  const plank = width / count;
   // White base, so each plank's instance color shows as its own oak tone.
   const material = useMaterial(color.white, { roughness: 0.9 });
 
@@ -19,7 +26,7 @@ export function Planks() {
     const dummy = new Object3D();
     const tone = new Color();
     for (let i = 0; i < count; i++) {
-      dummy.position.set(PLANK * (i + 0.5), -0.01, SLAB.depth / 2);
+      dummy.position.set(plank * (i + 0.5), -0.01, depth / 2);
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
       // About 70 percent main oak, 25 percent alt, 5 percent deep (WORLD_PALETTE.md).
@@ -29,11 +36,17 @@ export function Planks() {
     }
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  }, [count]);
+  }, [count, plank, depth]);
 
   return (
-    <instancedMesh ref={ref} args={[undefined, undefined, count]} material={material} receiveShadow>
-      <boxGeometry args={[PLANK - 0.006, 0.02, SLAB.depth]} />
+    <instancedMesh
+      key={count}
+      ref={ref}
+      args={[undefined, undefined, count]}
+      material={material}
+      receiveShadow
+    >
+      <boxGeometry args={[plank - 0.006, 0.02, depth]} />
     </instancedMesh>
   );
 }

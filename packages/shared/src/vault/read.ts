@@ -11,6 +11,7 @@ export function describeIssues(error: z.ZodError): string {
     if (issue.code === "invalid_type" && issue.input === undefined) return `${field} is missing`;
     if (issue.code === "invalid_value") return `${field} has a value that is not allowed`;
     if (issue.code === "unrecognized_keys") return `${field} has fields we do not know`;
+    if (issue.code === "custom") return issue.message;
     return `${field} is not valid`;
   });
   const more = error.issues.length > 3 ? `, and ${error.issues.length - 3} more` : "";

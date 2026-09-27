@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { AccessoriesFile } from "../schemas/accessory";
 import { AuthorityRulesFile } from "../schemas/authority-rule";
 import type { AppState, Stats } from "../schemas/events";
+import { LayoutFile } from "../schemas/layout";
 import { QueueItem } from "../schemas/queue-item";
 import {
   RosterFile,
@@ -101,6 +102,10 @@ export async function loadVault(options: LoadOptions): Promise<AppState> {
     ),
   );
 
+  const layout = take(
+    await readJson(join(vaultDir, "office/layout.json"), "office/layout.json", LayoutFile),
+  );
+
   const profiles = new Map<string, SeatProfile>();
   for (const folder of await listFolders(join(vaultDir, "team"))) {
     const label = `team/${folder}/profile.md`;
@@ -141,7 +146,11 @@ export async function loadVault(options: LoadOptions): Promise<AppState> {
     };
   });
 
-  const office = { zones: zones?.zones ?? [], accessories: accessories?.accessories ?? [] };
+  const office = {
+    zones: zones?.zones ?? [],
+    accessories: accessories?.accessories ?? [],
+    layout,
+  };
   const workflowList = workflows?.workflows ?? [];
 
   warnings.push(

@@ -2,6 +2,7 @@ export * from "./schemas/accessory";
 export * from "./schemas/authority-rule";
 export * from "./schemas/common";
 export * from "./schemas/events";
+export * from "./schemas/layout";
 export * from "./schemas/queue-item";
 export * from "./schemas/seat";
 export * from "./schemas/task";

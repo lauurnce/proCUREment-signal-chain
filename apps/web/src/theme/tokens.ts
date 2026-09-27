@@ -120,7 +120,7 @@ export const worldLight = {
   keyDay: 2.4,
   skyDusk: 1.8,
   keyDusk: 3.4,
-  skyNight: 0.9,
+  skyNight: 1.25, // lifted from 0.9, so the wings are not black at night (council, 27 Sep 2026)
   keyNight: 0.5,
   lamp: { intensity: 3, distance: 5, decay: 2, max: 4 },
   contactShadowOpacity: { day: 0.35, night: 0.5 },

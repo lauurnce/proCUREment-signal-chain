@@ -18,31 +18,41 @@ async function folderId(dir: string): Promise<string | null> {
   }
 }
 
+/** Passed to onChange when the whole vault folder was replaced, so every file may have changed. */
+export const EVERYTHING = "*";
+
 /**
- * Watches the vault and calls onChange once per burst of changes. Returns a stop function.
+ * Watches the vault and calls onChange once per burst of changes, with the changed paths
+ * relative to the vault (or EVERYTHING). Returns a stop function.
  * If the whole folder is moved, deleted or replaced (a git checkout, a sync tool), the watcher
  * notices within a few seconds, starts again on the new folder, and reloads.
  */
 export function watchVault(
   vaultDir: string,
-  onChange: () => void,
+  onChange: (changed: string[]) => void,
   options: { debounceMs?: number; recheckMs?: number } = {},
 ): () => Promise<void> {
   const { debounceMs = 200, recheckMs = 2_000 } = options;
   let timer: NodeJS.Timeout | undefined;
   let watcher: FSWatcher | null = null;
   let currentId: string | null = null;
+  let changed = new Set<string>();
 
-  const schedule = () => {
+  const schedule = (path: string) => {
+    changed.add(path);
     clearTimeout(timer);
-    timer = setTimeout(onChange, debounceMs);
+    timer = setTimeout(() => {
+      const paths = [...changed];
+      changed = new Set();
+      onChange(paths);
+    }, debounceMs);
   };
   const start = () => {
     watcher = watch(vaultDir, {
       ignoreInitial: true,
       ignored: (path) => isIgnored(relative(vaultDir, path)),
     });
-    watcher.on("all", schedule);
+    watcher.on("all", (_event, path) => schedule(relative(vaultDir, path)));
   };
 
   void folderId(vaultDir).then((id) => {
@@ -56,7 +66,7 @@ export function watchVault(
       currentId = id;
       await watcher?.close();
       start();
-      schedule();
+      schedule(EVERYTHING);
     });
   }, recheckMs);
   recheck.unref();

@@ -1,13 +1,12 @@
 import { world } from "../../theme/tokens";
 import { useMaterial } from "../materials";
 import { Chair } from "./Chair";
-import { DESK, Desk } from "./Desk";
+import { Desk } from "./Desk";
 import { DeskLamp } from "./DeskLamp";
+import { DESK, SEAT_FROM_DESK } from "./parts";
 
 /** Where a helper sits: the seat center on the floor, and the way it faces. */
 export type SeatSpot = { position: [number, number, number]; rotation: number };
-
-const SEAT_FROM_DESK = 0.85;
 
 /**
  * The 4 seats of a pod, in order: back left, back right, front left, front right.

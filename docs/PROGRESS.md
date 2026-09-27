@@ -1,6 +1,6 @@
 # Progress
 
-Now: Phase 2 done in `p2-design-lab`, waiting for commit and merge (P2.7). Next: Phase 3, the office world. Start a new session with `claude -w p3-office`, then paste P3.1 from `docs/PROMPTS.md`.
+Now: Phase 3 in `p3-office`. P3.5 fixes applied, checkpoint next, then merge to `main`. Next: Phase 4 (helpers) and Phase 5 (panel).
 
 ## Phases
 - [x] 0. Kickoff and alignment (main checkout)
@@ -21,6 +21,11 @@ Now: Phase 2 done in `p2-design-lab`, waiting for commit and merge (P2.7). Next:
 - Confirm the pnpm release-age exceptions for new package versions (D-024).
 
 ## Log
+- 27 Sep 2026, P3.5: Design Council review (`docs/design/reviews/2026-09-27-office-world.md`, Clarity 3, Brand 4, Charm 3, Craft 3, Smooth 4, Realism 4). Applied the 5 Must fixes and the picked Should fixes: the bridge as the hero, names at the Overview, framing around the page controls, backing pills, a night lift, lower glass, a bridge view on key 5, accent selected buttons, no desk flags (D-057 to D-062). 16 draw calls, 14.2k triangles.
+- 27 Sep 2026, P3.4: one landmark per zone, built as boxes in the same batches (bridge counter with a capiz-style pendant, SAP terminal, mail pigeonholes and To Planner tray, signing desk, round table, whiteboard and table, coffee cart under a capiz-style lamp, logistics counter with a loading dock and apron, Reception counter with a "SignalChain HQ" sign, the Needs you tray and dashboard wall, the Leads' review board, the wing pennants). Props come from accessories.json (D-055), and saving that file updates the office live through office.updated (D-056): proven with before and after shots, the event arrived 235 ms after the save, with no reload. 15 draw calls, 13.5k triangles.
+- 27 Sep 2026, P3.3: look A day and a navy night (moon, 4 warm lamps, glowing windows and screens, a faint bridge seam) that blend through dusk in 1.2 s, soft contact shadows, a Go to and Light card (D-051), keys 1 to 4 with 800 ms eased camera moves, a 140 ms fade with reduced motion, and r3f-perf in dev (D-054). 120 fps at the Overview by day and at night on the M4 Pro, 9 draw calls. Fixed: contact shadows too faint to see (D-053), a view framed too wide on load (D-052).
+- 27 Sep 2026, P3.2: the office world from `vault.sample/office/layout.json` (new schema and checks in `packages/shared`): slab, planks, zone rugs, cutaway walls with glass and low walls, windows, all 26 desks, zone labels that fade in with zoom, and camera presets from zone rects (`?view=`). 7 draw calls and 9.6k triangles at the Overview. 120 fps on the M4 Pro. A broken layout keeps the last good one (D-050). Lawrence picked variant 1a for Contract Corner (D-049), now in layout.json.
+- 27 Sep 2026, P3.1: the r3f-engineer and the world-artist planned Phase 3 (`docs/design/PHASE3_PLAN.md`). Lawrence chose a Lab pick for Contract Corner (D-049) and the last good layout on errors (D-050).
 - 27 Sep 2026, P2.6 and P2.7: Design Council review (`docs/design/reviews/2026-09-27-design-lab.md`), then applied the 5 Must fixes and Lawrence's decisions (D-042 to D-048): panel focus, accessibility floor, no jumps, truthful name tags, copy trust pass, new stats tiles, q-0001 as a real escalation. Final values written to DESIGN_DIRECTION and both skills. Phase 2 done.
 - 26 Sep 2026, P2.5: the ux-architect wrote the panel spec and the ux-writer the copy deck (`docs/design/panel/`). Built the panel in `apps/web/src/ui/panel/` with sample data: header, 4 tabs, Needs you cards and detail, decisions with keys and a 5 s undo, Team, Board, Office, and the instruction box. A keyboard-only smoke test passes.
 - 26 Sep 2026, P2.4: the procurement-sme and ux-architect wrote adjacency and readability notes, the world-artist drew 2 options as data, shown at `/lab/floorplan` with the six workflow routes and their walk lengths. Lawrence chose Option 1, Central Bridge (D-037), and one Leads' Row for now (D-038).

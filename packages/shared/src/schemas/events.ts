@@ -2,6 +2,7 @@ import { z } from "zod";
 import { Accessory } from "./accessory";
 import { AuthorityRule } from "./authority-rule";
 import { IsoDateTime } from "./common";
+import { LayoutFile } from "./layout";
 import { QueueItem } from "./queue-item";
 import { Seat } from "./seat";
 import { Task } from "./task";
@@ -11,6 +12,8 @@ import { Zone } from "./zone";
 export const OfficeState = z.object({
   zones: z.array(Zone),
   accessories: z.array(Accessory),
+  /** The floor plan, or null when office/layout.json has never been read. */
+  layout: LayoutFile.nullable(),
 });
 export type OfficeState = z.infer<typeof OfficeState>;
 

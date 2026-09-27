@@ -63,6 +63,14 @@ export function connectToServer(): () => void {
       const parsed = ServerEvent.safeParse(JSON.parse(message.data));
       if (parsed.success && parsed.data.type === "state.snapshot") setData(parsed.data.state);
     });
+    // An edit to an office file (like accessories.json) changes only the office, live.
+    source.addEventListener("office.updated", (message) => {
+      heardFromServer();
+      const parsed = ServerEvent.safeParse(JSON.parse(message.data));
+      if (parsed.success && parsed.data.type === "office.updated") {
+        useStore.getState().setOffice(parsed.data.office);
+      }
+    });
   }
 
   open();

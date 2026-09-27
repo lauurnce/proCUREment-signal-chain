@@ -1,124 +1,128 @@
 {
   "version": 1,
-  "note": "Decorative props. Edit and save this file while the app runs, and the office updates live (Phase 3). Positions are added in Phase 3.",
+  "note": "Decorative props. Edit and save this file while the app runs, and the office updates live. The big piece in each zone is a landmark in layout.json. pos is [x, z] in meters, rot is degrees.",
   "accessories": [
-    {
-      "id": "sign-reception",
-      "kind": "wall-sign",
-      "zone": "reception",
-      "label": "SignalChain HQ",
-      "enabled": true
-    },
     {
       "id": "sofa-reception",
       "kind": "sofa",
       "zone": "reception",
-      "enabled": true
+      "enabled": true,
+      "pos": [
+        21.3,
+        15.2
+      ],
+      "rot": -90
     },
     {
       "id": "plant-reception",
       "kind": "plant-tall",
       "zone": "reception",
-      "enabled": true
+      "enabled": true,
+      "pos": [
+        17.0,
+        13.5
+      ],
+      "rot": 0
     },
     {
-      "id": "needs-you-tray",
-      "kind": "desk-tray",
+      "id": "plant-mgr-office",
+      "kind": "plant",
       "zone": "mgr-office",
-      "label": "Needs you",
-      "enabled": true
+      "enabled": true,
+      "pos": [
+        4.5,
+        0.5
+      ],
+      "rot": 0
     },
     {
-      "id": "bridge-counter",
-      "kind": "handoff-counter",
-      "zone": "endorsement-bridge",
-      "label": "PR-PO list",
-      "enabled": true
-    },
-    {
-      "id": "sap-terminal",
-      "kind": "big-terminal",
+      "id": "plant-sap",
+      "kind": "plant",
       "zone": "sap-station",
-      "label": "SAP",
-      "enabled": true
-    },
-    {
-      "id": "mail-pigeonholes",
-      "kind": "pigeonholes",
-      "zone": "mail-dock",
-      "label": "Inbox",
-      "enabled": true
-    },
-    {
-      "id": "signature-stand",
-      "kind": "signature-stand",
-      "zone": "contract-corner",
-      "label": "Sign here",
-      "enabled": true
-    },
-    {
-      "id": "negotiation-table",
-      "kind": "round-table",
-      "zone": "negotiation-room",
-      "enabled": true
-    },
-    {
-      "id": "whiteboard-pr-po",
-      "kind": "whiteboard",
-      "zone": "huddle-room",
-      "label": "PR to PO flow",
-      "enabled": true
+      "enabled": true,
+      "pos": [
+        14.5,
+        0.5
+      ],
+      "rot": 0
     },
     {
       "id": "poster-race",
       "kind": "poster",
       "zone": "huddle-room",
       "label": "RACE: Role, Action, Context, Expectation",
-      "enabled": true
-    },
-    {
-      "id": "coffee-machine",
-      "kind": "coffee-machine",
-      "zone": "merienda-corner",
-      "enabled": true
+      "enabled": true,
+      "pos": [
+        9.3,
+        0.05
+      ],
+      "rot": 0
     },
     {
       "id": "snack-shelf",
       "kind": "snack-shelf",
       "zone": "merienda-corner",
-      "enabled": true
+      "enabled": true,
+      "pos": [
+        27.5,
+        15.5
+      ],
+      "rot": -90
+    },
+    {
+      "id": "plant-mail-dock",
+      "kind": "plant",
+      "zone": "mail-dock",
+      "enabled": true,
+      "pos": [
+        27.5,
+        7.5
+      ],
+      "rot": 0
+    },
+    {
+      "id": "printer-ops",
+      "kind": "printer",
+      "zone": "ops-wing",
+      "enabled": true,
+      "pos": [
+        27.4,
+        6.3
+      ],
+      "rot": -90
     },
     {
       "id": "loading-dock-truck",
       "kind": "delivery-truck",
       "zone": "logistics-window",
-      "enabled": true
+      "enabled": true,
+      "pos": [
+        30.2,
+        15.2
+      ],
+      "rot": 0
     },
     {
       "id": "plant-cm-wing",
       "kind": "plant",
       "zone": "cm-wing",
-      "enabled": true
+      "enabled": true,
+      "pos": [
+        0.5,
+        17.4
+      ],
+      "rot": 0
     },
     {
       "id": "plant-ops-wing",
       "kind": "plant",
       "zone": "ops-wing",
-      "enabled": true
-    },
-    {
-      "id": "flag-ph",
-      "kind": "desk-flag",
-      "zone": "ops-wing",
-      "label": "PH",
-      "enabled": false
-    },
-    {
-      "id": "flag-th",
-      "kind": "desk-flag",
-      "zone": "cm-wing",
-      "label": "TH",
-      "enabled": false
+      "enabled": true,
+      "pos": [
+        27.5,
+        0.5
+      ],
+      "rot": 0
     }
   ]
 }
