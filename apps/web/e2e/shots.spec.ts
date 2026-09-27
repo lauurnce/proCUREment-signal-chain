@@ -25,7 +25,14 @@ type Target = {
 };
 
 const pages: Target[] = [
-  { name: "office", path: "/?shots=1", fullPage: false },
+  // P3.2 and P3.3 office world: the Overview and each camera preset, by day and at night.
+  ...(["day", "night"] as const).flatMap((time) =>
+    (["overview", "cm", "ops", "mgr", "bridge"] as const).map((view) => ({
+      name: `office-${view}${time === "night" ? "-night" : ""}`,
+      path: `/?shots=1&view=${view}&time=${time}`,
+      fullPage: false,
+    })),
+  ),
   // The Lab is a long page, so it is captured top to bottom.
   { name: "lab", path: "/lab", fullPage: true },
   // P2.3 diorama study: the three looks by day, plus the favorite at night.
@@ -35,7 +42,8 @@ const pages: Target[] = [
     fullPage: false,
   })),
   // P2.4 floor plan options, drawn top-down with the workflow routes.
-  ...(["1", "2"] as const).map((plan) => ({
+  // P3.2: plus the Contract Corner variants for D-049.
+  ...(["1", "2", "1a", "1b", "1a-dock"] as const).map((plan) => ({
     name: `floorplan-${plan}`,
     path: `/lab/floorplan?plan=${plan}`,
     fullPage: true,

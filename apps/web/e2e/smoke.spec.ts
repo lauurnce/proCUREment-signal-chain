@@ -6,7 +6,8 @@ test("the office loads, draws the 3D floor, and shows the server is OK", async (
   await page.goto("/");
 
   await waitForReady(page);
-  const canvas = page.getByTestId("office-canvas").locator("canvas");
+  // .first(): in dev the r3f-perf overlay adds its own small graph canvas.
+  const canvas = page.getByTestId("office-canvas").locator("canvas").first();
   await expect(canvas).toBeVisible();
   const box = await canvas.boundingBox();
   expect(box?.width).toBeGreaterThan(800);
@@ -17,6 +18,91 @@ test("the office loads, draws the 3D floor, and shows the server is OK", async (
   await expect(badge).toContainText("26 seats");
 
   await expect(page.getByTestId("about-note")).toHaveText("Unofficial prototype · Fictional data");
+  expect(errors).toEqual([]);
+});
+
+/** Phase 3 world budget at the Overview, before helpers (docs/design/PHASE3_PLAN.md). */
+const WORLD_BUDGET = { calls: 40, triangles: 50_000 };
+
+test("the office world stays inside its draw call and triangle budget", async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/?shots=1");
+  await waitForReady(page);
+  // Let a few more frames run, so the numbers come from a settled frame.
+  await page.waitForTimeout(500);
+  const info = await page.evaluate(() => window.__HQ_RENDER_INFO__);
+  expect(info, "render info is shared in shots mode").toBeDefined();
+  console.log(`Overview: ${info?.calls} draw calls, ${info?.triangles} triangles`);
+  expect(info?.calls).toBeLessThanOrEqual(WORLD_BUDGET.calls);
+  expect(info?.triangles).toBeLessThanOrEqual(WORLD_BUDGET.triangles);
+  expect(errors).toEqual([]);
+});
+
+test("the Overview names the four main places, and other names show when zoomed in", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/?shots=1");
+  await waitForReady(page);
+  for (const zone of ["cm-wing", "ops-wing", "endorsement-bridge", "mgr-office"]) {
+    await expect(page.getByTestId(`zone-label-${zone}`), zone).toBeVisible();
+  }
+  await expect(page.getByTestId("zone-label-mail-dock")).toBeHidden();
+
+  await page.goto("/?shots=1&view=ops");
+  await waitForReady(page);
+  await expect(page.getByTestId("zone-label-mail-dock")).toBeVisible();
+  await expect(page.getByTestId("zone-label-mail-dock")).toHaveText("Mail Dock");
+});
+
+test("keys 1 to 5 move the camera to each view, and never while typing", async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/?shots=1");
+  await waitForReady(page);
+  const label = page.getByTestId("zone-label-mail-dock");
+  await expect(label).toBeHidden();
+
+  await page.keyboard.press("3");
+  await expect(page.getByTestId("view-announcement")).toHaveText("View: Ops Wing");
+  await expect(page.getByRole("button", { name: /Ops Wing/ })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  // After the 800 ms move, the camera is close enough for the other zone labels.
+  await expect(label).toBeVisible({ timeout: 3_000 });
+
+  await page.keyboard.press("5");
+  await expect(page.getByTestId("view-announcement")).toHaveText("View: Endorsement Bridge");
+
+  await page.keyboard.press("1");
+  await expect(page.getByTestId("view-announcement")).toHaveText("View: Whole office");
+  await expect(label).toBeHidden({ timeout: 3_000 });
+  expect(errors).toEqual([]);
+});
+
+test("with reduced motion, a view change cuts behind a short fade", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/?shots=1");
+  await waitForReady(page);
+  await page.getByRole("button", { name: /Ops Wing/ }).click();
+  await expect(page.getByTestId("view-announcement")).toHaveText("View: Ops Wing");
+  // Software rendering in tests is slow, so allow a few frames after the 140 ms fade.
+  await expect(page.getByTestId("zone-label-mail-dock")).toBeVisible({ timeout: 3_000 });
+});
+
+test("the Night button turns the office to night, and Day turns it back", async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto("/?shots=1");
+  await waitForReady(page);
+  const night = page.getByRole("button", { name: "Night" });
+  await night.click();
+  await expect(night).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("heading", { name: "SignalChain HQ" })).toHaveClass(/text-white/);
+  await page.getByRole("button", { name: "Day" }).click();
+  await expect(page.getByRole("button", { name: "Day" })).toHaveAttribute("aria-pressed", "true");
   expect(errors).toEqual([]);
 });
 

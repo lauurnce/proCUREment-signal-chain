@@ -20,6 +20,7 @@ describe("seedVault", () => {
     const copied = await seedVault(sampleDir, vaultDir);
     expect(copied).toContain(join("queue", "q-0001-ops-03-luzon-po-451208.md"));
     expect(copied).toContain(join("office", "zones.json"));
+    expect(copied).toContain(join("office", "layout.json"));
   });
 
   it("never overwrites a file that already exists", async () => {

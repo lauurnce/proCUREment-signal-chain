@@ -31,8 +31,11 @@ export type Walkways = {
   edges: [from: string, to: string][];
 };
 
+export type PlanId = "1" | "2" | "1a" | "1b" | "1a-dock";
+
 export type FloorPlan = {
-  id: "1" | "2";
+  /** 1 and 2 are the P2.4 options. 1a, 1b and 1a-dock are the Phase 3 Contract Corner variants (D-049). */
+  id: PlanId;
   name: string;
   idea: string;
   size: { width: number; depth: number };

@@ -48,7 +48,7 @@ export function OfficeTab() {
               key={p}
               type="button"
               aria-disabled="true"
-              title="Camera presets come with the full office in Phase 3."
+              title="Camera views come with the panel in Phase 5."
               className="rounded-button border border-hairline bg-panel px-3 py-2 text-left"
               style={typeStyle("small", "inkMuted")}
             >

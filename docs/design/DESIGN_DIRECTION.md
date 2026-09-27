@@ -59,7 +59,7 @@ A is the only direction that makes the real CM to Ops handoff something you can 
 - **Brand discipline.** Deck DNA: an accent bar under titles, panel-grey cards, sentence case, and "21 Sep 2026" dates. No logo, wordmark or tagline. No triangle inside a square. "Unofficial prototype · Fictional data" appears in the About area and in email footers.
 - **Status is never color alone.** Status and track always pair color with a shape, icon or text.
 - **Few words in the world.** Facts live in the panel.
-- **Privacy.** The app shows helpers only. It shows no "online" status, no idle state, no per-person counts or rankings, and none of the ref 10 HR use case. Words like "monitoring" and "tracking" are never used about people.
+- **Privacy.** The app shows helpers only. It shows no "online" status, no idle state, no per-person counts or rankings, and none of the ref 10 HR use case. Words like "monitoring" and "tracking" are never used about people. The dashboard wall in her office and the Leads' review board show work items only (PRs, POs, amendments): never counts, speed or rankings per seat (council review, 27 Sep 2026).
 - **Drafts first.** The main email action is "Save draft in Outlook". Sending is a second step that lists every recipient. A draft with a placeholder cannot be sent.
 - **Performance and access.** The scene runs at 60 fps, with under 150 draw calls and under 250k triangles. Text meets WCAG 2.2 AA contrast, focus rings are visible, and every animation has a reduced-motion version.
 

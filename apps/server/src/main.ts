@@ -2,6 +2,7 @@ import { relative } from "node:path";
 import { buildApp } from "./app";
 import { loadConfig } from "./config";
 import { SseHub } from "./sse/hub";
+import { eventForChange } from "./vault/events";
 import { seedVault } from "./vault/seed";
 import { VaultStore } from "./vault/store";
 import { watchVault } from "./vault/watch";
@@ -27,7 +28,6 @@ store.subscribe((state) => {
 await store.reload();
 
 const hub = new SseHub();
-store.subscribe((state) => hub.broadcast({ type: "state.snapshot", state }));
 
 const app = await buildApp({
   store,
@@ -38,8 +38,14 @@ const app = await buildApp({
   vaultPath: relative(config.repoRoot, config.vaultDir),
 });
 
-const stopWatching = watchVault(config.vaultDir, () => {
-  store.reload().catch((error: unknown) => console.error("Vault reload failed", error));
+// An edit to office files only sends office.updated, so the office changes without a reload.
+// Everything else sends a full snapshot.
+const stopWatching = watchVault(config.vaultDir, (changed) => {
+  const previous = store.state;
+  store
+    .reload()
+    .then((next) => hub.broadcast(eventForChange(changed, previous, next)))
+    .catch((error: unknown) => console.error("Vault reload failed", error));
 });
 
 await app.listen({ host: config.host, port: config.apiPort });

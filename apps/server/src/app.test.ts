@@ -1,4 +1,4 @@
-import { cp, mkdtemp, rm } from "node:fs/promises";
+import { cp, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { AppState, Health } from "@hq/shared";
@@ -11,6 +11,7 @@ import { VaultStore } from "./vault/store";
 const repoRoot = resolve(import.meta.dirname, "../../..");
 let temp: string;
 let app: FastifyInstance;
+let store: VaultStore;
 
 /** A GET as a local browser would send it, through the web port proxy. */
 const get = (url: string, headers: Record<string, string> = {}) =>
@@ -20,7 +21,7 @@ beforeEach(async () => {
   temp = await mkdtemp(join(tmpdir(), "hq-app-"));
   const vaultDir = join(temp, "vault");
   await cp(join(repoRoot, "vault.sample"), vaultDir, { recursive: true });
-  const store = new VaultStore({ vaultDir, dataDir: join(repoRoot, "data") });
+  store = new VaultStore({ vaultDir, dataDir: join(repoRoot, "data") });
   await store.reload();
   app = await buildApp({
     store,
@@ -75,5 +76,19 @@ describe("server routes", () => {
     ]) {
       expect((await get("/api/state", { host })).statusCode, host).toBe(403);
     }
+  });
+
+  it("state includes the office layout with 26 desks", async () => {
+    const state = AppState.parse((await get("/api/state")).json());
+    expect(state.office.layout?.deskSlots).toHaveLength(26);
+  });
+
+  it("keeps the last good layout when layout.json breaks during a live edit (D-050)", async () => {
+    await writeFile(join(temp, "vault", "office", "layout.json"), "{ not json");
+    const state = await store.reload();
+    expect(state.office.layout?.deskSlots).toHaveLength(26);
+    expect(state.warnings).toContain(
+      "Using the last good office layout until office/layout.json is fixed.",
+    );
   });
 });

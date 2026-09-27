@@ -19,7 +19,14 @@ export class VaultStore {
   }
 
   async reload(): Promise<AppState> {
-    this.#state = await loadVault({ ...this.#options, includeLocalRoster: true });
+    const next = await loadVault({ ...this.#options, includeLocalRoster: true });
+    // A broken layout.json during a live edit keeps the last good floor plan (D-050).
+    const lastGood = this.#state?.office.layout ?? null;
+    if (next.office.layout === null && lastGood) {
+      next.office.layout = lastGood;
+      next.warnings.push("Using the last good office layout until office/layout.json is fixed.");
+    }
+    this.#state = next;
     for (const listener of this.#listeners) listener(this.#state);
     return this.#state;
   }

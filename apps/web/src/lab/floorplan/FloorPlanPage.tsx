@@ -7,9 +7,13 @@ import { PlanDrawing } from "./PlanDrawing";
 import { PLANS } from "./plans";
 import { RouteLegend } from "./RouteLegend";
 import { REAL_WORKFLOWS } from "./style";
+import type { PlanId } from "./types";
 
-function readPlan(search: string): "1" | "2" {
-  return new URLSearchParams(search).get("plan") === "2" ? "2" : "1";
+const PLAN_IDS: PlanId[] = ["1", "2", "1a", "1b", "1a-dock"];
+
+function readPlan(search: string): PlanId {
+  const id = new URLSearchParams(search).get("plan");
+  return PLAN_IDS.find((known) => known === id) ?? "1";
 }
 
 /** P2.4: two floor plan options with the six real workflow routes, to pick one before Phase 3. */
@@ -37,7 +41,7 @@ export function FloorPlanPage() {
     if (workflows.length > 0) window.__HQ_READY__ = true;
   }, [workflows.length]);
 
-  function choose(id: "1" | "2") {
+  function choose(id: PlanId) {
     setPlanId(id);
     const url = new URL(window.location.href);
     url.searchParams.set("plan", id);
@@ -68,7 +72,7 @@ export function FloorPlanPage() {
         <div className="flex items-center gap-2">
           <fieldset className="m-0 flex items-center gap-2 border-0 p-0">
             <legend className="sr-only">Floor plan option</legend>
-            {(["1", "2"] as const).map((id) => {
+            {PLAN_IDS.map((id) => {
               const p = PLANS.find((x) => x.id === id);
               const active = id === planId;
               return (
