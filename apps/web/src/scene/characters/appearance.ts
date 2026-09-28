@@ -1,7 +1,9 @@
 import { worldCharacter } from "../../theme/tokens";
 
-export type HairStyle = "short" | "bob" | "bun" | "ponytail" | "tuft";
-export type Accessory = "none" | "glasses" | "headset";
+export type HairStyle = "short" | "bob" | "bun" | "ponytail" | "tuft" | "long" | "crop";
+export type Accessory = "none" | "glasses" | "headset" | "mug";
+/** tee: plain top. collar: a white shirt collar. cardigan: an open top over a second color. */
+export type Outfit = "tee" | "collar" | "cardigan";
 
 export type Appearance = {
   skin: string;
@@ -9,6 +11,11 @@ export type Appearance = {
   hairStyle: HairStyle;
   top: string;
   bottom: string;
+  outfit: Outfit;
+  /** The color under an open cardigan. Never the same as the top. */
+  inner: string;
+  /** Torso width and height in meters. The approved Lab helper is 0.44 by 0.46. */
+  build: { width: number; height: number };
   accessory: Accessory;
   /** 0 to 1, shifts the animation timing so helpers never move in sync. */
   phase: number;
@@ -46,29 +53,55 @@ function pick<T>(list: readonly T[], r: number): T {
   return list[Math.floor(r * list.length)] as T;
 }
 
-/** The look of one helper. The same seed (the seat id) always gives the same look. */
+/**
+ * The look of one helper. The same seed always gives the same look. New choices draw their
+ * random numbers after the first ones, so the looks approved in the Lab keep their skin, hair,
+ * top, bottom and accessory.
+ */
 export function appearanceFor(seed: string): Appearance {
   const rand = seededRandom(seed);
-  return {
-    skin: weighted(
-      worldCharacter.skinTones.map((s) => ({ value: s.hex, weight: s.weight })),
-      rand(),
-    ),
-    hair: weighted(
-      worldCharacter.hairColors.map((s) => ({ value: s.hex, weight: s.weight })),
-      rand(),
-    ),
-    hairStyle: pick(["short", "bob", "bun", "ponytail", "tuft"] as const, rand()),
-    top: pick(worldCharacter.topColors, rand()),
-    bottom: pick(worldCharacter.bottomColors, rand()),
-    accessory: weighted(
-      [
-        { value: "none" as const, weight: 3 },
-        { value: "glasses" as const, weight: 2 },
-        { value: "headset" as const, weight: 1 },
-      ],
-      rand(),
-    ),
-    phase: rand(),
+  const skin = weighted(
+    worldCharacter.skinTones.map((s) => ({ value: s.hex, weight: s.weight })),
+    rand(),
+  );
+  const hair = weighted(
+    worldCharacter.hairColors.map((s) => ({ value: s.hex, weight: s.weight })),
+    rand(),
+  );
+  let hairStyle: HairStyle = pick(["short", "bob", "bun", "ponytail", "tuft"] as const, rand());
+  const top = pick(worldCharacter.topColors, rand());
+  const bottom = pick(worldCharacter.bottomColors, rand());
+  let accessory: Accessory = weighted(
+    [
+      { value: "none" as const, weight: 3 },
+      { value: "glasses" as const, weight: 2 },
+      { value: "headset" as const, weight: 1 },
+    ],
+    rand(),
+  );
+  const phase = rand();
+
+  // Added in P4.1: body, outfit, two more hair styles and the mug.
+  const build = {
+    width: pick([0.4, 0.44, 0.48] as const, rand()),
+    height: pick([0.44, 0.46, 0.48] as const, rand()),
   };
+  const outfit = weighted<Outfit>(
+    [
+      { value: "tee", weight: 3 },
+      { value: "collar", weight: 2 },
+      { value: "cardigan", weight: 2 },
+    ],
+    rand(),
+  );
+  const inner = pick(
+    worldCharacter.topColors.filter((c) => c !== top),
+    rand(),
+  );
+  const restyle = rand();
+  if (restyle < 0.15) hairStyle = "long";
+  else if (restyle < 0.3) hairStyle = "crop";
+  if (accessory === "none" && rand() < 0.4) accessory = "mug";
+
+  return { skin, hair, hairStyle, top, bottom, outfit, inner, build, accessory, phase };
 }

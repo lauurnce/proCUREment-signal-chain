@@ -21,10 +21,15 @@ test("the office loads, draws the 3D floor, and shows the server is OK", async (
   expect(errors).toEqual([]);
 });
 
-/** Phase 3 world budget at the Overview, before helpers (docs/design/PHASE3_PLAN.md). */
-const WORLD_BUDGET = { calls: 40, triangles: 50_000 };
+/**
+ * Overview budget: the world (Phase 3, 40 calls and 50k triangles) plus the 26 helpers drawn as
+ * one crowd (P4.1, D-063). Well inside the skill budget of 150 calls and 250k triangles.
+ */
+const WORLD_BUDGET = { calls: 45, triangles: 100_000 };
 
-test("the office world stays inside its draw call and triangle budget", async ({ page }) => {
+test("the office with its helpers stays inside its draw call and triangle budget", async ({
+  page,
+}) => {
   const errors = collectErrors(page);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/?shots=1");
@@ -160,4 +165,44 @@ test("the panel works with the keyboard only, and nothing is sent", async ({ pag
   await page.keyboard.press("a");
   await expect(tab).toContainText("2");
   expect(errors).toEqual([]);
+});
+
+test("clicking a helper selects them, tells onSeatSelected, and Esc clears it", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/?shots=1&view=cm");
+  await waitForReady(page);
+  await expect(page.getByTestId("office-tag-cm-03")).toBeVisible();
+
+  const point = await page.evaluate(() => window.__HQ_SEATS__?.seatPoint("cm-03"));
+  expect(point, "cm-03 is on screen").toBeTruthy();
+  await page
+    .getByTestId("office-canvas")
+    .click({ position: { x: point?.x ?? 0, y: point?.y ?? 0 } });
+
+  const tag = page.getByTestId("office-tag-cm-03");
+  await expect(tag).toHaveAttribute("data-selected", "true");
+  const events = await page.evaluate(() => window.__HQ_SEATS__?.events);
+  expect(events).toEqual([{ seatId: "cm-03", source: "click" }]);
+
+  await page.keyboard.press("Escape");
+  await expect(tag).toHaveAttribute("data-selected", "false");
+  expect(errors).toEqual([]);
+});
+
+test("a drag across a helper pans the camera and selects nobody", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/?shots=1&view=cm");
+  await waitForReady(page);
+  const point = await page.evaluate(() => window.__HQ_SEATS__?.seatPoint("cm-03"));
+  const x = point?.x ?? 0;
+  const y = point?.y ?? 0;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + 80, y + 40, { steps: 8 });
+  await page.mouse.up();
+  const events = await page.evaluate(() => window.__HQ_SEATS__?.events);
+  expect(events).toEqual([]);
 });

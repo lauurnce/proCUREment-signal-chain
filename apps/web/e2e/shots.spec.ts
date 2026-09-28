@@ -22,6 +22,8 @@ type Target = {
   path: string;
   fullPage: boolean;
   only?: { width: number; height: number }[];
+  /** Select this helper first, as a click would, and let the camera arrive. */
+  select?: string;
 };
 
 const pages: Target[] = [
@@ -61,6 +63,14 @@ const pages: Target[] = [
   { name: "panel", path: "/lab/panel?shots=1", fullPage: false, only: PANEL_SIZES },
   { name: "panel-detail", path: "/lab/panel?shots=1&open=1", fullPage: false },
   { name: "panel-team", path: "/lab/panel?shots=1&tab=team", fullPage: false },
+  // P4.2: a selected helper, by day and at night. The camera moves in, so the tags show roles.
+  { name: "office-selected", path: "/?shots=1", fullPage: false, select: "cm-03" },
+  {
+    name: "office-selected-night",
+    path: "/?shots=1&time=night",
+    fullPage: false,
+    select: "ops-07",
+  },
 ];
 
 test.beforeAll(() => {
@@ -75,6 +85,13 @@ for (const target of pages) {
       await page.goto(target.path);
       await waitForReady(page);
       await page.evaluate(() => document.fonts.ready);
+      if (target.select) {
+        // Reduced motion makes the camera cut (after a 140 ms fade) instead of easing, so the
+        // shot does not depend on how fast this machine draws frames.
+        await page.emulateMedia({ reducedMotion: "reduce" });
+        await page.evaluate((id) => window.__HQ_SEATS__?.selectSeat(id), target.select);
+        await page.waitForTimeout(800);
+      }
       const file = join(outDir, `${target.name}-${size.width}x${size.height}.png`);
       await page.screenshot({ path: file, fullPage: target.fullPage });
       expect(errors).toEqual([]);

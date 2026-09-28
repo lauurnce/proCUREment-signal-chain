@@ -6,6 +6,8 @@ import { Box3, Vector3 } from "three";
 import { overlayRects } from "../../state/overlays";
 import { useStore, type ViewId } from "../../state/store";
 import { motion, world } from "../../theme/tokens";
+import { useSelection } from "../characters/selection";
+import { frameSeat } from "../characters/tags";
 import { ISO_AZIMUTH, ISO_POLAR } from "../constants";
 import { type Framing, framePreset, PRESETS, type Preset, presetById, zoomLimits } from "./presets";
 import { easingFromCss, mixFraming } from "./tween";
@@ -19,7 +21,8 @@ const easeTakeOver = easingFromCss(motion.easing.enter);
 
 /** A camera move in progress. `elapsed` adds up frame times, in ms. */
 type Tween = {
-  view: ViewId;
+  /** The view it moves to, or null for a move to a selected helper. */
+  view: ViewId | null;
   from: Framing;
   to: Framing;
   elapsed: number;
@@ -63,6 +66,7 @@ export function OfficeCamera({
   const camera = useThree((state) => state.camera);
   const view = useStore((state) => state.view);
   const viewRequest = useStore((state) => state.viewRequest);
+  const focus = useSelection((state) => state.focus);
   const sizeRef = useRef(size);
   sizeRef.current = size;
   const layoutRef = useRef(layout);
@@ -121,20 +125,35 @@ export function OfficeCamera({
     // Already on the way there: keep going.
     if (framed.current && tween.current?.view === view) return;
     const to = frame(view, layoutRef.current, sizeRef.current);
-    const jump = (framing: Framing) => {
-      tween.current = null;
-      cc.setTarget(...framing.target, false);
-      cc.zoomTo(framing.zoom, false);
-    };
     if (!framed.current) {
       framed.current = true;
       cc.rotateTo(ISO_AZIMUTH, ISO_POLAR, false);
-      jump(to);
+      jump(cc, to);
       return;
     }
+    moveTo(cc, to, view);
+  }, [view, viewRequest, camera]);
+
+  // A selected helper (a click, or selectSeat from the panel): ease to their desk.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: moveTo reads only refs and the camera. A new focus request is the trigger.
+  useEffect(() => {
+    const cc = controls.current;
+    if (!cc || !focus || !framed.current) return;
+    userMoved.current = true;
+    moveTo(cc, frameSeat(focus.point, sizeRef.current, overlayRects()), null);
+  }, [focus]);
+
+  function jump(cc: CameraControlsImpl, framing: Framing) {
+    tween.current = null;
+    cc.setTarget(...framing.target, false);
+    cc.zoomTo(framing.zoom, false);
+  }
+
+  /** Eases to a framing, or with reduced motion fades, cuts and fades back. */
+  function moveTo(cc: CameraControlsImpl, to: Framing, toView: ViewId | null) {
     if (prefersReducedMotion()) {
       const el = fade.current;
-      if (!el) return jump(to);
+      if (!el) return jump(cc, to);
       el.style.background =
         useStore.getState().light === "night" ? world.backdropNight : world.backdropDay;
       el.style.transition = `opacity ${motion.duration.fast}ms linear`;
@@ -142,7 +161,7 @@ export function OfficeCamera({
       clearTimeout(fadeTimer.current);
       fadeTimer.current = setTimeout(() => {
         fadeTimer.current = undefined;
-        jump(to);
+        jump(cc, to);
         el.style.opacity = "0";
       }, motion.duration.fast);
       return;
@@ -150,13 +169,13 @@ export function OfficeCamera({
     const target = new Vector3();
     cc.getTarget(target);
     tween.current = {
-      view,
+      view: toView,
       from: { target: [target.x, target.y, target.z], zoom: camera.zoom },
       to,
       elapsed: 0,
       ease: tween.current ? easeTakeOver : easeMove,
     };
-  }, [view, viewRequest, camera]);
+  }
 
   // Until the user moves the camera, keep the view fitted to the canvas size.
   useEffect(() => {
