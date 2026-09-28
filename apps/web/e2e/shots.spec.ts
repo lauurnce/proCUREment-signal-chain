@@ -31,8 +31,18 @@ const pages: Target[] = [
       name: `office-${view}${time === "night" ? "-night" : ""}`,
       path: `/?shots=1&view=${view}&time=${time}`,
       fullPage: false,
+      // P5.1: the office now has the docked panel, so the Overview also needs 1280.
+      ...(view === "overview" ? { only: PANEL_SIZES } : {}),
     })),
   ),
+  // P5.1 HQ panel in the office: an item open, and under 960 px the full width panel.
+  { name: "office-detail", path: "/?shots=1&open=1", fullPage: false },
+  {
+    name: "office-narrow",
+    path: "/?shots=1",
+    fullPage: false,
+    only: [{ width: 900, height: 900 }],
+  },
   // The Lab is a long page, so it is captured top to bottom.
   { name: "lab", path: "/lab", fullPage: true },
   // P2.3 diorama study: the three looks by day, plus the favorite at night.

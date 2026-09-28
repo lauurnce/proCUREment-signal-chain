@@ -32,6 +32,7 @@ export function DecisionCard({
   onDecide,
   onOpen,
   focusId,
+  paused,
 }: {
   item: DecisionItem;
   onDecide: (d: Decision) => void;
@@ -39,6 +40,8 @@ export function DecisionCard({
   onOpen?: () => void;
   /** Makes the card a keyboard focus stop, found by this id (the panel's roving focus). */
   focusId?: string;
+  /** Offline: decisions pause (panel spec, section 6). */
+  paused?: boolean;
 }) {
   return (
     <article
@@ -117,6 +120,7 @@ export function DecisionCard({
             label={b.label(item)}
             shortcut={b.key}
             onClick={() => onDecide(b.decision)}
+            paused={paused}
           />
         ))}
       </div>

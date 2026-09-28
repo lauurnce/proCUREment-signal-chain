@@ -14,6 +14,20 @@ export function overlayRects(): ScreenRect[] {
   return [...rects.values()];
 }
 
+/** The id of the docked HQ panel. The camera treats it as a right inset, not an obstacle. */
+export const PANEL_OVERLAY = "panel";
+
+/** Every overlay except the docked panel. */
+export function floatingOverlayRects(): ScreenRect[] {
+  return [...rects].filter(([id]) => id !== PANEL_OVERLAY).map(([, rect]) => rect);
+}
+
+/** How much of the right side the docked panel covers, in CSS pixels. 0 when it is not docked. */
+export function dockedPanelInset(viewportWidth: number): number {
+  const panel = rects.get(PANEL_OVERLAY);
+  return panel ? Math.max(0, viewportWidth - panel.left) : 0;
+}
+
 /**
  * Keeps the rect of one overlay element up to date, relative to the office screen (the
  * closest <main>), which is where the canvas sits. Not the offsetParent: for a card inside

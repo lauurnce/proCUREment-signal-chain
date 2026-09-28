@@ -19,6 +19,7 @@ type Props = {
   onFocus: (id: string) => void;
   onOpen: (id: string) => void;
   onDecide: (d: Decision) => void;
+  paused?: boolean;
 };
 
 const FILTERS: { id: QueueFilter; label: string; tip?: string }[] = [
@@ -81,6 +82,7 @@ export function NeedsYouTab(p: Props) {
                     onDecide={p.onDecide}
                     onOpen={() => p.onOpen(item.id)}
                     focusId={`card-${item.id}`}
+                    paused={p.paused}
                   />
                 ) : (
                   <QueueCard

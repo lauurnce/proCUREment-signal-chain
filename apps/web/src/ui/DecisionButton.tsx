@@ -29,19 +29,29 @@ type Props = {
   label: string;
   shortcut: string;
   onClick: () => void;
+  /** Offline: the button stays in place and focusable, but says why it does nothing. */
+  paused?: boolean;
+};
+
+const PAUSED: CSSProperties = {
+  background: cssColor("panel"),
+  color: cssColor("inkMuted"),
+  borderColor: cssColor("hairline"),
 };
 
 /** One of the four decisions. Shrinks slightly when pressed (D-030). */
-export function DecisionButton({ decision, label, shortcut, onClick }: Props) {
+export function DecisionButton({ decision, label, shortcut, onClick, paused = false }: Props) {
   return (
     <m.button
       type="button"
       data-testid={`decide-${decision}`}
       aria-keyshortcuts={shortcut}
+      aria-disabled={paused || undefined}
+      title={paused ? "Decisions are paused until the server is back." : undefined}
       onClick={onClick}
-      whileTap={{ scale: motion.pressScale }}
+      whileTap={paused ? undefined : { scale: motion.pressScale }}
       transition={{ duration: motion.pressMs / 1000 }}
-      style={{ ...typeStyle("body"), fontWeight: 700, ...LOOK[decision] }}
+      style={{ ...typeStyle("body"), fontWeight: 700, ...(paused ? PAUSED : LOOK[decision]) }}
       className="flex min-h-10 w-full items-center justify-between gap-2 rounded-button border px-4 py-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
     >
       {label}

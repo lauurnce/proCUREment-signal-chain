@@ -1,6 +1,6 @@
 # Progress
 
-Now: Phase 3 in `p3-office`. P3.5 fixes applied, checkpoint next, then merge to `main`. Next: Phase 4 (helpers) and Phase 5 (panel).
+Now: Phase 4 in `p4-team` and Phase 5 in `p5-panel`, in parallel. P5.1 done, waiting at the gate. Next in Phase 5: P5.2 Needs you and decisions.
 
 ## Phases
 - [x] 0. Kickoff and alignment (main checkout)
@@ -14,6 +14,7 @@ Now: Phase 3 in `p3-office`. P3.5 fixes applied, checkpoint next, then merge to 
 - [ ] 8. Polish and v0.1.0 (`p8-polish`)
 
 ## Open questions
+- The office is small at 1280 and 1440 with the panel docked, because the big "Go to" view card sits in the free area. Make the card compact, or move views and light into the panel's Office tab (P5.3)?
 - Night: the navy slab rim almost disappears on the navy backdrop. Kept quiet for now, or add a faint lighter edge at night?
 - Which Outlook account will we test with? (personal Outlook.com recommended)
 - Confirm the authority rule thresholds (5 percent, 2K, and the currency) before they drive real routing.
@@ -21,6 +22,7 @@ Now: Phase 3 in `p3-office`. P3.5 fixes applied, checkpoint next, then merge to 
 - Confirm the pnpm release-age exceptions for new package versions (D-024).
 
 ## Log
+- 27 Sep 2026, P5.1: the HQ panel on the real office, fed by GET /api/state and the live stream. A panel store (tab, filter, mocked decisions, undo, draft) feeds the panel, the stats HUD (Needs you, Drafts to review, Waiting on others) and the page title. Walk around pill with a note, a skip link, skeletons before data, Reconnecting then Offline with a banner and paused decisions, and a full width panel under 960 px (D-063 to D-066). Camera fixes in `scene/camera` with Lawrence's OK: the panel is a right inset, a wider pan boundary, and no zoom-out on load (D-065). 133 unit tests, 10 smoke tests, 52 shots. 15 draw calls at the Overview.
 - 27 Sep 2026, P3.5: Design Council review (`docs/design/reviews/2026-09-27-office-world.md`, Clarity 3, Brand 4, Charm 3, Craft 3, Smooth 4, Realism 4). Applied the 5 Must fixes and the picked Should fixes: the bridge as the hero, names at the Overview, framing around the page controls, backing pills, a night lift, lower glass, a bridge view on key 5, accent selected buttons, no desk flags (D-057 to D-062). 16 draw calls, 14.2k triangles.
 - 27 Sep 2026, P3.4: one landmark per zone, built as boxes in the same batches (bridge counter with a capiz-style pendant, SAP terminal, mail pigeonholes and To Planner tray, signing desk, round table, whiteboard and table, coffee cart under a capiz-style lamp, logistics counter with a loading dock and apron, Reception counter with a "SignalChain HQ" sign, the Needs you tray and dashboard wall, the Leads' review board, the wing pennants). Props come from accessories.json (D-055), and saving that file updates the office live through office.updated (D-056): proven with before and after shots, the event arrived 235 ms after the save, with no reload. 15 draw calls, 13.5k triangles.
 - 27 Sep 2026, P3.3: look A day and a navy night (moon, 4 warm lamps, glowing windows and screens, a faint bridge seam) that blend through dusk in 1.2 s, soft contact shadows, a Go to and Light card (D-051), keys 1 to 4 with 800 ms eased camera moves, a 140 ms fade with reduced motion, and r3f-perf in dev (D-054). 120 fps at the Overview by day and at night on the M4 Pro, 9 draw calls. Fixed: contact shadows too faint to see (D-053), a view framed too wide on load (D-052).

@@ -1,4 +1,4 @@
-import { Health, ServerEvent } from "@hq/shared";
+import { AppState, Health, ServerEvent } from "@hq/shared";
 import { useStore } from "./store";
 
 /** The server sends a heartbeat every 15 s. No message for this long means the stream is dead. */
@@ -12,6 +12,32 @@ async function fetchHealth(): Promise<void> {
     useStore.getState().setHealth(Health.parse(await response.json()));
   } catch {
     useStore.getState().setHealth(null);
+  }
+}
+
+/** Set while connected: skips the wait and tries the server now ("Try again" in the panel). */
+let retryImmediately: (() => void) | null = null;
+
+export function retryNow(): void {
+  retryImmediately?.();
+}
+
+/** Counts live snapshots, so a slow GET never overwrites a newer snapshot. */
+let snapshots = 0;
+
+/**
+ * Loads the whole state on every (re)connect, so the panel has data even before the first
+ * live event. A failed load changes nothing: the last data stays on screen.
+ */
+async function fetchState(): Promise<void> {
+  const before = snapshots;
+  try {
+    const response = await fetch("/api/state");
+    if (!response.ok) return;
+    const parsed = AppState.safeParse(await response.json());
+    if (parsed.success && snapshots === before) useStore.getState().setData(parsed.data);
+  } catch {
+    // Offline: the stream's own retry shows that in the header.
   }
 }
 
@@ -54,6 +80,7 @@ export function connectToServer(): () => void {
       retryMs = RETRY_MIN_MS;
       setConnection("live");
       void fetchHealth();
+      void fetchState();
       heardFromServer();
     });
     source.addEventListener("error", reconnectLater);
@@ -61,7 +88,10 @@ export function connectToServer(): () => void {
     source.addEventListener("state.snapshot", (message) => {
       heardFromServer();
       const parsed = ServerEvent.safeParse(JSON.parse(message.data));
-      if (parsed.success && parsed.data.type === "state.snapshot") setData(parsed.data.state);
+      if (parsed.success && parsed.data.type === "state.snapshot") {
+        snapshots += 1;
+        setData(parsed.data.state);
+      }
     });
     // An edit to an office file (like accessories.json) changes only the office, live.
     source.addEventListener("office.updated", (message) => {
@@ -73,9 +103,17 @@ export function connectToServer(): () => void {
     });
   }
 
+  retryImmediately = () => {
+    if (stopped || source) return;
+    clearTimeout(retryTimer);
+    retryMs = RETRY_MIN_MS;
+    open();
+  };
+
   open();
   return () => {
     stopped = true;
+    retryImmediately = null;
     clearTimeout(retryTimer);
     clearTimeout(silenceTimer);
     source?.close();

@@ -3,7 +3,7 @@ import { CameraControls, CameraControlsImpl } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { type RefObject, useEffect, useRef } from "react";
 import { Box3, Vector3 } from "three";
-import { overlayRects } from "../../state/overlays";
+import { dockedPanelInset, floatingOverlayRects } from "../../state/overlays";
 import { useStore, type ViewId } from "../../state/store";
 import { motion, world } from "../../theme/tokens";
 import { ISO_AZIMUTH, ISO_POLAR } from "../constants";
@@ -26,9 +26,35 @@ type Tween = {
   ease: (t: number) => number;
 };
 
-/** Frames a view in the free space around the page overlays (the view card, title and note). */
+/**
+ * The free space for framing: left of the docked HQ panel (a right inset), and around the
+ * floating overlays (the stats HUD, view card, Walk pill and note).
+ */
+function around(size: { width: number }) {
+  return { rightInset: dockedPanelInset(size.width), obstacles: floatingOverlayRects() };
+}
+
+/** Frames a view in the free space around the page overlays. */
 function frame(view: ViewId, layout: LayoutFile, size: { width: number; height: number }) {
-  return framePreset(presetById(view), layout, size, { obstacles: overlayRects() });
+  return framePreset(presetById(view), layout, size, around(size));
+}
+
+/**
+ * Where the camera target may pan: the floor plus a margin, grown to hold every preset's
+ * framed target. With the panel docked, the target (the screen center) sits right of the
+ * floor, and a tighter box would clamp it and throw the picture off.
+ */
+function panBoundary(layout: LayoutFile, size: { width: number; height: number }): Box3 {
+  const box = new Box3(
+    new Vector3(-PAN_MARGIN, 0, -PAN_MARGIN),
+    new Vector3(layout.floor.width + PAN_MARGIN, 3, layout.floor.depth + PAN_MARGIN),
+  );
+  for (const preset of PRESETS) {
+    const [x, , z] = framePreset(preset, layout, size, around(size)).target;
+    box.expandByPoint(new Vector3(x + PAN_MARGIN, 0, z + PAN_MARGIN));
+    box.expandByPoint(new Vector3(x - PAN_MARGIN, 0, z - PAN_MARGIN));
+  }
+  return box;
 }
 
 function prefersReducedMotion(): boolean {
@@ -68,6 +94,8 @@ export function OfficeCamera({
   const layoutRef = useRef(layout);
   layoutRef.current = layout;
   const framed = useRef(false);
+  /** The last view request acted on. */
+  const handled = useRef(-1);
   const userMoved = useRef(false);
   const tween = useRef<Tween | null>(null);
   const fadeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -76,21 +104,13 @@ export function OfficeCamera({
   useEffect(() => {
     const cc = controls.current;
     if (!cc) return;
-    const overview = framePreset(PRESETS[0] as Preset, layout, size, {
-      obstacles: overlayRects(),
-    });
+    const overview = framePreset(PRESETS[0] as Preset, layout, size, around(size));
     const limits = zoomLimits(overview.zoom);
     cc.minZoom = limits.min;
     cc.maxZoom = limits.max;
     // Labels fade in relative to the overview zoom (scene/labels).
     camera.userData.overviewZoom = overview.zoom;
-    const { width, depth } = layout.floor;
-    cc.setBoundary(
-      new Box3(
-        new Vector3(-PAN_MARGIN, 0, -PAN_MARGIN),
-        new Vector3(width + PAN_MARGIN, 3, depth + PAN_MARGIN),
-      ),
-    );
+    cc.setBoundary(panBoundary(layout, size));
   }, [layout, size, camera]);
 
   // A drag or a wheel turn by the user stops any move in progress.
@@ -118,6 +138,10 @@ export function OfficeCamera({
   useEffect(() => {
     const cc = controls.current;
     if (!cc) return;
+    // Only a new request moves the camera. A second run for the same request (React runs
+    // effects twice in dev) would start a move from the default zoom, before the cut lands.
+    if (framed.current && handled.current === viewRequest) return;
+    handled.current = viewRequest;
     // Already on the way there: keep going.
     if (framed.current && tween.current?.view === view) return;
     const to = frame(view, layoutRef.current, sizeRef.current);

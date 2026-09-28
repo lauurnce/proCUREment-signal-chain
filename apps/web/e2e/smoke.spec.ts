@@ -100,7 +100,8 @@ test("the Night button turns the office to night, and Day turns it back", async 
   const night = page.getByRole("button", { name: "Night" });
   await night.click();
   await expect(night).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByRole("heading", { name: "SignalChain HQ" })).toHaveClass(/text-white/);
+  // The About note switches to light text on the night backdrop (the title is in the panel now).
+  await expect(page.getByTestId("about-note")).toHaveClass(/text-blue-light/);
   await page.getByRole("button", { name: "Day" }).click();
   await expect(page.getByRole("button", { name: "Day" })).toHaveAttribute("aria-pressed", "true");
   expect(errors).toEqual([]);
@@ -159,5 +160,59 @@ test("the panel works with the keyboard only, and nothing is sent", async ({ pag
   await page.locator("body").click({ position: { x: 20, y: 400 } });
   await page.keyboard.press("a");
   await expect(tab).toContainText("2");
+  expect(errors).toEqual([]);
+});
+
+test("the office panel shows live items, and decisions are only a demo", async ({ page }) => {
+  const errors = collectErrors(page);
+  const state = page.waitForResponse((r) => r.url().endsWith("/api/state") && r.ok());
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/?shots=1");
+  await state;
+  await waitForReady(page);
+
+  const tab = page.getByRole("tab", { name: /Needs you/ });
+  const hud = page.getByTestId("stats-hud");
+  await expect(tab).toContainText("3");
+  await expect(hud.getByRole("button", { name: /Needs you/ })).toContainText("3");
+  await expect(page).toHaveTitle("Needs you (3) · SignalChain HQ");
+  await expect(page.getByTestId("live-dot")).toContainText("Live");
+
+  // Keys work at once, and the HUD and the page title follow each decision.
+  await expect(page.getByTestId("decision-card")).toBeFocused();
+  await page.keyboard.press("a");
+  await expect(page.getByTestId("undo-bar")).toContainText("Demo: decisions are not saved yet.");
+  await expect(hud.getByRole("button", { name: /Needs you/ })).toContainText("2");
+  await expect(page).toHaveTitle("Needs you (2) · SignalChain HQ");
+  await page.keyboard.press("]");
+  await expect(page.getByRole("tab", { name: "Team" })).toHaveAttribute("aria-selected", "true");
+
+  // The HUD "Needs you" goes back to that tab with focus on the card.
+  await hud.getByRole("button", { name: /Needs you/ }).click();
+  await expect(tab).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByTestId("decision-card")).toBeFocused();
+
+  // Walk around shows a note for now, and Esc closes it.
+  await page.getByTestId("walk-pill").click();
+  await expect(page.getByTestId("walk-note")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("walk-note")).toHaveCount(0);
+  await expect(page.getByTestId("walk-pill")).toBeFocused();
+  expect(errors).toEqual([]);
+});
+
+test("under 960 px the panel goes full width, and Show office swaps to the office", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.setViewportSize({ width: 900, height: 900 });
+  await page.goto("/?shots=1");
+  await waitForReady(page);
+  const panel = page.getByTestId("office-panel");
+  expect((await panel.boundingBox())?.width).toBe(900);
+  await page.getByRole("button", { name: "Show office" }).click();
+  await expect(panel).toHaveCount(0);
+  await page.getByRole("button", { name: "Show panel" }).click();
+  await expect(panel).toBeVisible();
   expect(errors).toEqual([]);
 });

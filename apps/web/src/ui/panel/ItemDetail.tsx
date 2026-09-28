@@ -20,6 +20,7 @@ type Props = {
   onPrev: () => void;
   onNext: () => void;
   onDecide: (d: Decision) => void;
+  paused?: boolean;
 };
 
 // Headings shown with a clearer name, and the ones handled elsewhere.
@@ -39,6 +40,7 @@ export function ItemDetail({
   onPrev,
   onNext,
   onDecide,
+  paused,
 }: Props) {
   const info = stepInfo(workflows, item);
   const body = sections(item.body);
@@ -150,24 +152,28 @@ export function ItemDetail({
             label="Approve"
             shortcut="A"
             onClick={() => onDecide("approve")}
+            paused={paused}
           />
           <DecisionButton
             decision="hold"
             label="Hold"
             shortcut="H"
             onClick={() => onDecide("hold")}
+            paused={paused}
           />
           <DecisionButton
             decision="send-back"
             label={`Send back to ${helper}`}
             shortcut="S"
             onClick={() => onDecide("send-back")}
+            paused={paused}
           />
           <DecisionButton
             decision="instruct"
             label="Instruct"
             shortcut="I"
             onClick={() => onDecide("instruct")}
+            paused={paused}
           />
         </div>
       </div>

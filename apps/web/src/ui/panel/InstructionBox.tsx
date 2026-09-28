@@ -16,7 +16,13 @@ type Props = {
   /** Lab only: what would have been sent. */
   preview: string | null;
   textRef: Ref<HTMLTextAreaElement>;
+  /** Offline: Send waits until the server is back. */
+  paused?: boolean;
+  /** Says that nothing is sent yet. Defaults to the Lab wording. */
+  note?: string;
 };
+
+export const LAB_NOTE = "Lab only, nothing is saved or sent.";
 
 const GROUP_ORDER = ["One helper", "A pod", "A wing", "Everyone"];
 
@@ -26,7 +32,7 @@ const GROUP_ORDER = ["One helper", "A pod", "A wing", "Everyone"];
  */
 export function InstructionBox(p: Props) {
   const audience = p.audiences.find((a) => a.id === p.audienceId);
-  const ready = Boolean(audience && p.text.trim());
+  const ready = Boolean(audience && p.text.trim()) && !p.paused;
   const buttonLabel = audience ? `Send to ${audience.label}` : "Send";
   return (
     <section
@@ -94,14 +100,16 @@ export function InstructionBox(p: Props) {
         />
         <button
           type="button"
-          onClick={p.onSend}
+          onClick={() => ready && p.onSend()}
           aria-disabled={!ready}
           title={
-            !audience
-              ? "Pick who gets it first."
-              : !p.text.trim()
-                ? "Write an instruction first."
-                : undefined
+            p.paused
+              ? "Send when back online."
+              : !audience
+                ? "Pick who gets it first."
+                : !p.text.trim()
+                  ? "Write an instruction first."
+                  : undefined
           }
           className={`min-h-11 max-w-44 rounded-button px-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${ready ? "bg-accent" : "bg-panel"}`}
           style={{ ...typeStyle("small", ready ? "white" : "inkMuted"), fontWeight: 700 }}
@@ -111,7 +119,7 @@ export function InstructionBox(p: Props) {
       </div>
       {p.preview && (
         <p className="m-0" role="status" style={typeStyle("small")}>
-          {p.preview} Lab only, nothing is saved or sent.
+          {p.preview} {p.note ?? LAB_NOTE}
         </p>
       )}
     </section>
