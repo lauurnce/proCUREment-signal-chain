@@ -1,7 +1,7 @@
-import type { Accessory, OfficeLink, Task } from "@hq/shared";
+import type { Accessory, OfficeLink, QueueItem, Seat, Task } from "@hq/shared";
 import { describe, expect, it } from "vitest";
 import { connectOffice, officeLink } from "../officeLink";
-import { COLUMNS, columnTasks } from "./BoardTab";
+import { COLUMNS, columnTasks, waitingOn } from "./BoardTab";
 import { propName } from "./propName";
 
 const task = (id: string, status: Task["status"], completed?: string) =>
@@ -31,6 +31,21 @@ describe("board columns", () => {
   it("Done today holds only tasks finished today, in Manila time", () => {
     expect(columnTasks(tasks, "done", today).map((t) => t.id)).toEqual(["c", "f"]);
     expect(columnTasks(tasks, "todo", today).map((t) => t.id)).toEqual(["a"]);
+  });
+});
+
+describe("who a waiting task waits on", () => {
+  const seats = [
+    { id: "cm-02", track: "CM" },
+    { id: "mgr-01", track: "MGR" },
+  ] as Seat[];
+  const q = (id: string, approver: string) => ({ id, approver, status: "needs-you" }) as QueueItem;
+  const waiting = { id: "t", status: "waiting", links: ["q-1"] } as unknown as Task;
+
+  it("names the kind of decision from the linked item, never the seat", () => {
+    expect(waitingOn(waiting, [q("q-1", "cm-02")], seats)).toBe("Waiting for a CM decision");
+    expect(waitingOn(waiting, [q("q-1", "mgr-01")], seats)).toBe("Waiting on you");
+    expect(waitingOn(waiting, [q("q-2", "cm-02")], seats)).toBeNull();
   });
 });
 

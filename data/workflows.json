@@ -221,7 +221,7 @@
     {
       "id": "lead-review",
       "track": "LEAD",
-      "name": "Review and unblock (placeholder)",
+      "name": "Review and unblock",
       "steps": [
         {
           "id": "review",
@@ -244,7 +244,7 @@
     {
       "id": "mgr-decisions",
       "track": "MGR",
-      "name": "Decisions and direction (placeholder)",
+      "name": "Decisions and direction",
       "steps": [
         {
           "id": "decide",

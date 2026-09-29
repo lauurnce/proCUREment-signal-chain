@@ -129,8 +129,8 @@ Age is about the item, never about how fast a person answered. No "waiting 3 hou
 | Key | Text | Notes |
 |---|---|---|
 | focus.why.label | Why this came to you | Mono label, keep from `DecisionCard`. |
-| focus.why.rule | {who} must decide. {plainEnglish} | P5.2: any item with a `rule`. `{who}` is the approver seat ("CM 02") or "You". `{plainEnglish}` comes from the rule in `data/authority-rules.template.json`, so the copy lives in one place. Example: "CM 02 must decide. Price change of 5 percent or more: the Category Manager must approve." |
-| focus.why.ruleMissing | {who} must decide. The rule "{rule}" is not in the authority rules file. | The item names a rule the file does not have. Honest, names the source. |
+| focus.why.rule | {needs} Rule: {plainEnglish, first letter lower case} | P5.4 (D-093): `{needs}` is "This needs a CM decision." (kind of decider, never a seat, D-046) or "You decide.". The rule text comes from `data/authority-rules.template.json`. Example: "This needs a CM decision. Rule: a price change of 5 percent or more needs Category Manager approval." |
+| focus.why.ruleMissing | {needs} The rule for this item is missing, so check it by hand. | The item names a rule the file does not have. |
 | focus.why.mgr | {helper} prepared this for your review. | Items where `approver: mgr-01` and no rule applies. |
 | focus.why.email | {helper} drafted this email. Approve creates a draft. Sending is a separate step. | `kind: email-draft` (P5.2). |
 | focus.rule.chip | Rule not confirmed yet | Chip when the authority rule thresholds are not confirmed. |

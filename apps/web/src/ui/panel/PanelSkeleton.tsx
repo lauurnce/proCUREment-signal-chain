@@ -28,11 +28,25 @@ export function PanelSkeleton({
       <PanelHeader link={link} lastUpdate="" seatCount={null} onShowOffice={onShowOffice} />
       <div
         aria-hidden="true"
-        className="flex h-12 shrink-0 items-end gap-5 border-b border-hairline px-5"
+        // The same spacing and weights as the real tabs (PanelTabs), so nothing shifts when the
+        // data lands (council, 29 Sep 2026).
+        className="flex h-12 shrink-0 items-stretch gap-1 border-b border-hairline px-3"
       >
-        {TABS.map((t) => (
-          <span key={t.id} className="pb-3" style={typeStyle("label", "inkMuted")}>
+        {TABS.map((t, i) => (
+          <span
+            key={t.id}
+            className={`flex items-center gap-1.5 border-b-2 px-2.5 ${i === 0 ? "border-accent" : "border-transparent"}`}
+            style={{
+              ...typeStyle("label", i === 0 ? "navy" : "inkMuted"),
+              fontWeight: i === 0 ? 700 : 500,
+            }}
+          >
             {t.label}
+            {t.id === "needs" && (
+              <span className="rounded-pill border border-hairline px-1.5 tabular-nums">
+                <span className="invisible">0</span>
+              </span>
+            )}
           </span>
         ))}
       </div>

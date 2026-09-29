@@ -24,7 +24,7 @@ const GROUPS: { label: string; zones: [string, string][] }[] = [
       ["Mail Dock", "Supplier and A/P emails come in and go out."],
       ["Contract Corner", "SOW drafts in Conga, signatures in DocuSign."],
       ["Negotiation Room", "Supplier calls, SOW reviews and awards."],
-      ["Huddle Room", "Team huddles and AI Enablement sessions."],
+      ["Huddle Room", "Team huddles and learning sessions."],
       ["Logistics Window", "Deliveries arrive when POs are received."],
     ],
   },
@@ -69,11 +69,12 @@ function Toggle({
         aria-label={label}
         data-testid={testId}
         onClick={() => onChange(!on)}
-        className={`${SWITCH} ${on ? "border-accent bg-accent" : "border-hairline bg-panel"}`}
+        // Off: white track, ink-muted edge and knob (7.5:1). On: accent track, white knob.
+        className={`${SWITCH} ${on ? "border-accent bg-accent" : "border-ink-muted bg-white"}`}
       >
         <span
           aria-hidden="true"
-          className={`absolute h-4 w-4 rounded-pill bg-white shadow-float transition-transform duration-[140ms] ease-enter ${on ? "translate-x-5" : "translate-x-1"}`}
+          className={`absolute left-0 h-4 w-4 rounded-pill transition-transform duration-[140ms] ease-enter ${on ? "translate-x-[18px] bg-white" : "translate-x-1 bg-ink-muted"}`}
         />
       </button>
     </div>
@@ -111,7 +112,7 @@ export function OfficeTab() {
         </h3>
         {props.length === 0 ? (
           <p className="m-0 border-t border-hairline py-2" style={typeStyle("small")}>
-            No props yet. They come from vault/office/accessories.json.
+            No props in the office yet.
           </p>
         ) : (
           <>
@@ -126,7 +127,7 @@ export function OfficeTab() {
               />
             ))}
             <p className="m-0 pt-1" style={typeStyle("small")}>
-              For this page only. To keep a change, set "enabled" in vault/office/accessories.json.
+              For this visit only. The next reload brings back the saved setup.
             </p>
           </>
         )}
@@ -150,7 +151,7 @@ export function OfficeTab() {
           Demo Day
         </h3>
         <p className="m-0" style={typeStyle("small")}>
-          Plays a sample workday at speed, with fictional items arriving. It comes in Phase 6.
+          Plays a sample workday at speed, with fictional items arriving. Coming soon.
         </p>
         <button
           type="button"

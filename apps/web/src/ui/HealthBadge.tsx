@@ -1,7 +1,7 @@
 import { useStore } from "../state/store";
 
 const LABEL = {
-  live: "Server OK",
+  live: "Connected",
   connecting: "Connecting",
   offline: "Server offline",
 } as const;
@@ -35,7 +35,7 @@ export function HealthBadge() {
     >
       <span aria-hidden="true" className={dot} />
       <span>{LABEL[connection]}</span>
-      {live && <span className="text-ink-muted">· {seatCount} seats</span>}
+      {live && <span className="text-ink-muted">· {seatCount} helpers</span>}
       {live && warnings.length > 0 && (
         <span className="text-status-waiting">
           · {warnings.length} {warnings.length === 1 ? "file warning" : "file warnings"}

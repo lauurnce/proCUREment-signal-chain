@@ -122,20 +122,20 @@ describe("focused card from a queue item", () => {
       id: "price-large",
       when: { type: "price-change", minPercent: 5 },
       decidedBy: "CM",
-      plainEnglish: "Price change of 5 percent or more: the Category Manager must approve.",
+      plainEnglish: "A price change of 5 percent or more needs Category Manager approval.",
     },
   ] as AuthorityRule[];
 
-  it("names who must decide and why, in the rule's own words", () => {
+  it("names the kind of decision and the rule, in the rule's own words, never a seat", () => {
     expect(whyText(seats, item, rules)).toBe(
-      "CM 02 must decide. Price change of 5 percent or more: the Category Manager must approve.",
+      "This needs a CM decision. Rule: a price change of 5 percent or more needs Category Manager approval.",
     );
-    expect(whyText(seats, { ...item, approver: "mgr-01" }, rules)).toMatch(/^You must decide\./);
+    expect(whyText(seats, { ...item, approver: "mgr-01" }, rules)).toMatch(/^You decide\. Rule: /);
   });
 
   it("says so when the rule is missing from the file", () => {
     expect(whyText(seats, item, [])).toBe(
-      'CM 02 must decide. The rule "price-large" is not in the authority rules file.',
+      "This needs a CM decision. The rule for this item is missing, so check it by hand.",
     );
   });
 
@@ -148,7 +148,7 @@ describe("focused card from a queue item", () => {
 
   it("labels team items and sends back to the helper, not the person", () => {
     const card = toDecisionItem(seats, workflows, item, rules);
-    expect(card.decidingAs).toBe("CM 02");
+    expect(card.decidingAs).toBe("a CM");
     expect(card.sendBackTo).toBe("Ops 07 helper");
     expect(card.ruleConfirmed).toBe(false);
     expect(card.suggestion).toBe("Approve the new price.");

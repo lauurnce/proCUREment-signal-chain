@@ -14,8 +14,8 @@ test("the office loads, draws the 3D floor, and shows the server is OK", async (
 
   const badge = page.getByTestId("health-badge");
   await expect(badge).toHaveAttribute("data-status", "live");
-  await expect(badge).toContainText("Server OK");
-  await expect(badge).toContainText("26 seats");
+  await expect(badge).toContainText("Connected");
+  await expect(badge).toContainText("26 helpers");
 
   await expect(page.getByTestId("about-note")).toHaveText("Unofficial prototype · Fictional data");
   expect(errors).toEqual([]);
@@ -112,7 +112,7 @@ test("the Night button turns the office to night, and Day turns it back", async 
   expect(errors).toEqual([]);
 });
 
-test("Team rows open to show the steps, and Show in office waits for the merge", async ({
+test("Team rows open to show the steps, and Show in office stays hidden until the merge", async ({
   page,
 }) => {
   const errors = collectErrors(page);
@@ -128,7 +128,7 @@ test("Team rows open to show the steps, and Show in office waits for the merge",
   const now = row.locator('[aria-current="step"]');
   await expect(now).toContainText("(now)");
   await expect(now).toContainText("SAP Station");
-  await expect(page.getByTestId("show-in-office-cm-10")).toHaveAttribute("aria-disabled", "true");
+  await expect(page.getByTestId("show-in-office-cm-10")).toHaveCount(0);
   await toggle.press("Enter");
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
   expect(errors).toEqual([]);
@@ -141,7 +141,10 @@ test("the Board shows Done today from the completed date", async ({ page }) => {
   const done = page.getByTestId("board-done");
   await expect(done).toContainText("Done today · 1");
   await expect(done).toContainText("Send the PR-PO list file");
-  await expect(page.getByTestId("board-waiting")).toContainText("Waiting on a decision · 1");
+  const waiting = page.getByTestId("board-waiting");
+  await expect(waiting).toContainText("Waiting on a decision · 1");
+  // Who it waits on, as a kind of decision, never a seat (D-046).
+  await expect(waiting).toContainText("Waiting for a CM decision");
 });
 
 test("the Office tab switches a prop off in the office, and remembers the sound choice", async ({
@@ -167,6 +170,18 @@ test("the Office tab switches a prop off in the office, and remembers the sound 
   // A reload reads the file again, so the sofa is back.
   await expect(page.getByTestId("prop-sofa-reception")).toHaveAttribute("aria-checked", "true");
   expect(errors).toEqual([]);
+});
+
+test("an open item keeps the instruction box to one line, and I opens it", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/?shots=1&open=1");
+  await waitForReady(page);
+  const box = page.getByTestId("instruction-box");
+  await expect(box).toHaveAttribute("data-collapsed", "true");
+  await page.getByTestId("item-detail").getByRole("heading").first().click();
+  await page.keyboard.press("i");
+  await expect(box).not.toHaveAttribute("data-collapsed", "true");
+  await expect(page.getByRole("textbox", { name: "Instruction" })).toBeFocused();
 });
 
 test("the Lab page opens with no console errors", async ({ page }) => {
@@ -302,7 +317,7 @@ test("the authority rule line names who decides, in the rule's words", async ({ 
   await page.getByRole("button", { name: /Team items/ }).click();
   // The most urgent item is the focused card after the switch.
   await expect(page.locator('[data-item="q-0003"]').getByTestId("decision-card")).toContainText(
-    "CM 02 must decide. Price change of 5 percent or more: the Category Manager must approve.",
+    "This needs a CM decision. Rule: a price change of 5 percent or more needs Category Manager approval.",
   );
 });
 

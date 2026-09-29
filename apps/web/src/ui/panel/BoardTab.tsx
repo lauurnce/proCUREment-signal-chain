@@ -1,7 +1,7 @@
-import type { Seat, Task, TaskStatus, Workflow } from "@hq/shared";
+import type { QueueItem, Seat, Task, TaskStatus, Workflow } from "@hq/shared";
 import { typeStyle } from "../../theme/style";
 import { TrackBadge } from "../TrackBadge";
-import { helperName } from "./queue";
+import { decidingAs, helperName } from "./queue";
 import { dateOnly, manilaDay } from "./time";
 
 type Column = { id: TaskStatus; label: string; empty: string };
@@ -16,9 +16,20 @@ export const COLUMNS: Column[] = [
   {
     id: "done",
     label: "Done today",
-    empty: "Nothing finished yet today. A task shows here on the day its completed date is set.",
+    empty: "Nothing finished yet today. Finished tasks appear here.",
   },
 ];
+
+/**
+ * Who a waiting task waits on, from the Needs you item it links to: "Waiting on you", or the
+ * kind of decision ("Waiting for a CM decision"), never a seat (D-046). Null when unlinked.
+ */
+export function waitingOn(task: Task, queue: QueueItem[], seats: Seat[]): string | null {
+  const item = queue.find((q) => task.links.includes(q.id) && q.status === "needs-you");
+  if (!item) return null;
+  const as = decidingAs(seats, item);
+  return as ? `Waiting for ${as} decision` : "Waiting on you";
+}
 
 /** The tasks of one column. Done today holds finished tasks whose completed date is today. */
 export function columnTasks(tasks: Task[], status: TaskStatus, today: string): Task[] {
@@ -32,11 +43,14 @@ export function columnTasks(tasks: Task[], status: TaskStatus, today: string): T
 /** The board tasks by status. Done starts closed. No "overdue" red, tasks belong to helpers. */
 export function BoardTab({
   tasks,
+  queue,
   seats,
   workflows,
   today,
 }: {
   tasks: Task[];
+  /** Open Needs you items, to say who a waiting task waits on. */
+  queue: QueueItem[];
   seats: Seat[];
   workflows: Workflow[];
   today: string;
@@ -44,7 +58,7 @@ export function BoardTab({
   if (tasks.length === 0) {
     return (
       <p className="m-0 px-4 py-10 text-center" style={typeStyle("body", "inkMuted")}>
-        No tasks yet. Tasks come from the files in vault/board.
+        No tasks yet. Helper tasks appear here as they start.
       </p>
     );
   }
@@ -74,6 +88,7 @@ export function BoardTab({
                 {list.map((t) => {
                   const owner = seats.find((s) => s.id === t.owner);
                   const workflow = workflows.find((w) => w.id === t.workflow)?.name ?? t.workflow;
+                  const waits = t.status === "waiting" ? waitingOn(t, queue, seats) : null;
                   return (
                     <li
                       key={t.id}
@@ -89,6 +104,11 @@ export function BoardTab({
                         {owner && <TrackBadge id={owner.track} size={12} />}
                         {helperName(seats, t.owner)} · {workflow}
                       </span>
+                      {waits && (
+                        <span style={{ ...typeStyle("small", "ink"), fontWeight: 700 }}>
+                          {waits}
+                        </span>
+                      )}
                       <span style={typeStyle("small")}>
                         {t.due === today
                           ? "Due today"

@@ -1,6 +1,6 @@
 import { typeStyle } from "../../theme/style";
 
-/** A small mono label chip, like "Email draft" or "Deciding as CM 02 (demo)". */
+/** A small mono label chip, like "Email draft" or "Deciding as a CM (demo)". */
 export function Chip({ text }: { text: string }) {
   return (
     <span

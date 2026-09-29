@@ -1,8 +1,9 @@
 import type { QueueItem, Seat, Workflow } from "@hq/shared";
+import { motion as m } from "motion/react";
 import { useState } from "react";
 import { useStore } from "../../state/store";
-import { typeStyle } from "../../theme/style";
-import { status as statusTokens } from "../../theme/tokens";
+import { bezier, typeStyle } from "../../theme/style";
+import { status as statusTokens, motion as tokens } from "../../theme/tokens";
 import { useOfficeLink } from "../officeLink";
 import { StatusDot } from "../StatusDot";
 import { TrackBadge } from "../TrackBadge";
@@ -63,7 +64,21 @@ function HelperDetail({
   const items = queue.filter((q) => q.from === seat.id && q.status === "needs-you");
 
   return (
-    <div id={id} className="flex flex-col gap-3 pb-3 pl-7">
+    // Fades in and lifts 4 px, 60 ms after the click (D-030), 140 ms. No height animation.
+    <m.div
+      id={id}
+      className="flex flex-col gap-3 pb-3 pl-7"
+      initial={{ opacity: 0, y: 4 }}
+      animate={{
+        opacity: 1,
+        y: 0,
+        transition: {
+          delay: 0.06,
+          duration: tokens.duration.fast / 1000,
+          ease: bezier(tokens.easing.enter),
+        },
+      }}
+    >
       {seat.helper.bio && (
         <p className="m-0" style={typeStyle("small", "ink")}>
           {seat.helper.bio}
@@ -98,7 +113,7 @@ function HelperDetail({
         </div>
       ) : (
         <p className="m-0" style={typeStyle("small")}>
-          No workflow step right now. The step comes from vault/team/{seat.id}/profile.md.
+          No step right now. It shows when this helper starts a workflow.
         </p>
       )}
       {items.length > 0 && (
@@ -113,22 +128,19 @@ function HelperDetail({
           </ul>
         </div>
       )}
-      <div className="flex flex-wrap items-center gap-2">
+      {/* Hidden until the office is connected (Lawrence's choice, council 29 Sep 2026). */}
+      {link && (
         <button
           type="button"
           data-testid={`show-in-office-${seat.id}`}
-          aria-disabled={!link || undefined}
-          onClick={() => link?.selectSeat(seat.id, "api")}
-          className={`rounded-button border px-3 py-1.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${link ? "border-accent bg-white hover:bg-panel" : "border-hairline bg-panel"}`}
-          style={{ ...typeStyle("small", link ? "accent" : "inkMuted"), fontWeight: 700 }}
+          onClick={() => link.selectSeat(seat.id, "api")}
+          className="self-start rounded-button border border-accent bg-white px-3 py-1.5 hover:bg-panel focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          style={{ ...typeStyle("small", "accent"), fontWeight: 700 }}
         >
           Show in office
         </button>
-        {!link && (
-          <span style={typeStyle("small")}>Works once the office and the panel are joined.</span>
-        )}
-      </div>
-    </div>
+      )}
+    </m.div>
   );
 }
 
@@ -215,8 +227,7 @@ export function TeamTab({
   if (seats.length === 0) {
     return (
       <p className="m-0 px-4 py-10 text-center" style={typeStyle("body", "inkMuted")}>
-        No helpers yet. Seats come from data/roster.template.json, and their status from the files
-        in vault/team.
+        No helpers yet. They appear once the office roster loads.
       </p>
     );
   }
@@ -229,13 +240,16 @@ export function TeamTab({
       </p>
       {groups(seats).map((g) => (
         <section key={g.label} className="flex flex-col">
-          <h3 className="sticky top-0 z-10 m-0 bg-white py-1" style={typeStyle("label", "navy")}>
+          <h3
+            className="sticky top-0 z-10 m-0 border-b border-hairline bg-white py-1.5"
+            style={typeStyle("label", "navy")}
+          >
             {g.label}
           </h3>
           {g.pods ? (
             g.pods.map((pod) => (
               <div key={pod.label} className="flex flex-col">
-                <h4 className="m-0 pt-2" style={typeStyle("label", "inkMuted")}>
+                <h4 className="m-0 pt-3 pl-7" style={typeStyle("label", "inkMuted")}>
                   {pod.label}
                 </h4>
                 <ul className="m-0 list-none p-0">{pod.seats.map(row)}</ul>

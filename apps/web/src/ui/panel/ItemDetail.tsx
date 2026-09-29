@@ -8,7 +8,7 @@ import { Chip } from "./Chip";
 import { EmailPreview } from "./EmailPreview";
 import { keepCodesTogether, reference, stepInfo, whyText } from "./itemView";
 import { sections } from "./markdown";
-import { decidingAs, helperName } from "./queue";
+import { decidesLine, decidingAs, helperName } from "./queue";
 import { fullTime } from "./time";
 
 type Props = {
@@ -61,11 +61,14 @@ export function ItemDetail({
   const fromSeat = seats.find((s) => s.id === item.from);
   const ref = reference(item);
   const helper = helperName(seats, item.from);
+  // An item another track decides is waiting for their decision, not yours (council, 29 Sep).
+  const status =
+    as && item.status === "needs-you" ? `Waiting for ${as} decision (demo)` : STATUS[item.status];
   const facts = [
-    { label: "Status", value: STATUS[item.status] },
+    { label: "Status", value: status },
     { label: "From", value: helper, badge: true },
     ...(item.supplier ? [{ label: "Supplier", value: item.supplier }] : []),
-    { label: "Decides", value: as ? `${as} (you decide for the seat in this demo)` : "You" },
+    { label: "Decides", value: decidesLine(seats, item) },
     { label: "Received", value: fullTime(item.created) },
     ...(ref ? [{ label: "Reference", value: ref }] : []),
   ];

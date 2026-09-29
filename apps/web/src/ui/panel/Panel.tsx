@@ -1,8 +1,10 @@
 import type { AppState } from "@hq/shared";
-import { AnimatePresence, MotionConfig } from "motion/react";
+import { AnimatePresence, MotionConfig, motion as m } from "motion/react";
 import { type KeyboardEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import type { ConnectionStatus } from "../../state/store";
+import { bezier } from "../../theme/style";
+import { motion as tokens } from "../../theme/tokens";
 import type { Decision } from "../DecisionButton";
 import { audiences as allAudiences } from "./audience";
 import { BoardTab } from "./BoardTab";
@@ -49,6 +51,8 @@ type Props = {
 
 /** Room at the end of the list while the undo bar floats over it, so the last card can scroll clear. */
 const UNDO_SPACE = 72;
+/** A drop shorter than this never shows the offline banner. */
+const OFFLINE_BANNER_DELAY_MS = 1_500;
 
 /**
  * The HQ panel. Its state lives in the panel store (panelStore.ts), so the HUD and the page
@@ -136,6 +140,36 @@ export function Panel({
     else act.attach("", null);
   }, [focused, s.tab]);
 
+  // While an item is open, the instruction box is a one line bar until you ask for it
+  // (council, 29 Sep 2026). A draft keeps it open.
+  const [instructOpen, setInstructOpen] = useState(false);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new item or closing the detail is the trigger
+  useEffect(() => setInstructOpen(false), [s.detailOpen, focused?.id]);
+  const instructionCollapsed =
+    s.tab === "needs" && s.detailOpen && !instructOpen && !s.text.trim() && !s.preview;
+
+  function openInstruction() {
+    setInstructOpen(true);
+    // The text box exists only after the bar opens, so focus it on the next frame.
+    requestAnimationFrame(() => textRef.current?.focus());
+  }
+
+  const [bannerShown, setBannerShown] = useState(false);
+  useEffect(() => {
+    if (connection !== "offline") {
+      setBannerShown(false);
+      return;
+    }
+    const id = window.setTimeout(() => setBannerShown(true), OFFLINE_BANNER_DELAY_MS);
+    return () => window.clearTimeout(id);
+  }, [connection]);
+
+  const tabBody = useRef<HTMLDivElement>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the tab is the trigger
+  useLayoutEffect(() => {
+    if (tabBody.current) tabBody.current.scrollTop = 0;
+  }, [s.tab]);
+
   function move(step: number) {
     if (items.length === 0) return;
     const next = items[(index + step + items.length) % items.length];
@@ -153,7 +187,7 @@ export function Panel({
     }
     if (action === "instruct") {
       act.attach(`seat:${focused.from}`, reference(focused) ?? focused.id);
-      textRef.current?.focus();
+      openInstruction();
       return;
     }
     const message = decisionMessage(
@@ -241,12 +275,40 @@ export function Panel({
           onShowOffice={onShowOffice}
         />
         <PanelTabs current={s.tab} needsCount={counts.needsYou} onChange={act.setTab} />
-        {connection === "offline" && (
-          <OfflineBanner ref={bannerRef} lastUpdate={lastUpdate} onRetry={() => onRetry?.()} />
-        )}
         {/* The undo bar floats over the bottom of the tab body, so nothing above it moves. */}
         <div className="relative min-h-0 flex-1">
+          {/* After 1.5 s offline, the banner fades in over the top of the list (220 ms), so a
+              short drop never flashes and nothing below it moves (council, 29 Sep 2026). */}
+          <AnimatePresence>
+            {bannerShown && (
+              <m.div
+                className="absolute inset-x-0 top-0 z-20"
+                initial={{ opacity: 0 }}
+                animate={{
+                  opacity: 1,
+                  transition: {
+                    duration: tokens.duration.base / 1000,
+                    ease: bezier(tokens.easing.enter),
+                  },
+                }}
+                exit={{
+                  opacity: 0,
+                  transition: {
+                    duration: tokens.duration.fast / 1000,
+                    ease: bezier(tokens.easing.exit),
+                  },
+                }}
+              >
+                <OfflineBanner
+                  ref={bannerRef}
+                  lastUpdate={lastUpdate}
+                  onRetry={() => onRetry?.()}
+                />
+              </m.div>
+            )}
+          </AnimatePresence>
           <div
+            ref={tabBody}
             role="tabpanel"
             id={`panel-${s.tab}`}
             aria-labelledby={`tab-${s.tab}`}
@@ -258,53 +320,67 @@ export function Panel({
               paddingBottom: s.undo ? UNDO_SPACE : 0,
             }}
           >
-            {s.tab === "needs" &&
-              (s.detailOpen && focused ? (
-                <ItemDetail
-                  item={focused}
+            {/* A new tab starts at the top and fades in over 140 ms (council, 29 Sep 2026). */}
+            <m.div
+              key={s.tab}
+              initial={{ opacity: 0 }}
+              animate={{
+                opacity: 1,
+                transition: {
+                  duration: tokens.duration.fast / 1000,
+                  ease: bezier(tokens.easing.enter),
+                },
+              }}
+            >
+              {s.tab === "needs" &&
+                (s.detailOpen && focused ? (
+                  <ItemDetail
+                    item={focused}
+                    seats={seats}
+                    workflows={workflows}
+                    rules={authorityRules}
+                    position={`${index + 1} of ${items.length}${s.filter === "team" ? " team items" : ""}`}
+                    onBack={() => {
+                      act.setDetailOpen(false);
+                      act.requestFocus({ target: "card" });
+                    }}
+                    onPrev={() => move(-1)}
+                    onNext={() => move(1)}
+                    onDecide={decide}
+                    paused={paused}
+                  />
+                ) : (
+                  <NeedsYouTab
+                    items={items}
+                    counts={tabCounts}
+                    filter={s.filter}
+                    focusedId={focused?.id ?? null}
+                    seats={seats}
+                    workflows={workflows}
+                    rules={authorityRules}
+                    now={now}
+                    onFilter={act.setFilter}
+                    onFocus={(id) => act.focusCard(id, { target: "card", id })}
+                    onOpen={(id) => {
+                      act.focusCard(id, { target: "detail", id });
+                      act.setDetailOpen(true);
+                    }}
+                    onDecide={decide}
+                    paused={paused}
+                  />
+                ))}
+              {s.tab === "team" && <TeamTab seats={seats} queue={open} workflows={workflows} />}
+              {s.tab === "board" && (
+                <BoardTab
+                  tasks={tasks}
+                  queue={open}
                   seats={seats}
                   workflows={workflows}
-                  rules={authorityRules}
-                  position={`${index + 1} of ${items.length}`}
-                  onBack={() => {
-                    act.setDetailOpen(false);
-                    act.requestFocus({ target: "card" });
-                  }}
-                  onPrev={() => move(-1)}
-                  onNext={() => move(1)}
-                  onDecide={decide}
-                  paused={paused}
+                  today={new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(now)}
                 />
-              ) : (
-                <NeedsYouTab
-                  items={items}
-                  counts={tabCounts}
-                  filter={s.filter}
-                  focusedId={focused?.id ?? null}
-                  seats={seats}
-                  workflows={workflows}
-                  rules={authorityRules}
-                  now={now}
-                  onFilter={act.setFilter}
-                  onFocus={(id) => act.focusCard(id, { target: "card", id })}
-                  onOpen={(id) => {
-                    act.focusCard(id, { target: "detail", id });
-                    act.setDetailOpen(true);
-                  }}
-                  onDecide={decide}
-                  paused={paused}
-                />
-              ))}
-            {s.tab === "team" && <TeamTab seats={seats} queue={open} workflows={workflows} />}
-            {s.tab === "board" && (
-              <BoardTab
-                tasks={tasks}
-                seats={seats}
-                workflows={workflows}
-                today={new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(now)}
-              />
-            )}
-            {s.tab === "office" && <OfficeTab />}
+              )}
+              {s.tab === "office" && <OfficeTab />}
+            </m.div>
           </div>
           <AnimatePresence>
             {s.undo && (
@@ -332,6 +408,8 @@ export function Panel({
           textRef={textRef}
           paused={paused}
           note={note}
+          collapsed={instructionCollapsed}
+          onExpand={openInstruction}
         />
         {s.helpOpen && <KeyHelp onClose={() => act.setHelpOpen(false)} />}
         <p aria-live="polite" className="sr-only">

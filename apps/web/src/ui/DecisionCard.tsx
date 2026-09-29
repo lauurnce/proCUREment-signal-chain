@@ -49,9 +49,10 @@ export function DecisionCard({
       data-focus-id={focusId}
       tabIndex={focusId ? 0 : undefined}
       aria-label={item.title}
-      className="overflow-hidden rounded-card border border-hairline bg-panel focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+      // One signal for the focused card: a 2 px accent border on white (council, 29 Sep 2026).
+      // Keyboard focus adds a navy outline outside it.
+      className="overflow-hidden rounded-card border-2 border-accent bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy"
     >
-      <div aria-hidden="true" className="h-[3px] bg-accent" />
       <div className="flex flex-col gap-3 p-5">
         <div className="flex flex-wrap items-center gap-2">
           <span style={typeStyle("small")}>
@@ -60,7 +61,7 @@ export function DecisionCard({
           {item.decidingAs && (
             <span
               style={typeStyle("label")}
-              className="rounded-chip border border-hairline bg-white px-1.5 py-0.5"
+              className="rounded-chip border border-hairline bg-panel px-1.5 py-0.5"
             >
               Deciding as {item.decidingAs} (demo)
             </span>
@@ -90,7 +91,7 @@ export function DecisionCard({
             </div>
           ))}
         </dl>
-        <div className="flex flex-col gap-1 rounded-button bg-white p-3">
+        <div className="flex flex-col gap-1 rounded-button bg-panel p-3">
           <div className="flex flex-wrap items-center gap-2">
             <span style={typeStyle("label")}>Why this came to you</span>
             {!item.ruleConfirmed && (

@@ -1,3 +1,4 @@
+import { MotionConfig } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { Scene } from "../scene/Scene";
 import { useOverlayRect } from "../state/overlays";
@@ -57,75 +58,80 @@ export function OfficeScreen() {
   const freeRight = wide ? `calc(${PANEL_WIDTH} + ${EDGE}px)` : "0px";
 
   return (
-    <main className="relative h-full w-full overflow-hidden">
-      <button
-        type="button"
-        onClick={() => {
-          setOfficeShown(false);
-          showNeedsYou();
-        }}
-        className="sr-only z-40 rounded-button border border-hairline bg-white px-3 py-2 focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-        style={{ ...typeStyle("small", "navy"), fontWeight: 700 }}
-      >
-        Skip to Needs you
-      </button>
-
-      <section
-        className="absolute inset-0"
-        aria-label="Office view. The same facts are in the panel."
-        aria-hidden={!sceneShown || undefined}
-      >
-        <Scene />
-      </section>
-
-      {panelShown && (
-        <div
-          id="hq-panel"
-          className="absolute z-20"
-          style={wide ? { top: EDGE, right: EDGE, bottom: EDGE, width: PANEL_WIDTH } : { inset: 0 }}
+    // Every motion on the screen (the Walk around note too) follows the reduced motion setting.
+    <MotionConfig reducedMotion="user">
+      <main className="relative h-full w-full overflow-hidden">
+        <button
+          type="button"
+          onClick={() => {
+            setOfficeShown(false);
+            showNeedsYou();
+          }}
+          className="sr-only z-40 rounded-button border border-hairline bg-white px-3 py-2 focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          style={{ ...typeStyle("small", "navy"), fontWeight: 700 }}
         >
-          <OfficePanel
-            key={wide ? "docked" : "full"}
-            docked={wide}
-            onShowOffice={wide ? undefined : () => setOfficeShown(true)}
-          />
-        </div>
-      )}
+          Skip to Needs you
+        </button>
 
-      {/* Always rendered, so each overlay box stays registered for the camera. */}
-      <div
-        className={`pointer-events-none absolute top-0 bottom-0 left-0 z-10 p-6 ${sceneShown ? "" : "invisible"}`}
-        style={{ right: freeRight }}
-      >
-        <div className="flex items-start justify-between gap-4">
-          <StatsHud />
-          {!wide && (
-            <button
-              type="button"
-              onClick={() => setOfficeShown(false)}
-              className={`pointer-events-auto ${BUTTON}`}
-              style={{ ...typeStyle("small", "navy"), fontWeight: 700 }}
-            >
-              Show panel
-            </button>
-          )}
-        </div>
-        <div className="absolute right-6 bottom-6 left-6 grid grid-cols-[1fr_auto_1fr] items-end gap-4">
-          <div className="justify-self-start">
-            <div ref={note} className={pill(night)}>
-              <AboutNote onDark={night} />
+        <section
+          className="absolute inset-0"
+          aria-label="Office view. The same facts are in the panel."
+          aria-hidden={!sceneShown || undefined}
+        >
+          <Scene />
+        </section>
+
+        {panelShown && (
+          <div
+            id="hq-panel"
+            className="absolute z-20"
+            style={
+              wide ? { top: EDGE, right: EDGE, bottom: EDGE, width: PANEL_WIDTH } : { inset: 0 }
+            }
+          >
+            <OfficePanel
+              key={wide ? "docked" : "full"}
+              docked={wide}
+              onShowOffice={wide ? undefined : () => setOfficeShown(true)}
+            />
+          </div>
+        )}
+
+        {/* Always rendered, so each overlay box stays registered for the camera. */}
+        <div
+          className={`pointer-events-none absolute top-0 bottom-0 left-0 z-10 p-6 ${sceneShown ? "" : "invisible"}`}
+          style={{ right: freeRight }}
+        >
+          <div className="flex items-start justify-between gap-4">
+            <StatsHud />
+            {!wide && (
+              <button
+                type="button"
+                onClick={() => setOfficeShown(false)}
+                className={`pointer-events-auto ${BUTTON}`}
+                style={{ ...typeStyle("small", "navy"), fontWeight: 700 }}
+              >
+                Show panel
+              </button>
+            )}
+          </div>
+          <div className="absolute right-6 bottom-6 left-6 grid grid-cols-[1fr_auto_1fr] items-end gap-4">
+            <div className="justify-self-start">
+              <div ref={note} className={pill(night)}>
+                <AboutNote onDark={night} />
+              </div>
+            </div>
+            <WalkPill />
+            {/* Views and light live in the panel's Office tab now (P5.3). */}
+            <div ref={controls} className="flex flex-col items-end gap-3 justify-self-end">
+              {import.meta.env.DEV && <HealthBadge />}
             </div>
           </div>
-          <WalkPill />
-          {/* Views and light live in the panel's Office tab now (P5.3). */}
-          <div ref={controls} className="flex flex-col items-end gap-3 justify-self-end">
-            {import.meta.env.DEV && <HealthBadge />}
-          </div>
         </div>
-      </div>
-      <p className="sr-only" aria-live="polite" data-testid="view-announcement">
-        {viewAnnouncement}
-      </p>
-    </main>
+        <p className="sr-only" aria-live="polite" data-testid="view-announcement">
+          {viewAnnouncement}
+        </p>
+      </main>
+    </MotionConfig>
   );
 }

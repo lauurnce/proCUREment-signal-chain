@@ -1,14 +1,14 @@
 import type { QueueItem, Seat } from "@hq/shared";
 import { describe, expect, it } from "vitest";
-import { decidingAs, helperName, needsYou, urgency } from "./queue";
+import { decidesLine, decidingAs, helperName, needsYou, urgency } from "./queue";
 import { ago, fullTime } from "./time";
 
 const item = (id: string, approver: string, created: string, status = "needs-you") =>
   ({ id, approver, created, status }) as QueueItem;
 
 const seats = [
-  { id: "cm-02", displayName: "CM 02" },
-  { id: "ops-07", displayName: "Ops 07" },
+  { id: "cm-02", displayName: "CM 02", track: "CM" },
+  { id: "ops-07", displayName: "Ops 07", track: "OPS" },
 ] as Seat[];
 
 describe("needs you list", () => {
@@ -46,8 +46,12 @@ describe("needs you list", () => {
     expect(needsYou(queue, "team").map((q) => q.id)).toEqual(["q-1", "q-2", "q-3"]);
   });
 
-  it("labels team items with who really decides them", () => {
-    expect(decidingAs(seats, item("x", "cm-02", ""))).toBe("CM 02");
+  it("labels team items with the kind of decider, never the seat (D-046)", () => {
+    expect(decidingAs(seats, item("x", "cm-02", ""))).toBe("a CM");
+    expect(decidesLine(seats, item("x", "cm-02", ""))).toBe(
+      "A Category Manager (you, in this demo)",
+    );
+    expect(decidesLine(seats, item("x", "mgr-01", ""))).toBe("You");
     expect(decidingAs(seats, item("x", "mgr-01", ""))).toBeNull();
   });
 
