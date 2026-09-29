@@ -2,6 +2,7 @@ import { motion as m } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { bezier, typeStyle } from "../../theme/style";
 import { motion } from "../../theme/tokens";
+import { LAB_NOTE } from "./InstructionBox";
 
 /**
  * Shows for 5 s after a decision (D-030), with a line that shrinks. The timer pauses while the
@@ -12,8 +13,11 @@ export function UndoBar({
   message,
   onUndo,
   onExpire,
+  note = LAB_NOTE,
 }: {
   message: string;
+  /** Says that nothing is saved yet. */
+  note?: string;
   onUndo: () => void;
   onExpire: () => void;
 }) {
@@ -56,7 +60,7 @@ export function UndoBar({
     >
       <div className="flex min-w-0 flex-1 flex-col">
         <span style={typeStyle("small", "white")}>{message}</span>
-        <span style={typeStyle("small", "blueLight")}>Lab only, nothing is saved or sent.</span>
+        <span style={typeStyle("small", "blueLight")}>{note}</span>
       </div>
       <button
         type="button"

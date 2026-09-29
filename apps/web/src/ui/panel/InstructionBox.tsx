@@ -16,7 +16,19 @@ type Props = {
   /** Lab only: what would have been sent. */
   preview: string | null;
   textRef: Ref<HTMLTextAreaElement>;
+  /** Offline: Send waits until the server is back. */
+  paused?: boolean;
+  /** Says that nothing is sent yet. Defaults to the Lab wording. */
+  note?: string;
+  /**
+   * While an item is open, the box shrinks to a one line bar, so the Summary has room
+   * (council, 29 Sep 2026). A click on the bar, or the I key, opens it.
+   */
+  collapsed?: boolean;
+  onExpand?: () => void;
 };
+
+export const LAB_NOTE = "Lab only, nothing is saved or sent.";
 
 const GROUP_ORDER = ["One helper", "A pod", "A wing", "Everyone"];
 
@@ -26,8 +38,42 @@ const GROUP_ORDER = ["One helper", "A pod", "A wing", "Everyone"];
  */
 export function InstructionBox(p: Props) {
   const audience = p.audiences.find((a) => a.id === p.audienceId);
-  const ready = Boolean(audience && p.text.trim());
+  const ready = Boolean(audience && p.text.trim()) && !p.paused;
   const buttonLabel = audience ? `Send to ${audience.label}` : "Send";
+  const hint = p.paused
+    ? "Send when back online."
+    : !audience
+      ? "Pick who gets it first."
+      : !p.text.trim()
+        ? "Write an instruction first."
+        : undefined;
+
+  if (p.collapsed) {
+    return (
+      <section
+        aria-label="Give an instruction"
+        data-testid="instruction-box"
+        data-collapsed="true"
+        className="flex h-12 shrink-0 items-center border-t border-hairline bg-white px-4"
+      >
+        <button
+          type="button"
+          onClick={p.onExpand}
+          aria-keyshortcuts="I"
+          className="flex w-full items-center justify-between rounded-button px-2 py-1.5 hover:bg-panel focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        >
+          <span style={typeStyle("label", "inkMuted")}>Give an instruction</span>
+          <span
+            aria-hidden="true"
+            className="rounded-chip border border-hairline px-1 font-mono text-[11px] leading-[14px] text-ink-muted"
+          >
+            I
+          </span>
+        </button>
+      </section>
+    );
+  }
+
   return (
     <section
       aria-label="Give an instruction"
@@ -94,24 +140,25 @@ export function InstructionBox(p: Props) {
         />
         <button
           type="button"
-          onClick={p.onSend}
+          onClick={() => ready && p.onSend()}
           aria-disabled={!ready}
-          title={
-            !audience
-              ? "Pick who gets it first."
-              : !p.text.trim()
-                ? "Write an instruction first."
-                : undefined
-          }
-          className={`min-h-11 max-w-44 rounded-button px-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${ready ? "bg-accent" : "bg-panel"}`}
+          aria-describedby={hint && p.text.trim() ? "instruction-hint" : undefined}
+          title={hint}
+          // Ready: accent fill. Not ready: a white outline button, clearly different.
+          className={`min-h-11 max-w-44 rounded-button border px-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${ready ? "border-accent bg-accent" : "border-hairline bg-white"}`}
           style={{ ...typeStyle("small", ready ? "white" : "inkMuted"), fontWeight: 700 }}
         >
           {buttonLabel}
         </button>
       </div>
+      {hint && p.text.trim() && (
+        <p id="instruction-hint" className="m-0" style={typeStyle("small")}>
+          {hint}
+        </p>
+      )}
       {p.preview && (
         <p className="m-0" role="status" style={typeStyle("small")}>
-          {p.preview} Lab only, nothing is saved or sent.
+          {p.preview} {p.note ?? LAB_NOTE}
         </p>
       )}
     </section>

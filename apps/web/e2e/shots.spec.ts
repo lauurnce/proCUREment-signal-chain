@@ -22,6 +22,8 @@ type Target = {
   path: string;
   fullPage: boolean;
   only?: { width: number; height: number }[];
+  /** Open this helper's row in the Team tab first. */
+  expand?: string;
 };
 
 const pages: Target[] = [
@@ -31,8 +33,25 @@ const pages: Target[] = [
       name: `office-${view}${time === "night" ? "-night" : ""}`,
       path: `/?shots=1&view=${view}&time=${time}`,
       fullPage: false,
+      // P5.1: the office now has the docked panel, so the Overview also needs 1280.
+      ...(view === "overview" ? { only: PANEL_SIZES } : {}),
     })),
   ),
+  // P5.1 HQ panel in the office: an item open, and under 960 px the full width panel.
+  { name: "office-detail", path: "/?shots=1&open=1", fullPage: false },
+  // P5.2: team items sorted by urgency, the rule item first, as a card and in full.
+  { name: "office-needs-team", path: "/?shots=1&filter=team", fullPage: false },
+  { name: "office-detail-rule", path: "/?shots=1&filter=team&open=1", fullPage: false },
+  // P5.3: the Team tab with one helper open, the Board, and the Office tab (views moved here).
+  { name: "office-team", path: "/?shots=1&tab=team", fullPage: false, expand: "cm-10" },
+  { name: "office-board", path: "/?shots=1&tab=board", fullPage: false },
+  { name: "office-tab", path: "/?shots=1&tab=office", fullPage: false, only: PANEL_SIZES },
+  {
+    name: "office-narrow",
+    path: "/?shots=1",
+    fullPage: false,
+    only: [{ width: 900, height: 900 }],
+  },
   // The Lab is a long page, so it is captured top to bottom.
   { name: "lab", path: "/lab", fullPage: true },
   // P2.3 diorama study: the three looks by day, plus the favorite at night.
@@ -75,6 +94,9 @@ for (const target of pages) {
       await page.goto(target.path);
       await waitForReady(page);
       await page.evaluate(() => document.fonts.ready);
+      if (target.expand) {
+        await page.locator(`[data-seat="${target.expand}"] > button`).click();
+      }
       const file = join(outDir, `${target.name}-${size.width}x${size.height}.png`);
       await page.screenshot({ path: file, fullPage: target.fullPage });
       expect(errors).toEqual([]);

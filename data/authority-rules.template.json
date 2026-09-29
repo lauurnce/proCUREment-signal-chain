@@ -12,7 +12,7 @@
         "currency": "TBD"
       },
       "decidedBy": "OPS",
-      "plainEnglish": "Price change under 5 percent and under 2K: the Ops Buyer can change it in SAP."
+      "plainEnglish": "A price change under 5 percent and under 2K can be made in SAP by the Ops Buyer."
     },
     {
       "id": "price-small-high-value",
@@ -23,7 +23,7 @@
         "currency": "TBD"
       },
       "decidedBy": "CM",
-      "plainEnglish": "Price change under 5 percent but 2K or more: the Category Manager must approve."
+      "plainEnglish": "A price change under 5 percent but of 2K or more needs Category Manager approval."
     },
     {
       "id": "price-large",
@@ -32,7 +32,7 @@
         "minPercent": 5
       },
       "decidedBy": "CM",
-      "plainEnglish": "Price change of 5 percent or more: the Category Manager must approve."
+      "plainEnglish": "A price change of 5 percent or more needs Category Manager approval."
     },
     {
       "id": "quantity",
@@ -48,7 +48,7 @@
         "type": "commercial-terms"
       },
       "decidedBy": "CM",
-      "plainEnglish": "Lead time changes, payment terms and other commercial terms belong to the Category Manager, not Ops."
+      "plainEnglish": "Lead time, payment terms and other commercial terms belong to the Category Manager, not Ops."
     }
   ]
 }

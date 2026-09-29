@@ -1,4 +1,4 @@
-import type { QueueItem, Seat, Workflow } from "@hq/shared";
+import type { AuthorityRule, QueueItem, QueueStatus, Seat, Workflow } from "@hq/shared";
 import { typeStyle } from "../../theme/style";
 import { type Decision, DecisionButton } from "../DecisionButton";
 import { PanelTitle } from "../PanelTitle";
@@ -8,23 +8,36 @@ import { Chip } from "./Chip";
 import { EmailPreview } from "./EmailPreview";
 import { keepCodesTogether, reference, stepInfo, whyText } from "./itemView";
 import { sections } from "./markdown";
-import { decidingAs, helperName } from "./queue";
+import { decidesLine, decidingAs, helperName } from "./queue";
 import { fullTime } from "./time";
 
 type Props = {
   item: QueueItem;
   seats: Seat[];
   workflows: Workflow[];
+  rules: AuthorityRule[];
   position: string;
   onBack: () => void;
   onPrev: () => void;
   onNext: () => void;
   onDecide: (d: Decision) => void;
+  paused?: boolean;
 };
 
 // Headings shown with a clearer name, and the ones handled elsewhere.
 const TITLES: Record<string, string> = { "Recommendation from the helper": "Helper suggests" };
 const SKIP = new Set(["Draft email"]);
+
+/** The item status in plain words. */
+const STATUS: Record<QueueStatus, string> = {
+  "needs-you": "Needs your decision",
+  approved: "Approved",
+  held: "On hold",
+  "sent-back": "Sent back",
+  instructed: "Instructed",
+  sent: "Sent",
+  done: "Done",
+};
 
 const LINK =
   "inline-flex min-h-6 min-w-6 items-center justify-center rounded-button px-2 py-1 hover:bg-panel focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
@@ -34,11 +47,13 @@ export function ItemDetail({
   item,
   seats,
   workflows,
+  rules,
   position,
   onBack,
   onPrev,
   onNext,
   onDecide,
+  paused,
 }: Props) {
   const info = stepInfo(workflows, item);
   const body = sections(item.body);
@@ -46,10 +61,14 @@ export function ItemDetail({
   const fromSeat = seats.find((s) => s.id === item.from);
   const ref = reference(item);
   const helper = helperName(seats, item.from);
+  // An item another track decides is waiting for their decision, not yours (council, 29 Sep).
+  const status =
+    as && item.status === "needs-you" ? `Waiting for ${as} decision (demo)` : STATUS[item.status];
   const facts = [
+    { label: "Status", value: status },
     { label: "From", value: helper, badge: true },
     ...(item.supplier ? [{ label: "Supplier", value: item.supplier }] : []),
-    { label: "Decides", value: as ? `${as} (you decide for the seat in this demo)` : "You" },
+    { label: "Decides", value: decidesLine(seats, item) },
     { label: "Received", value: fullTime(item.created) },
     ...(ref ? [{ label: "Reference", value: ref }] : []),
   ];
@@ -129,7 +148,7 @@ export function ItemDetail({
             )}
           </div>
           <p className="m-0" style={typeStyle("body")}>
-            {whyText(seats, item)}
+            {whyText(seats, item, rules)}
           </p>
         </div>
         {body
@@ -150,24 +169,28 @@ export function ItemDetail({
             label="Approve"
             shortcut="A"
             onClick={() => onDecide("approve")}
+            paused={paused}
           />
           <DecisionButton
             decision="hold"
             label="Hold"
             shortcut="H"
             onClick={() => onDecide("hold")}
+            paused={paused}
           />
           <DecisionButton
             decision="send-back"
             label={`Send back to ${helper}`}
             shortcut="S"
             onClick={() => onDecide("send-back")}
+            paused={paused}
           />
           <DecisionButton
             decision="instruct"
             label="Instruct"
             shortcut="I"
             onClick={() => onDecide("instruct")}
+            paused={paused}
           />
         </div>
       </div>

@@ -1,180 +1,212 @@
 import type { AppState } from "@hq/shared";
-import { AnimatePresence, MotionConfig } from "motion/react";
-import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, MotionConfig, motion as m } from "motion/react";
+import { type KeyboardEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import type { ConnectionStatus } from "../../state/store";
-import { typeStyle } from "../../theme/style";
+import { bezier } from "../../theme/style";
+import { motion as tokens } from "../../theme/tokens";
 import type { Decision } from "../DecisionButton";
 import { audiences as allAudiences } from "./audience";
 import { BoardTab } from "./BoardTab";
-import { InstructionBox } from "./InstructionBox";
+import { InstructionBox, LAB_NOTE } from "./InstructionBox";
 import { ItemDetail } from "./ItemDetail";
 import { reference, suggestion } from "./itemView";
 import { KeyHelp } from "./KeyHelp";
 import { isField, panelAction } from "./keys";
+import { useLinkState } from "./linkState";
 import { NeedsYouTab } from "./NeedsYouTab";
 import { OfficeTab } from "./OfficeTab";
+import { OfflineBanner } from "./OfflineBanner";
 import { PanelHeader } from "./PanelHeader";
 import { PanelTabs, TABS, type TabId } from "./PanelTabs";
+import {
+  decisionMessage,
+  openItems,
+  type PanelCounts,
+  panelCounts,
+  usePanelStore,
+} from "./panelStore";
 import { decidingAs, helperName, needsYou, type QueueFilter } from "./queue";
 import { TeamTab } from "./TeamTab";
 import { clockTime } from "./time";
 import { UndoBar } from "./UndoBar";
+
+export type { PanelCounts } from "./panelStore";
 
 type Props = {
   data: AppState;
   connection: ConnectionStatus;
   now: Date;
   /** Live counts for the stats card and the page title (D-042). */
-  onCounts: (counts: PanelCounts) => void;
+  onCounts?: (counts: PanelCounts) => void;
   /** Screenshots can open a tab or an item directly. */
-  initial?: { tab?: TabId; openFirst?: boolean };
+  initial?: { tab?: TabId; openFirst?: boolean; filter?: QueueFilter };
+  /** Says that nothing is saved or sent yet. Defaults to the Lab wording. */
+  note?: string;
+  /** "Try again" in the offline banner. */
+  onRetry?: () => void;
+  /** Narrow screens only: hides the panel so the office shows. */
+  onShowOffice?: () => void;
 };
-
-type Undo = { itemId: string | null; message: string };
-
-/** The numbers the stats card shows (D-042). Items only, never people. */
-export type PanelCounts = { needsYou: number; drafts: number; waitingOnOthers: number };
 
 /** Room at the end of the list while the undo bar floats over it, so the last card can scroll clear. */
 const UNDO_SPACE = 72;
-
-/** Where keyboard focus should go after the next render: a card, an item detail, or the panel. */
-type FocusRequest = { target: "card" | "detail" | "panel"; id?: string; quiet?: boolean };
+/** A drop shorter than this never shows the offline banner. */
+const OFFLINE_BANNER_DELAY_MS = 1_500;
 
 /**
- * The HQ panel (P2.5 Lab version). Decisions stay in this component: nothing is written to the
- * vault and nothing is sent. Keys work only while focus is inside the panel (D-031).
+ * The HQ panel. Its state lives in the panel store (panelStore.ts), so the HUD and the page
+ * title read the same numbers. Decisions are mocked: nothing is written to the vault and
+ * nothing is sent. Keys work only while focus is inside the panel (D-031).
  */
-export function Panel({ data, connection, now, onCounts, initial }: Props) {
-  const { seats, queue, workflows, tasks } = data;
-  const [tab, setTab] = useState<TabId>(initial?.tab ?? "needs");
-  const [filter, setFilter] = useState<QueueFilter>("mine");
-  const [decided, setDecided] = useState<Record<string, Decision>>({});
-  const [focusedId, setFocusedId] = useState<string | null>(null);
-  const [detailOpen, setDetailOpen] = useState(Boolean(initial?.openFirst));
-  const [undo, setUndo] = useState<Undo | null>(null);
-  const [helpOpen, setHelpOpen] = useState(false);
-  const [audienceId, setAudienceId] = useState("");
-  const [about, setAbout] = useState<string | null>(null);
-  const [text, setText] = useState("");
-  const [preview, setPreview] = useState<string | null>(null);
-  const [announce, setAnnounce] = useState("");
-  const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(
-    tab === "needs" ? { target: initial?.openFirst ? "detail" : "card", quiet: true } : null,
+export function Panel({
+  data,
+  connection,
+  now,
+  onCounts,
+  initial,
+  note = LAB_NOTE,
+  onRetry,
+  onShowOffice,
+}: Props) {
+  const { seats, queue, workflows, tasks, authorityRules } = data;
+  const s = usePanelStore(
+    useShallow((p) => ({
+      tab: p.tab,
+      filter: p.filter,
+      decided: p.decided,
+      focusedId: p.focusedId,
+      detailOpen: p.detailOpen,
+      undo: p.undo,
+      helpOpen: p.helpOpen,
+      audienceId: p.audienceId,
+      about: p.about,
+      text: p.text,
+      preview: p.preview,
+      announce: p.announce,
+      focusRequest: p.focusRequest,
+    })),
   );
+  const act = usePanelStore.getState();
+  const link = useLinkState(connection);
+  const paused = connection !== "live";
   const textRef = useRef<HTMLTextAreaElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const bannerRef = useRef<HTMLElement>(null);
   const audienceList = useMemo(() => allAudiences(seats), [seats]);
 
-  const open = queue.filter((q) => !decided[q.id]);
-  const items = needsYou(open, filter);
-  const counts = {
-    mine: needsYou(open, "mine").length,
-    team: needsYou(open, "team").length - needsYou(open, "mine").length,
-  };
-  const focused = items.find((q) => q.id === focusedId) ?? items[0] ?? null;
+  // A fresh panel for each page, before the first paint. The initial values are for screenshots.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runs once, on mount
+  useLayoutEffect(() => act.start(initial), []);
+
+  // The time of the last data from the server, for the offline banner and tooltip.
+  const nowRef = useRef(now);
+  nowRef.current = now;
+  const [lastUpdate, setLastUpdate] = useState(() => clockTime(now));
+  // biome-ignore lint/correctness/useExhaustiveDependencies: data is the trigger
+  useEffect(() => setLastUpdate(clockTime(nowRef.current)), [data]);
+
+  const open = openItems(queue, s.decided);
+  const items = needsYou(open, s.filter);
+  const counts = useMemo(() => panelCounts(queue, s.decided), [queue, s.decided]);
+  const tabCounts = { mine: counts.needsYou, team: counts.waitingOnOthers };
+  const focused = items.find((q) => q.id === s.focusedId) ?? items[0] ?? null;
   const index = focused ? items.indexOf(focused) : -1;
 
-  const drafts = needsYou(open, "team").filter((q) => q.kind === "email-draft").length;
-  useEffect(
-    () => onCounts({ needsYou: counts.mine, drafts, waitingOnOthers: counts.team }),
-    [counts.mine, counts.team, drafts, onCounts],
-  );
+  useEffect(() => onCounts?.(counts), [counts, onCounts]);
 
   // Keyboard focus never falls out of the panel: after a decision it moves to the next card,
-  // after Undo to the restored card, and on Enter to the item title (council review, Must 1).
+  // after Undo to the restored card, and on Enter to the item title (D-048).
   // biome-ignore lint/correctness/useExhaustiveDependencies: runs after the render that shows the target
   useEffect(() => {
-    if (!focusRequest) return;
+    const request = s.focusRequest;
+    if (!request) return;
     const root = rootRef.current;
-    const id = focusRequest.id ?? focused?.id;
+    const id = request.id ?? focused?.id;
     const el =
-      focusRequest.target === "panel" || !id
+      request.target === "panel" || !id
         ? root
-        : root?.querySelector<HTMLElement>(`[data-focus-id="${focusRequest.target}-${id}"]`);
-    (el ?? root)?.focus({ preventScroll: focusRequest.quiet });
-    setFocusRequest(null);
-  }, [focusRequest]);
+        : root?.querySelector<HTMLElement>(`[data-focus-id="${request.target}-${id}"]`);
+    (el ?? root)?.focus({ preventScroll: request.quiet });
+    act.requestFocus(null);
+  }, [s.focusRequest]);
 
   // With a focused Needs you card, "To" is the helper it came from, and the item is attached.
   // On the other tabs "To" starts empty, and it never starts on everyone (panel spec, section 4).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: store actions are stable
   useEffect(() => {
-    if (tab === "needs" && focused) {
-      setAudienceId(`seat:${focused.from}`);
-      setAbout(reference(focused) ?? focused.id);
-    } else {
-      setAudienceId("");
-      setAbout(null);
+    if (s.tab === "needs" && focused)
+      act.attach(`seat:${focused.from}`, reference(focused) ?? focused.id);
+    else act.attach("", null);
+  }, [focused, s.tab]);
+
+  // While an item is open, the instruction box is a one line bar until you ask for it
+  // (council, 29 Sep 2026). A draft keeps it open.
+  const [instructOpen, setInstructOpen] = useState(false);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new item or closing the detail is the trigger
+  useEffect(() => setInstructOpen(false), [s.detailOpen, focused?.id]);
+  const instructionCollapsed =
+    s.tab === "needs" && s.detailOpen && !instructOpen && !s.text.trim() && !s.preview;
+
+  function openInstruction() {
+    setInstructOpen(true);
+    // The text box exists only after the bar opens, so focus it on the next frame.
+    requestAnimationFrame(() => textRef.current?.focus());
+  }
+
+  const [bannerShown, setBannerShown] = useState(false);
+  useEffect(() => {
+    if (connection !== "offline") {
+      setBannerShown(false);
+      return;
     }
-  }, [focused, tab]);
+    const id = window.setTimeout(() => setBannerShown(true), OFFLINE_BANNER_DELAY_MS);
+    return () => window.clearTimeout(id);
+  }, [connection]);
+
+  const tabBody = useRef<HTMLDivElement>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the tab is the trigger
+  useLayoutEffect(() => {
+    if (tabBody.current) tabBody.current.scrollTop = 0;
+  }, [s.tab]);
 
   function move(step: number) {
     if (items.length === 0) return;
     const next = items[(index + step + items.length) % items.length];
     if (!next) return;
-    setFocusedId(next.id);
-    setFocusRequest({ target: detailOpen ? "detail" : "card", id: next.id });
+    act.focusCard(next.id, { target: s.detailOpen ? "detail" : "card", id: next.id });
   }
 
   function decide(action: Decision) {
     if (!focused) return;
-    if (action === "instruct") {
-      setAudienceId(`seat:${focused.from}`);
-      setAbout(reference(focused) ?? focused.id);
-      textRef.current?.focus();
+    if (paused) {
+      // Offline: point to the banner instead (panel spec, section 6).
+      act.say("Decisions are paused until the server is back.");
+      bannerRef.current?.focus();
       return;
     }
-    const at = clockTime(now);
-    const helper = helperName(seats, focused.from);
-    const as = decidingAs(seats, focused);
-    const demo = as ? ` as ${as} (demo)` : "";
-    const message =
-      action === "approve"
-        ? as
-          ? `Approved${demo}, ${at}.`
-          : `Approved by you, ${at}.`
-        : action === "hold"
-          ? as
-            ? `Put on hold${demo}, ${at}.`
-            : `On hold, ${at}.`
-          : `Sent back to ${helper}${demo}, ${at}.`;
-    const next = items[index + 1] ?? items[index - 1] ?? null;
-    setDecided((d) => ({ ...d, [focused.id]: action }));
-    setFocusedId(next?.id ?? null);
-    setUndo({ itemId: focused.id, message });
-    setAnnounce(`${message} Undo for 5 seconds, press U.`);
-    if (!next) setDetailOpen(false);
-    setFocusRequest(
-      next ? { target: detailOpen ? "detail" : "card", id: next.id } : { target: "panel" },
-    );
-  }
-
-  function undoLast() {
-    if (!undo) return;
-    const { itemId } = undo;
-    if (itemId) {
-      setDecided((d) => {
-        const { [itemId]: _, ...rest } = d;
-        return rest;
-      });
-      setFocusedId(itemId);
-      setFocusRequest({ target: detailOpen ? "detail" : "card", id: itemId });
-      setAnnounce("Undone. The item is back in Needs you.");
-    } else {
-      setPreview(null);
-      setAnnounce("Undone. The instruction was not sent.");
+    if (action === "instruct") {
+      act.attach(`seat:${focused.from}`, reference(focused) ?? focused.id);
+      openInstruction();
+      return;
     }
-    setUndo(null);
+    const message = decisionMessage(
+      action,
+      helperName(seats, focused.from),
+      decidingAs(seats, focused),
+      clockTime(now),
+    );
+    const next = items[index + 1] ?? items[index - 1] ?? null;
+    act.decide(focused.id, action, message, next?.id ?? null);
   }
 
   function send() {
-    const audience = audienceList.find((a) => a.id === audienceId);
-    if (!audience || !text.trim()) return;
-    const message = `Instruction sent to ${audience.label}, ${clockTime(now)}.`;
-    setPreview(`This would go to ${audience.label}: "${text.trim()}"`);
-    setText("");
-    setUndo({ itemId: null, message });
-    setAnnounce(message);
+    const audience = audienceList.find((a) => a.id === s.audienceId);
+    if (paused || !audience || !s.text.trim()) return;
+    act.send(
+      `This would go to ${audience.label}: "${s.text.trim()}"`,
+      `Instruction sent to ${audience.label}, ${clockTime(now)}.`,
+    );
   }
 
   function onKeyDown(e: KeyboardEvent) {
@@ -190,26 +222,26 @@ export function Panel({ data, connection, now, onCounts, initial }: Props) {
     if (action === "open" && e.target instanceof HTMLButtonElement) return;
     e.preventDefault();
     if (action === "back") {
-      if (helpOpen) setHelpOpen(false);
-      else if (detailOpen && !isField(e.target)) setDetailOpen(false);
+      if (s.helpOpen) act.setHelpOpen(false);
+      else if (s.detailOpen && !isField(e.target)) act.setDetailOpen(false);
       // Back to the last card: from a text box, from the detail, or after closing the key list.
-      setFocusRequest(tab === "needs" ? { target: "card" } : { target: "panel" });
+      act.requestFocus(s.tab === "needs" ? { target: "card" } : { target: "panel" });
       return;
     }
-    if (action === "help") return setHelpOpen((h) => !h);
-    if (action === "undo") return undoLast();
+    if (action === "help") return act.setHelpOpen(!s.helpOpen);
+    if (action === "undo") return act.undoLast();
     if (action === "tabNext" || action === "tabPrev") {
-      const i = TABS.findIndex((t) => t.id === tab);
+      const i = TABS.findIndex((t) => t.id === s.tab);
       const n = (i + (action === "tabNext" ? 1 : -1) + TABS.length) % TABS.length;
-      return setTab(TABS[n]?.id ?? "needs");
+      return act.setTab(TABS[n]?.id ?? "needs");
     }
-    if (tab !== "needs") return;
+    if (s.tab !== "needs") return;
     if (action === "next") return move(1);
     if (action === "prev") return move(-1);
     if (action === "open") {
       if (!focused) return;
-      setDetailOpen(true);
-      return setFocusRequest({ target: "detail", id: focused.id });
+      act.setDetailOpen(true);
+      return act.requestFocus({ target: "detail", id: focused.id });
     }
     const decisions = {
       approve: "approve",
@@ -221,7 +253,7 @@ export function Panel({ data, connection, now, onCounts, initial }: Props) {
   }
 
   const placeholder =
-    tab === "needs" && focused
+    s.tab === "needs" && focused
       ? (suggestion(focused) ?? `Tell ${helperName(seats, focused.from)} what to do.`)
       : "Tell the helpers what to do. For example: Ask Luzon Precision for a firm ship date by 29 Sep 2026.";
 
@@ -236,104 +268,154 @@ export function Panel({ data, connection, now, onCounts, initial }: Props) {
         className="relative flex h-full flex-col overflow-hidden rounded-card border border-hairline bg-white outline-none"
       >
         <PanelHeader
-          connection={connection}
+          link={link}
+          lastUpdate={lastUpdate}
           seatCount={seats.length}
-          onKeys={() => setHelpOpen(true)}
+          onKeys={() => act.setHelpOpen(true)}
+          onShowOffice={onShowOffice}
         />
-        <PanelTabs current={tab} needsCount={counts.mine} onChange={setTab} />
+        <PanelTabs current={s.tab} needsCount={counts.needsYou} onChange={act.setTab} />
         {/* The undo bar floats over the bottom of the tab body, so nothing above it moves. */}
         <div className="relative min-h-0 flex-1">
+          {/* After 1.5 s offline, the banner fades in over the top of the list (220 ms), so a
+              short drop never flashes and nothing below it moves (council, 29 Sep 2026). */}
+          <AnimatePresence>
+            {bannerShown && (
+              <m.div
+                className="absolute inset-x-0 top-0 z-20"
+                initial={{ opacity: 0 }}
+                animate={{
+                  opacity: 1,
+                  transition: {
+                    duration: tokens.duration.base / 1000,
+                    ease: bezier(tokens.easing.enter),
+                  },
+                }}
+                exit={{
+                  opacity: 0,
+                  transition: {
+                    duration: tokens.duration.fast / 1000,
+                    ease: bezier(tokens.easing.exit),
+                  },
+                }}
+              >
+                <OfflineBanner
+                  ref={bannerRef}
+                  lastUpdate={lastUpdate}
+                  onRetry={() => onRetry?.()}
+                />
+              </m.div>
+            )}
+          </AnimatePresence>
           <div
+            ref={tabBody}
             role="tabpanel"
-            id={`panel-${tab}`}
-            aria-labelledby={`tab-${tab}`}
+            id={`panel-${s.tab}`}
+            aria-labelledby={`tab-${s.tab}`}
             className="h-full overflow-y-auto"
             // Taller than the sticky decision bar (and the undo bar while it shows), so they never
             // hide focus (WCAG 2.4.11).
             style={{
-              scrollPaddingBottom: undo ? 230 : 160,
-              paddingBottom: undo ? UNDO_SPACE : 0,
+              scrollPaddingBottom: s.undo ? 230 : 160,
+              paddingBottom: s.undo ? UNDO_SPACE : 0,
             }}
           >
-            {tab === "needs" &&
-              (detailOpen && focused ? (
-                <ItemDetail
-                  item={focused}
+            {/* A new tab starts at the top and fades in over 140 ms (council, 29 Sep 2026). */}
+            <m.div
+              key={s.tab}
+              initial={{ opacity: 0 }}
+              animate={{
+                opacity: 1,
+                transition: {
+                  duration: tokens.duration.fast / 1000,
+                  ease: bezier(tokens.easing.enter),
+                },
+              }}
+            >
+              {s.tab === "needs" &&
+                (s.detailOpen && focused ? (
+                  <ItemDetail
+                    item={focused}
+                    seats={seats}
+                    workflows={workflows}
+                    rules={authorityRules}
+                    position={`${index + 1} of ${items.length}${s.filter === "team" ? " team items" : ""}`}
+                    onBack={() => {
+                      act.setDetailOpen(false);
+                      act.requestFocus({ target: "card" });
+                    }}
+                    onPrev={() => move(-1)}
+                    onNext={() => move(1)}
+                    onDecide={decide}
+                    paused={paused}
+                  />
+                ) : (
+                  <NeedsYouTab
+                    items={items}
+                    counts={tabCounts}
+                    filter={s.filter}
+                    focusedId={focused?.id ?? null}
+                    seats={seats}
+                    workflows={workflows}
+                    rules={authorityRules}
+                    now={now}
+                    onFilter={act.setFilter}
+                    onFocus={(id) => act.focusCard(id, { target: "card", id })}
+                    onOpen={(id) => {
+                      act.focusCard(id, { target: "detail", id });
+                      act.setDetailOpen(true);
+                    }}
+                    onDecide={decide}
+                    paused={paused}
+                  />
+                ))}
+              {s.tab === "team" && <TeamTab seats={seats} queue={open} workflows={workflows} />}
+              {s.tab === "board" && (
+                <BoardTab
+                  tasks={tasks}
+                  queue={open}
                   seats={seats}
                   workflows={workflows}
-                  position={`${index + 1} of ${items.length}`}
-                  onBack={() => {
-                    setDetailOpen(false);
-                    setFocusRequest({ target: "card" });
-                  }}
-                  onPrev={() => move(-1)}
-                  onNext={() => move(1)}
-                  onDecide={decide}
+                  today={new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(now)}
                 />
-              ) : (
-                <NeedsYouTab
-                  items={items}
-                  counts={counts}
-                  filter={filter}
-                  focusedId={focused?.id ?? null}
-                  seats={seats}
-                  workflows={workflows}
-                  now={now}
-                  onFilter={setFilter}
-                  onFocus={(id) => {
-                    setFocusedId(id);
-                    setFocusRequest({ target: "card", id });
-                  }}
-                  onOpen={(id) => {
-                    setFocusedId(id);
-                    setDetailOpen(true);
-                    setFocusRequest({ target: "detail", id });
-                  }}
-                  onDecide={decide}
-                />
-              ))}
-            {tab === "team" && <TeamTab seats={seats} queue={open} workflows={workflows} />}
-            {tab === "board" && (
-              <BoardTab
-                tasks={tasks}
-                seats={seats}
-                workflows={workflows}
-                today={new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(now)}
-              />
-            )}
-            {tab === "office" && <OfficeTab />}
+              )}
+              {s.tab === "office" && <OfficeTab />}
+            </m.div>
           </div>
           <AnimatePresence>
-            {undo && (
+            {s.undo && (
               <UndoBar
-                key={undo.message}
-                message={undo.message}
-                onUndo={undoLast}
-                onExpire={() => setUndo(null)}
+                key={s.undo.message}
+                message={s.undo.message}
+                note={note}
+                onUndo={act.undoLast}
+                onExpire={act.expireUndo}
               />
             )}
           </AnimatePresence>
         </div>
         <InstructionBox
           audiences={audienceList}
-          audienceId={audienceId}
-          onAudience={setAudienceId}
-          text={text}
-          onText={setText}
-          about={about}
-          onDetach={() => setAbout(null)}
+          audienceId={s.audienceId}
+          onAudience={act.setAudience}
+          text={s.text}
+          onText={act.setText}
+          about={s.about}
+          onDetach={act.detach}
           placeholder={placeholder}
           onSend={send}
-          preview={preview}
+          preview={s.preview}
           textRef={textRef}
+          paused={paused}
+          note={note}
+          collapsed={instructionCollapsed}
+          onExpand={openInstruction}
         />
-        {helpOpen && <KeyHelp onClose={() => setHelpOpen(false)} />}
+        {s.helpOpen && <KeyHelp onClose={() => act.setHelpOpen(false)} />}
         <p aria-live="polite" className="sr-only">
-          {announce}
+          {s.announce}
         </p>
-        <span className="sr-only" style={typeStyle("small")}>
-          Lab only, nothing is saved or sent.
-        </span>
+        <span className="sr-only">{note}</span>
       </div>
     </MotionConfig>
   );

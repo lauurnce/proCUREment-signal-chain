@@ -1,25 +1,56 @@
-import type { Seat, Task, TaskStatus, Workflow } from "@hq/shared";
+import type { QueueItem, Seat, Task, TaskStatus, Workflow } from "@hq/shared";
 import { typeStyle } from "../../theme/style";
 import { TrackBadge } from "../TrackBadge";
-import { helperName } from "./queue";
-import { dateOnly } from "./time";
+import { decidingAs, helperName } from "./queue";
+import { dateOnly, manilaDay } from "./time";
 
-// Waiting first, because that is where the Sr. Manager can unblock work (panel spec, section 3).
-const COLUMNS: { id: TaskStatus; label: string; empty: string }[] = [
-  { id: "waiting", label: "Waiting", empty: "Nothing is waiting." },
+type Column = { id: TaskStatus; label: string; empty: string };
+
+// Waiting first, because that is where the Sr. Manager can unblock work (D-041). Labels from
+// the P5.3 prompt, except "Waiting on a decision": a waiting task can wait on a CM or a Lead,
+// not only on you (the sample t-0004 waits on a CM decision).
+export const COLUMNS: Column[] = [
+  { id: "waiting", label: "Waiting on a decision", empty: "Nothing is waiting." },
   { id: "doing", label: "Doing", empty: "No task in progress." },
   { id: "todo", label: "To do", empty: "Nothing to start." },
-  { id: "done", label: "Done", empty: "Finished tasks show here." },
+  {
+    id: "done",
+    label: "Done today",
+    empty: "Nothing finished yet today. Finished tasks appear here.",
+  },
 ];
+
+/**
+ * Who a waiting task waits on, from the Needs you item it links to: "Waiting on you", or the
+ * kind of decision ("Waiting for a CM decision"), never a seat (D-046). Null when unlinked.
+ */
+export function waitingOn(task: Task, queue: QueueItem[], seats: Seat[]): string | null {
+  const item = queue.find((q) => task.links.includes(q.id) && q.status === "needs-you");
+  if (!item) return null;
+  const as = decidingAs(seats, item);
+  return as ? `Waiting for ${as} decision` : "Waiting on you";
+}
+
+/** The tasks of one column. Done today holds finished tasks whose completed date is today. */
+export function columnTasks(tasks: Task[], status: TaskStatus, today: string): Task[] {
+  return tasks.filter(
+    (t) =>
+      t.status === status &&
+      (status !== "done" || (t.completed !== undefined && manilaDay(t.completed) === today)),
+  );
+}
 
 /** The board tasks by status. Done starts closed. No "overdue" red, tasks belong to helpers. */
 export function BoardTab({
   tasks,
+  queue,
   seats,
   workflows,
   today,
 }: {
   tasks: Task[];
+  /** Open Needs you items, to say who a waiting task waits on. */
+  queue: QueueItem[];
   seats: Seat[];
   workflows: Workflow[];
   today: string;
@@ -27,18 +58,19 @@ export function BoardTab({
   if (tasks.length === 0) {
     return (
       <p className="m-0 px-4 py-10 text-center" style={typeStyle("body", "inkMuted")}>
-        No tasks yet. Tasks appear here from the board folder in the vault.
+        No tasks yet. Helper tasks appear here as they start.
       </p>
     );
   }
   return (
     <div className="flex flex-col gap-3 px-4 py-4">
       {COLUMNS.map((col) => {
-        const list = tasks.filter((t) => t.status === col.id);
+        const list = columnTasks(tasks, col.id, today);
         return (
           <details
             key={col.id}
-            open={col.id !== "done"}
+            data-testid={`board-${col.id}`}
+            open
             className="rounded-card border border-hairline"
           >
             <summary
@@ -56,6 +88,7 @@ export function BoardTab({
                 {list.map((t) => {
                   const owner = seats.find((s) => s.id === t.owner);
                   const workflow = workflows.find((w) => w.id === t.workflow)?.name ?? t.workflow;
+                  const waits = t.status === "waiting" ? waitingOn(t, queue, seats) : null;
                   return (
                     <li
                       key={t.id}
@@ -71,6 +104,11 @@ export function BoardTab({
                         {owner && <TrackBadge id={owner.track} size={12} />}
                         {helperName(seats, t.owner)} · {workflow}
                       </span>
+                      {waits && (
+                        <span style={{ ...typeStyle("small", "ink"), fontWeight: 700 }}>
+                          {waits}
+                        </span>
+                      )}
                       <span style={typeStyle("small")}>
                         {t.due === today
                           ? "Due today"

@@ -129,11 +129,10 @@ Age is about the item, never about how fast a person answered. No "waiting 3 hou
 | Key | Text | Notes |
 |---|---|---|
 | focus.why.label | Why this came to you | Mono label, keep from `DecisionCard`. |
-| focus.why.priceLarge | Price is up {pct} percent. Changes of 5 percent or more need a Category Manager. | Rule `price-large`. Example: "Price is up 6.5 percent." |
-| focus.why.priceMid | Price is up {pct} percent, and the change is {amount} or more. This needs a Category Manager. | Rule for under 5 percent but 2K or more (D-013). |
-| focus.why.quantity | The quantity changed. Quantity changes go to the Planner, outside this team. | |
+| focus.why.rule | {needs} Rule: {plainEnglish, first letter lower case} | P5.4 (D-093): `{needs}` is "This needs a CM decision." (kind of decider, never a seat, D-046) or "You decide.". The rule text comes from `data/authority-rules.template.json`. Example: "This needs a CM decision. Rule: a price change of 5 percent or more needs Category Manager approval." |
+| focus.why.ruleMissing | {needs} The rule for this item is missing, so check it by hand. | The item names a rule the file does not have. |
 | focus.why.mgr | {helper} prepared this for your review. | Items where `approver: mgr-01` and no rule applies. |
-| focus.why.email | {helper} drafted this email. It needs your OK before it is saved to Outlook. | `kind: email-draft`. |
+| focus.why.email | {helper} drafted this email. Approve creates a draft. Sending is a separate step. | `kind: email-draft` (P5.2). |
 | focus.rule.chip | Rule not confirmed yet | Chip when the authority rule thresholds are not confirmed. |
 | focus.rule.tooltip | The 5 percent and 2K limits are still being confirmed with the team. Check the numbers before you rely on them. | |
 | focus.suggests | Helper suggests: | Bold lead-in, then the suggestion. Keep from `DecisionCard`. |
@@ -173,12 +172,12 @@ Age is about the item, never about how fast a person answered. No "waiting 3 hou
 | email.cc | Cc | Hidden when empty. |
 | email.subject | Subject | |
 | email.body | Message | Label above the body. |
-| email.draftNote | Draft only. Nothing is sent from here. | Always under the preview. |
+| email.draftNote | Approve creates a draft. Sending is a separate step. Nothing is sent from here. | Always under the preview (P5.2). |
 | email.signatureNote | The signature uses the seat name ({seat}). A real name is added only when sent. | When the body is signed with a seat placeholder, like "Ops 03". |
 | email.placeholderBlock | This draft still has {placeholder}. Fill it in, then send. | Example: "This draft still has [Supplier Name]." Blocks sending (Phase 7). |
 | email.footer | Unofficial prototype · Fictional data | Footer line shown in every draft preview. |
 | email.saveDraft | Save draft in Outlook | **Phase 7.** Main email action. Hidden in the Lab. |
-| email.lab | Lab only. This draft is not in Outlook. | **Lab.** |
+| email.lab | Lab only. This draft is not in Outlook. | **Lab.** Retired in P5.2: the Lab banner already says it. |
 
 ---
 

@@ -1,55 +1,31 @@
-import { useEffect, useRef, useState } from "react";
-import { PRESETS, presetById } from "../scene/camera/presets";
+import { PRESETS } from "../scene/camera/presets";
 import { useStore } from "../state/store";
 import { typeStyle } from "../theme/style";
-import { viewForKey } from "./viewKeys";
 
 // Press to 0.97 in 80 ms (D-030), hover fill in 140 ms. Transform and colors only, no layout.
 const BUTTON =
   "rounded-button border px-3 py-1.5 transition-[transform,background-color,border-color] duration-[140ms] ease-enter active:scale-[0.97] active:duration-[80ms] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
-/** Selected is accent for every button in the card (council decision, 27 Sep 2026). */
+/** Selected is accent for every view and light button (council decision, 27 Sep 2026). */
 const SELECTED = "border-accent bg-accent";
 const IDLE = "border-hairline bg-white hover:bg-panel";
 
 /**
- * The camera views and the light, at the bottom right of the office (panel spec, Office tab).
- * Keys 1 to 5 pick a view from anywhere except a text field. The panel's Office tab will use
- * the same store actions in Phase 5.
+ * The camera views and the light, in the panel's Office tab (Lawrence's choice, P5.3: the card
+ * used to float over the office and made it small at 1280 and 1440). Keys 1 to 5 still pick a
+ * view from anywhere (useViewKeys).
  */
 export function ViewControls() {
   const view = useStore((s) => s.view);
-  const viewRequest = useStore((s) => s.viewRequest);
   const light = useStore((s) => s.light);
   const goToView = useStore((s) => s.goToView);
   const setLight = useStore((s) => s.setLight);
-  const [announcement, setAnnouncement] = useState("");
-  const firstRequest = useRef(viewRequest);
-
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      const next = viewForKey(event);
-      if (!next) return;
-      event.preventDefault();
-      goToView(next);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [goToView]);
-
-  // Tell screen readers where the camera went, but not on page load.
-  useEffect(() => {
-    if (viewRequest === firstRequest.current) return;
-    setAnnouncement(`View: ${presetById(view).label}`);
-  }, [view, viewRequest]);
 
   return (
-    <section
-      data-testid="view-controls"
-      aria-label="Office view"
-      className="pointer-events-auto flex flex-col gap-3 rounded-float border border-hairline bg-white p-3 shadow-float"
-    >
+    <section data-testid="view-controls" aria-label="Office view" className="flex flex-col gap-3">
       <div className="flex flex-col gap-2">
-        <span style={typeStyle("label", "inkMuted")}>Go to</span>
+        <h3 className="m-0" style={typeStyle("label", "navy")}>
+          Go to
+        </h3>
         <div className="grid grid-cols-2 gap-2">
           {PRESETS.map((preset) => {
             const active = preset.id === view;
@@ -74,9 +50,14 @@ export function ViewControls() {
             );
           })}
         </div>
+        <p className="m-0" style={typeStyle("small")}>
+          Keys 1 to 5 work from anywhere. Drag to pan, scroll to zoom.
+        </p>
       </div>
       <div className="flex flex-col gap-2">
-        <span style={typeStyle("label", "inkMuted")}>Light</span>
+        <h3 className="m-0" style={typeStyle("label", "navy")}>
+          Light
+        </h3>
         <div className="flex gap-2">
           {(["day", "night"] as const).map((option) => {
             const active = option === light;
@@ -95,9 +76,6 @@ export function ViewControls() {
           })}
         </div>
       </div>
-      <p className="sr-only" aria-live="polite" data-testid="view-announcement">
-        {announcement}
-      </p>
     </section>
   );
 }

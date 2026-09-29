@@ -1,4 +1,4 @@
-import type { QueueItem, Seat, Workflow } from "@hq/shared";
+import type { AuthorityRule, QueueItem, Seat, Workflow } from "@hq/shared";
 import { describe, expect, it } from "vitest";
 import { keepCodesTogether, stepInfo, toDecisionItem, whyText } from "./itemView";
 import { type KeyInput, panelAction } from "./keys";
@@ -117,15 +117,38 @@ describe("focused card from a queue item", () => {
     });
   });
 
-  it("explains the authority rule in plain words", () => {
-    expect(whyText(seats, item)).toBe(
-      "Price is up 6.5 percent. Changes of 5 percent or more need a Category Manager.",
+  const rules = [
+    {
+      id: "price-large",
+      when: { type: "price-change", minPercent: 5 },
+      decidedBy: "CM",
+      plainEnglish: "A price change of 5 percent or more needs Category Manager approval.",
+    },
+  ] as AuthorityRule[];
+
+  it("names the kind of decision and the rule, in the rule's own words, never a seat", () => {
+    expect(whyText(seats, item, rules)).toBe(
+      "This needs a CM decision. Rule: a price change of 5 percent or more needs Category Manager approval.",
+    );
+    expect(whyText(seats, { ...item, approver: "mgr-01" }, rules)).toMatch(/^You decide\. Rule: /);
+  });
+
+  it("says so when the rule is missing from the file", () => {
+    expect(whyText(seats, item, [])).toBe(
+      "This needs a CM decision. The rule for this item is missing, so check it by hand.",
+    );
+  });
+
+  it("tells email items that Approve only creates a draft", () => {
+    const email = { ...item, rule: undefined, kind: "email-draft" } as QueueItem;
+    expect(whyText(seats, email, rules)).toBe(
+      "Ops 07 helper drafted this email. Approve creates a draft. Sending is a separate step.",
     );
   });
 
   it("labels team items and sends back to the helper, not the person", () => {
-    const card = toDecisionItem(seats, workflows, item);
-    expect(card.decidingAs).toBe("CM 02");
+    const card = toDecisionItem(seats, workflows, item, rules);
+    expect(card.decidingAs).toBe("a CM");
     expect(card.sendBackTo).toBe("Ops 07 helper");
     expect(card.ruleConfirmed).toBe(false);
     expect(card.suggestion).toBe("Approve the new price.");

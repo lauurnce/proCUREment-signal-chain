@@ -50,7 +50,7 @@
       "id": "poster-race",
       "kind": "poster",
       "zone": "huddle-room",
-      "label": "RACE: Role, Action, Context, Expectation",
+      "label": "Prompt poster",
       "enabled": true,
       "pos": [
         9.3,
