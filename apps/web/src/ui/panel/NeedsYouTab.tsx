@@ -62,8 +62,8 @@ export function NeedsYouTab(p: Props) {
       {p.items.length === 0 ? (
         <p className="m-0 py-10 text-center" style={typeStyle("body", "inkMuted")}>
           {p.filter === "mine"
-            ? "All clear. Nothing waiting on you. New items appear here when a helper needs your decision."
-            : "All clear for you and the team. Helpers are still working. New items appear here as they come in."}
+            ? "All clear. Nothing waiting on you. New items appear here from vault/queue when a helper needs your decision."
+            : "All clear for you and the team. Helpers are still working. New items appear here from vault/queue as they come in."}
         </p>
       ) : (
         <ul className="m-0 flex list-none flex-col gap-2 p-0" aria-label="Items that need you">

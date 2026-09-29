@@ -10,7 +10,7 @@ import { usePanelStore } from "./panel/panelStore";
 import { useLiveCounts } from "./panel/useLiveCounts";
 import { StatsHud } from "./StatsHud";
 import { useMediaQuery } from "./useMediaQuery";
-import { ViewControls } from "./ViewControls";
+import { useViewKeys } from "./useViewKeys";
 import { WalkPill } from "./WalkPill";
 
 /** Panel width from the spec: clamp(440px, 36vw, 600px), 12 px from the edges (D-033). */
@@ -29,7 +29,8 @@ const BUTTON =
 
 /**
  * The main screen: the full-screen office, the HQ panel docked on the right, and over the free
- * area the stats HUD, the Walk around pill, the About note and the view card. Each of them
+ * area the stats HUD, the Walk around pill and the About note. Views and light are in the
+ * panel's Office tab. Each of them
  * registers as an overlay, so the camera frames the office around them.
  * Under 960 px (for example at 200 percent zoom) the panel goes full width, and "Show office"
  * swaps to the office (panel spec, WCAG 1.4.10).
@@ -44,6 +45,7 @@ export function OfficeScreen() {
   const controls = useRef<HTMLDivElement>(null);
   useOverlayRect("note", note);
   useOverlayRect("controls", controls);
+  const viewAnnouncement = useViewKeys();
 
   // Page title (WCAG 2.4.2): "Needs you (3) · SignalChain HQ".
   useEffect(() => {
@@ -115,12 +117,15 @@ export function OfficeScreen() {
             </div>
           </div>
           <WalkPill />
+          {/* Views and light live in the panel's Office tab now (P5.3). */}
           <div ref={controls} className="flex flex-col items-end gap-3 justify-self-end">
-            <ViewControls />
             {import.meta.env.DEV && <HealthBadge />}
           </div>
         </div>
       </div>
+      <p className="sr-only" aria-live="polite" data-testid="view-announcement">
+        {viewAnnouncement}
+      </p>
     </main>
   );
 }

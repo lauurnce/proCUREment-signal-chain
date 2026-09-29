@@ -22,6 +22,8 @@ type Target = {
   path: string;
   fullPage: boolean;
   only?: { width: number; height: number }[];
+  /** Open this helper's row in the Team tab first. */
+  expand?: string;
 };
 
 const pages: Target[] = [
@@ -40,6 +42,10 @@ const pages: Target[] = [
   // P5.2: team items sorted by urgency, the rule item first, as a card and in full.
   { name: "office-needs-team", path: "/?shots=1&filter=team", fullPage: false },
   { name: "office-detail-rule", path: "/?shots=1&filter=team&open=1", fullPage: false },
+  // P5.3: the Team tab with one helper open, the Board, and the Office tab (views moved here).
+  { name: "office-team", path: "/?shots=1&tab=team", fullPage: false, expand: "cm-10" },
+  { name: "office-board", path: "/?shots=1&tab=board", fullPage: false },
+  { name: "office-tab", path: "/?shots=1&tab=office", fullPage: false, only: PANEL_SIZES },
   {
     name: "office-narrow",
     path: "/?shots=1",
@@ -88,6 +94,9 @@ for (const target of pages) {
       await page.goto(target.path);
       await waitForReady(page);
       await page.evaluate(() => document.fonts.ready);
+      if (target.expand) {
+        await page.locator(`[data-seat="${target.expand}"] > button`).click();
+      }
       const file = join(outDir, `${target.name}-${size.width}x${size.height}.png`);
       await page.screenshot({ path: file, fullPage: target.fullPage });
       expect(errors).toEqual([]);

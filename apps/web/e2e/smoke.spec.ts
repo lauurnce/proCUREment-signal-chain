@@ -66,6 +66,8 @@ test("keys 1 to 5 move the camera to each view, and never while typing", async (
 
   await page.keyboard.press("3");
   await expect(page.getByTestId("view-announcement")).toHaveText("View: Ops Wing");
+  // The views live in the Office tab now (P5.3), and show the key's choice there.
+  await page.getByRole("tab", { name: "Office" }).click();
   await expect(page.getByRole("button", { name: /Ops Wing/ })).toHaveAttribute(
     "aria-pressed",
     "true",
@@ -87,6 +89,7 @@ test("with reduced motion, a view change cuts behind a short fade", async ({ pag
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/?shots=1");
   await waitForReady(page);
+  await page.getByRole("tab", { name: "Office" }).click();
   await page.getByRole("button", { name: /Ops Wing/ }).click();
   await expect(page.getByTestId("view-announcement")).toHaveText("View: Ops Wing");
   // Software rendering in tests is slow, so allow a few frames after the 140 ms fade.
@@ -97,13 +100,72 @@ test("the Night button turns the office to night, and Day turns it back", async 
   const errors = collectErrors(page);
   await page.goto("/?shots=1");
   await waitForReady(page);
-  const night = page.getByRole("button", { name: "Night" });
+  await page.getByRole("tab", { name: "Office" }).click();
+  const night = page.getByRole("button", { name: "Night", exact: true });
   await night.click();
   await expect(night).toHaveAttribute("aria-pressed", "true");
   // The About note switches to light text on the night backdrop (the title is in the panel now).
   await expect(page.getByTestId("about-note")).toHaveClass(/text-blue-light/);
-  await page.getByRole("button", { name: "Day" }).click();
-  await expect(page.getByRole("button", { name: "Day" })).toHaveAttribute("aria-pressed", "true");
+  const day = page.getByRole("button", { name: "Day", exact: true });
+  await day.click();
+  await expect(day).toHaveAttribute("aria-pressed", "true");
+  expect(errors).toEqual([]);
+});
+
+test("Team rows open to show the steps, and Show in office waits for the merge", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/?shots=1&tab=team");
+  await waitForReady(page);
+  const row = page.locator('[data-seat="cm-10"]');
+  const toggle = row.getByRole("button", { name: /CM 10 helper/ });
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+  // cm-10 is on the extract step, which happens at the SAP Station.
+  const now = row.locator('[aria-current="step"]');
+  await expect(now).toContainText("(now)");
+  await expect(now).toContainText("SAP Station");
+  await expect(page.getByTestId("show-in-office-cm-10")).toHaveAttribute("aria-disabled", "true");
+  await toggle.press("Enter");
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  expect(errors).toEqual([]);
+});
+
+test("the Board shows Done today from the completed date", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/?shots=1&tab=board");
+  await waitForReady(page);
+  const done = page.getByTestId("board-done");
+  await expect(done).toContainText("Done today · 1");
+  await expect(done).toContainText("Send the PR-PO list file");
+  await expect(page.getByTestId("board-waiting")).toContainText("Waiting on a decision · 1");
+});
+
+test("the Office tab switches a prop off in the office, and remembers the sound choice", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/?shots=1&tab=office");
+  await waitForReady(page);
+  // The view card no longer floats over the office.
+  await expect(page.getByTestId("view-controls")).toHaveCount(1);
+  const sofa = page.getByTestId("prop-sofa-reception");
+  await expect(sofa).toHaveAttribute("aria-checked", "true");
+  await sofa.click();
+  await expect(sofa).toHaveAttribute("aria-checked", "false");
+
+  const sound = page.getByTestId("sound-switch");
+  await expect(sound).toHaveAttribute("aria-checked", "false");
+  await sound.click();
+  await page.reload();
+  await waitForReady(page);
+  await expect(page.getByTestId("sound-switch")).toHaveAttribute("aria-checked", "true");
+  // A reload reads the file again, so the sofa is back.
+  await expect(page.getByTestId("prop-sofa-reception")).toHaveAttribute("aria-checked", "true");
   expect(errors).toEqual([]);
 });
 

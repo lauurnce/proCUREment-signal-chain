@@ -13,6 +13,8 @@ export const Task = z.object({
   status: TaskStatus,
   created: IsoDateTime,
   due: IsoDate,
+  /** When the task was finished. The Board's "Done today" column reads it (P5.3). */
+  completed: IsoDateTime.optional(),
   links: z.array(z.string()),
   body: z.string(),
 });

@@ -1,3 +1,4 @@
+export * from "./office-link";
 export * from "./schemas/accessory";
 export * from "./schemas/authority-rule";
 export * from "./schemas/common";

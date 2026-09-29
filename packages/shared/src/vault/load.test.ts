@@ -42,7 +42,7 @@ describe("loadVault", () => {
       "---\nid: t-0099\nstatus: nonsense\n---\n",
     );
     const state = await load();
-    expect(state.tasks).toHaveLength(5);
+    expect(state.tasks).toHaveLength(6);
     expect(state.warnings).toHaveLength(1);
     expect(state.warnings[0]).toBe(
       'Skipped board/t-0099.md: "title" is missing, "owner" is missing, "workflow" is missing, and 4 more.',

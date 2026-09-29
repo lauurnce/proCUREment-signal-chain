@@ -2,15 +2,32 @@ import type { Seat, Task, TaskStatus, Workflow } from "@hq/shared";
 import { typeStyle } from "../../theme/style";
 import { TrackBadge } from "../TrackBadge";
 import { helperName } from "./queue";
-import { dateOnly } from "./time";
+import { dateOnly, manilaDay } from "./time";
 
-// Waiting first, because that is where the Sr. Manager can unblock work (panel spec, section 3).
-const COLUMNS: { id: TaskStatus; label: string; empty: string }[] = [
-  { id: "waiting", label: "Waiting", empty: "Nothing is waiting." },
+type Column = { id: TaskStatus; label: string; empty: string };
+
+// Waiting first, because that is where the Sr. Manager can unblock work (D-041). Labels from
+// the P5.3 prompt, except "Waiting on a decision": a waiting task can wait on a CM or a Lead,
+// not only on you (the sample t-0004 waits on a CM decision).
+export const COLUMNS: Column[] = [
+  { id: "waiting", label: "Waiting on a decision", empty: "Nothing is waiting." },
   { id: "doing", label: "Doing", empty: "No task in progress." },
   { id: "todo", label: "To do", empty: "Nothing to start." },
-  { id: "done", label: "Done", empty: "Finished tasks show here." },
+  {
+    id: "done",
+    label: "Done today",
+    empty: "Nothing finished yet today. A task shows here on the day its completed date is set.",
+  },
 ];
+
+/** The tasks of one column. Done today holds finished tasks whose completed date is today. */
+export function columnTasks(tasks: Task[], status: TaskStatus, today: string): Task[] {
+  return tasks.filter(
+    (t) =>
+      t.status === status &&
+      (status !== "done" || (t.completed !== undefined && manilaDay(t.completed) === today)),
+  );
+}
 
 /** The board tasks by status. Done starts closed. No "overdue" red, tasks belong to helpers. */
 export function BoardTab({
@@ -27,18 +44,19 @@ export function BoardTab({
   if (tasks.length === 0) {
     return (
       <p className="m-0 px-4 py-10 text-center" style={typeStyle("body", "inkMuted")}>
-        No tasks yet. Tasks appear here from the board folder in the vault.
+        No tasks yet. Tasks come from the files in vault/board.
       </p>
     );
   }
   return (
     <div className="flex flex-col gap-3 px-4 py-4">
       {COLUMNS.map((col) => {
-        const list = tasks.filter((t) => t.status === col.id);
+        const list = columnTasks(tasks, col.id, today);
         return (
           <details
             key={col.id}
-            open={col.id !== "done"}
+            data-testid={`board-${col.id}`}
+            open
             className="rounded-card border border-hairline"
           >
             <summary

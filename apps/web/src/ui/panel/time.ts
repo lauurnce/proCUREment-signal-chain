@@ -4,6 +4,9 @@ const ZONE = "Asia/Manila";
 
 const dayKey = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: ZONE }).format(d);
 
+/** The Manila day of a time, like "2026-09-25". */
+export const manilaDay = (iso: string) => dayKey(new Date(iso));
+
 const clock = (d: Date) =>
   new Intl.DateTimeFormat("en-US", { timeZone: ZONE, hour: "numeric", minute: "2-digit" }).format(
     d,
