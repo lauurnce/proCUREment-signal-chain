@@ -192,6 +192,74 @@ test("clicking a helper selects them, tells onSeatSelected, and Esc clears it", 
   expect(errors).toEqual([]);
 });
 
+test("helpers follow their live status: a raised hand, a break, a meeting, a trip", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/?shots=1");
+  await waitForReady(page);
+  const motions = await page.evaluate(() => window.__HQ_SEATS__?.motions());
+  if (!motions) throw new Error("no test hook");
+  // vault.sample: cm-05 waits on you, cm-09 is on a break, lead-02 is in a meeting.
+  expect(motions["cm-05"]).toMatchObject({ motion: "seated", activity: "hand" });
+  expect(motions["cm-09"]).toMatchObject({ motion: "standing" });
+  expect(motions["lead-02"]).toMatchObject({ motion: "standing" });
+  // 12 s into the day, at least one helper is on a trip to the zone of its step.
+  const away = Object.values(motions).filter((m) => m.motion !== "seated");
+  expect(away.length).toBeGreaterThan(3);
+  expect(errors).toEqual([]);
+});
+
+test("Walk around: G starts it, keys move you, Talk shows near a helper, E talks, Esc leaves", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/?shots=1");
+  await waitForReady(page);
+  const walk = page.getByTestId("walk-help");
+  await expect(walk).toHaveCount(0);
+
+  await page.keyboard.press("g");
+  await expect(walk).toBeVisible();
+  await expect(page.getByTestId("walk-you")).toBeVisible();
+
+  // Hold W: the avatar walks up the screen, away from the camera (x and z both go down).
+  const before = await page.evaluate(() => window.__HQ_SEATS__?.walk.avatar());
+  await page.keyboard.down("w");
+  await page.waitForTimeout(700);
+  await page.keyboard.up("w");
+  const after = await page.evaluate(() => window.__HQ_SEATS__?.walk.avatar());
+  expect(before && after).toBeTruthy();
+  expect((after?.x ?? 0) + (after?.z ?? 0)).toBeLessThan((before?.x ?? 0) + (before?.z ?? 0));
+
+  // Next to a helper, the Talk hint names them, and E tells onTalk.
+  await page.evaluate(() => window.__HQ_SEATS__?.walk.placeNear("cm-02"));
+  const hint = page.getByTestId("talk-hint");
+  await expect(hint).toBeVisible();
+  await expect(hint).toContainText("Talk to CM 02 helper");
+  await page.keyboard.press("e");
+  expect(await page.evaluate(() => window.__HQ_SEATS__?.walk.talks)).toEqual(["cm-02"]);
+  await expect(hint).toContainText("Card coming soon");
+
+  // Esc goes back to the Overview.
+  await page.keyboard.press("Escape");
+  await expect(walk).toHaveCount(0);
+  await expect(page.getByTestId("walk-you")).toBeHidden();
+  expect(await page.evaluate(() => window.__HQ_SEATS__?.walk.active())).toBe(false);
+  expect(errors).toEqual([]);
+});
+
+test("?walk=1 opens in Walk around, and a view key leaves it", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/?shots=1&walk=1");
+  await waitForReady(page);
+  await expect(page.getByTestId("walk-help")).toBeVisible();
+  await page.keyboard.press("1");
+  await expect(page.getByTestId("walk-help")).toHaveCount(0);
+});
+
 test("a drag across a helper pans the camera and selects nobody", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/?shots=1&view=cm");

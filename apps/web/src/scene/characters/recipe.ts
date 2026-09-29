@@ -15,10 +15,43 @@ export type Shape = "box" | "torso" | "head" | "hairCap" | "star" | "triangle" |
 export type Finish = "matte" | "eye" | "lens";
 
 /**
- * What a part moves with. The upper body breathes, the head tilts and nods, the hands type.
- * Root parts never move.
+ * What a part moves with. The upper body breathes, the head tilts and nods, the hands type or
+ * wave, the thighs and shins walk. Seat parts stay at the desk when the helper walks away.
+ * The bubble is the "!" over a helper that waits on you.
  */
-export type Bone = "root" | "upper" | "head" | "handL" | "handR";
+export type Bone =
+  | "root"
+  | "seat"
+  | "upper"
+  | "head"
+  | "handL"
+  | "handR"
+  | "thighL"
+  | "thighR"
+  | "shinL"
+  | "shinR"
+  | "bubble";
+
+export const BONES: Bone[] = [
+  "root",
+  "seat",
+  "upper",
+  "head",
+  "handL",
+  "handR",
+  "thighL",
+  "thighR",
+  "shinL",
+  "shinR",
+  "bubble",
+];
+
+/** Thigh length, hip joint to knee. The seated thigh lies on the seat, reaching forward. */
+export const THIGH = 0.44;
+/** Where the hip joint sits, forward of the seat center (seated) or the feet (standing). */
+export const HIP_Z = -0.04;
+/** Hip joints sit this far to each side. */
+export const HIP_X = 0.1;
 
 export type Vec3 = [number, number, number];
 
@@ -93,12 +126,17 @@ export function partsFor(look: Appearance, seatTrack: Track): CharacterPart[] {
   const lift = height - 0.46;
   const bones = boneOrigins(look);
 
-  // Legs: thighs on the seat, shins down to the floor, dark shoes.
+  // Legs, in joint space: each thigh hangs from its hip joint along -y, each shin from its
+  // knee. Seated, the thigh turns to lie on the seat and the shin drops to the floor
+  // (crowdPlan.writeBones). Dark shoes, toes forward.
   for (const s of SIDES) {
-    const x = s * 0.1;
-    add("root", "box", [x, HIP, 0.18], [0.15, 0.14, 0.44], look.bottom);
-    add("root", "box", [x, HIP / 2, 0.36], [0.14, HIP, 0.14], look.bottom);
-    add("root", "box", [x, 0.03, 0.4], [0.15, 0.06, 0.22], worldCharacter.eye, { finish: "eye" });
+    const thigh: Bone = s === 1 ? "thighL" : "thighR";
+    const shin: Bone = s === 1 ? "shinL" : "shinR";
+    add(thigh, "box", [0, -THIGH / 2, 0], [0.15, THIGH, 0.14], look.bottom);
+    add(shin, "box", [0, -HIP / 2, 0], [0.14, HIP, 0.14], look.bottom);
+    add(shin, "box", [0, -HIP + 0.03, 0.04], [0.15, 0.06, 0.22], worldCharacter.eye, {
+      finish: "eye",
+    });
   }
 
   // Torso, with the outfit on its front.
@@ -136,6 +174,7 @@ export function partsFor(look: Appearance, seatTrack: Track): CharacterPart[] {
   }
   addHair(add, look);
   addAccessory(add, look);
+  addBubble(add);
   return parts;
 }
 
@@ -226,7 +265,21 @@ function addAccessory(add: Add, look: Appearance) {
     // On the desk, right of the keyboard (the desk top is at DESK.height, its near edge at 0.5).
     const x = -0.42;
     const z = SEAT_FROM_DESK - DESK.depth / 2 + 0.16;
-    add("root", "box", [x, DESK.height + 0.055, z], [0.08, 0.1, 0.08], look.inner);
-    add("root", "box", [x - 0.05, DESK.height + 0.06, z], [0.02, 0.05, 0.02], look.inner);
+    add("seat", "box", [x, DESK.height + 0.055, z], [0.08, 0.1, 0.08], look.inner);
+    add("seat", "box", [x - 0.05, DESK.height + 0.06, z], [0.02, 0.05, 0.02], look.inner);
   }
+}
+
+/**
+ * The "!" bubble for "waiting on you": a white speech bubble with a tail and an amber "!",
+ * in bubble space (it always faces the camera, crowdPlan.writeBones). Amber plus the "!" shape,
+ * so it reads without color vision, like the status dot (D-045).
+ */
+function addBubble(add: Add) {
+  add("bubble", "box", [0, 0, 0], [0.26, 0.3, 0.05], world.paper);
+  add("bubble", "box", [-0.07, -0.17, 0], [0.07, 0.07, 0.05], world.paper, {
+    rot: [0, 0, Math.PI / 4],
+  });
+  add("bubble", "box", [0, 0.035, 0.03], [0.05, 0.14, 0.02], color.statusWaiting);
+  add("bubble", "box", [0, -0.085, 0.03], [0.05, 0.05, 0.02], color.statusWaiting);
 }

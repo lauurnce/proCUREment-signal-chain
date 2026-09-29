@@ -1,14 +1,19 @@
 import type { Track } from "@hq/shared";
 import { Euler, Matrix4, Quaternion, Vector3 } from "three";
 import { type Appearance, appearanceFor } from "./appearance";
-import type { Activity, Pose } from "./motion";
+import { type Activity, type Pose, STAND_CHEST, STAND_JOINT } from "./motion";
 import {
   BASE_SIZE,
+  BONES,
   type Bone,
   boneOrigins,
   type Finish,
+  HIP,
+  HIP_X,
+  HIP_Z,
   partsFor,
   type Shape,
+  THIGH,
   type Vec3,
 } from "./recipe";
 
@@ -47,7 +52,6 @@ export type CrowdPlan = {
   batches: Batch[];
 };
 
-const BONES: Bone[] = ["root", "upper", "head", "handL", "handR"];
 const Y_AXIS = new Vector3(0, 1, 0);
 
 /** Sorts every part of every helper into batches. Runs once per new crowd, never per frame. */
@@ -92,31 +96,83 @@ export function planCrowd(members: CrowdMember[]): CrowdPlan {
 
 /** Scratch objects for the per-frame math, so a frame never allocates. */
 const offset = new Matrix4();
-const headTurn = new Matrix4();
+const turn = new Matrix4();
+const roll = new Matrix4();
 const headEuler = new Euler();
+const where = new Vector3();
+const bubbleTurn = new Quaternion().setFromAxisAngle(Y_AXIS, Math.PI / 4);
+const bubbleSize = new Vector3();
 
 /**
- * The world matrix of each bone of one helper for a pose, written into `out`
- * (root, upper, head, handL, handR).
+ * The bubble faces the camera, which looks along (-1, -1, -1) (true isometric), and sits to
+ * the right of the head on screen: screen right on the floor is (1, 0, -1) / sqrt 2.
+ */
+const BUBBLE_SIDE = 0.34 / Math.SQRT2;
+const BUBBLE_ABOVE_HEAD = 0.22;
+
+/**
+ * The world matrix of each bone of one helper for a pose, written into `out`.
+ * `root` is where the helper stands (feet on the floor, turned the way it faces). `seat` is its
+ * desk chair, which never moves, for the things it leaves on the desk.
  */
 export function writeBones(
+  root: Matrix4,
   seat: Matrix4,
   origins: BoneOrigins,
   pose: Pose,
   out: Record<Bone, Matrix4>,
 ): void {
-  out.root.copy(seat);
-  out.upper.copy(seat).multiply(offset.makeTranslation(0, pose.chestLift, 0));
+  out.root.copy(root);
+  out.seat.copy(seat);
+  const chest = pose.chestLift + pose.stand * STAND_CHEST + pose.bob;
+  out.upper.copy(root).multiply(offset.makeTranslation(0, chest, 0));
   const [hx, hy, hz] = origins.head;
-  headTurn.makeRotationFromEuler(headEuler.set(pose.headNod, 0, pose.headTilt));
+  turn.makeRotationFromEuler(headEuler.set(pose.headNod, 0, pose.headTilt));
   out.head
     .copy(out.upper)
     .multiply(offset.makeTranslation(hx, hy, hz))
-    .multiply(headTurn);
+    .multiply(turn);
+  // A forearm turns at the elbow. Hanging, it moves back under the shoulder.
   const [lx, ly, lz] = origins.handL;
-  out.handL.copy(out.upper).multiply(offset.makeTranslation(lx, ly + pose.leftHandLift, lz));
+  out.handL
+    .copy(out.upper)
+    .multiply(offset.makeTranslation(lx, ly + pose.leftHandLift, lz + 0.1 * Math.sin(pose.armL)))
+    .multiply(turn.makeRotationX(pose.armL));
   const [rx, ry, rz] = origins.handR;
-  out.handR.copy(out.upper).multiply(offset.makeTranslation(rx, ry + pose.rightHandLift, rz));
+  // The right forearm can also tilt out to the side (+x is the helper's left, so a positive
+  // roll tips a raised right hand away from the head).
+  out.handR
+    .copy(out.upper)
+    .multiply(offset.makeTranslation(rx, ry + pose.rightHandLift, rz + 0.1 * Math.sin(pose.armR)))
+    .multiply(turn.makeRotationZ(pose.rollR))
+    .multiply(roll.makeRotationX(pose.armR));
+  // Legs hang from the hip joints. The hip rises as the helper stands, so the feet stay down.
+  const hip = HIP + pose.stand * STAND_JOINT + pose.bob;
+  out.thighL
+    .copy(root)
+    .multiply(offset.makeTranslation(HIP_X, hip, HIP_Z))
+    .multiply(turn.makeRotationX(pose.thighL));
+  out.thighR
+    .copy(root)
+    .multiply(offset.makeTranslation(-HIP_X, hip, HIP_Z))
+    .multiply(turn.makeRotationX(pose.thighR));
+  out.shinL
+    .copy(out.thighL)
+    .multiply(offset.makeTranslation(0, -THIGH, 0))
+    .multiply(turn.makeRotationX(pose.kneeL));
+  out.shinR
+    .copy(out.thighR)
+    .multiply(offset.makeTranslation(0, -THIGH, 0))
+    .multiply(turn.makeRotationX(pose.kneeR));
+  // The bubble: over the head, to its right on screen, always facing the camera.
+  where.setFromMatrixPosition(root);
+  const top = hy + 0.5 + chest + BUBBLE_ABOVE_HEAD;
+  const size = pose.bubble > 0 ? pose.bubble : 0;
+  out.bubble.compose(
+    where.set(where.x + BUBBLE_SIDE, top, where.z - BUBBLE_SIDE),
+    bubbleTurn,
+    bubbleSize.set(size, size, size),
+  );
 }
 
 /** One matrix per bone of one helper. */

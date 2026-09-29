@@ -14,8 +14,21 @@ import {
   writeBones,
 } from "./crowdPlan";
 import { characterGeometry } from "./geometry";
-import { poseAt, STILL } from "./motion";
+import { type Pose, poseInto, STILL } from "./motion";
 import type { Finish } from "./recipe";
+
+/**
+ * Moves the helpers of a crowd: where each one stands and how it moves. Without a driver,
+ * every helper sits at its seat with its own activity (the Lab diorama).
+ */
+export type CrowdDrive = {
+  /** Called once per frame, before the poses are written. `delta` is in seconds. */
+  step: (delta: number) => void;
+  /** Where member `m` stands, turned the way it faces. */
+  root: (m: number) => Matrix4;
+  /** The pose of member `m` at `time`, written into `out`. */
+  pose: (m: number, time: number, out: Pose) => Pose;
+};
 
 type Props = {
   /** Keep this list stable (useMemo). A new list rebuilds the crowd. */
@@ -24,10 +37,12 @@ type Props = {
   frozenAt: number | null;
   /** Reduced motion: hold still. */
   still: boolean;
+  drive?: CrowdDrive;
 };
 
 const ROUGHNESS: Record<Finish, number> = { matte: 0.85, eye: 0.6, lens: 0.4 };
 const scratch = new Matrix4();
+const pose: Pose = { ...STILL };
 
 /** Poses every helper at `time`: first their bones, then every part once, hung on its bone. */
 function writePoses(
@@ -36,11 +51,25 @@ function writePoses(
   meshes: Map<string, InstancedMesh>,
   time: number,
   still: boolean,
+  drive: CrowdDrive | undefined,
 ) {
   plan.seats.forEach((seat, m) => {
     const look = plan.looks[m] as Appearance;
-    const pose = still ? STILL : poseAt(time, plan.activities[m] ?? "idle", look.phase);
-    writeBones(seat, plan.origins[m] as BoneOrigins, pose, bones[m] as BoneSet);
+    const root = drive ? drive.root(m) : seat;
+    if (drive) drive.pose(m, time, pose);
+    else poseInto(pose, time, { activity: plan.activities[m] ?? "idle", phase: look.phase });
+    // Reduced motion keeps where a helper is and whether it stands, and drops the rest.
+    const shown = still ? { ...STILL, stand: pose.stand, bubble: pose.bubble } : pose;
+    if (still && pose.stand > 0) {
+      shown.thighL = shown.thighR = 0;
+      shown.kneeL = shown.kneeR = 0;
+      shown.armL = shown.armR = Math.PI / 2;
+    }
+    if (still && pose.bubble > 0) {
+      shown.armR = pose.armR;
+      shown.rightHandLift = pose.rightHandLift;
+    }
+    writeBones(root, seat, plan.origins[m] as BoneOrigins, shown, bones[m] as BoneSet);
   });
   for (const batch of plan.batches) {
     const mesh = meshes.get(batch.key);
@@ -54,11 +83,12 @@ function writePoses(
 }
 
 /**
- * Many seated helpers, drawn together: one instanced mesh per shape and finish, so 26 helpers
+ * Many helpers, drawn together: one instanced mesh per shape and finish, so 26 helpers
  * cost about as many draw calls as one. The poses are written straight into the instance
- * matrices every frame (no React state), or once when the crowd holds still.
+ * matrices every frame (no React state), or once when the crowd holds still. With a driver,
+ * the helpers stand up, walk and sit down. A frozen crowd (screenshots) never steps.
  */
-export function Crowd({ members, frozenAt, still }: Props) {
+export function Crowd({ members, frozenAt, still, drive }: Props) {
   const surface = useContext(SurfaceContext);
   const plan = useMemo(() => planCrowd(members), [members]);
   const meshes = useRef(new Map<string, InstancedMesh>());
@@ -74,12 +104,21 @@ export function Crowd({ members, frozenAt, still }: Props) {
       });
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     }
-    writePoses(plan, bones, meshes.current, frozenAt ?? 0, still);
-  }, [plan, bones, frozenAt, still]);
+    writePoses(plan, bones, meshes.current, frozenAt ?? 0, still, drive);
+  }, [plan, bones, frozenAt, still, drive]);
 
-  useFrame((state) => {
-    if (still || frozenAt !== null) return;
-    writePoses(plan, bones, meshes.current, state.clock.elapsedTime, still);
+  useFrame((state, delta) => {
+    if (!drive) {
+      if (still || frozenAt !== null) return;
+      writePoses(plan, bones, meshes.current, state.clock.elapsedTime, still, drive);
+      return;
+    }
+    // The driver decides what moves: a frozen crowd (screenshots) keeps its helpers still but
+    // lets a test walk the avatar. Reduced motion still moves a helper to where it goes, in
+    // one cut (behavior.ts). Cap one frame at 1/20 s, so a stall (like a tab switch) does not
+    // teleport anyone.
+    drive.step(Math.min(delta, 0.05));
+    writePoses(plan, bones, meshes.current, frozenAt ?? state.clock.elapsedTime, still, drive);
   });
 
   return (

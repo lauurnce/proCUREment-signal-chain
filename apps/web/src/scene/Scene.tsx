@@ -8,6 +8,7 @@ import { world } from "../theme/tokens";
 import { OfficeCamera } from "./camera/OfficeCamera";
 import { OfficeTagLayer } from "./characters/OfficeTagLayer";
 import { OfficeTeam } from "./characters/OfficeTeam";
+import { TalkHintLayer } from "./characters/TalkHintLayer";
 import { CAMERA_DISTANCE, PLACEHOLDER_LAYOUT } from "./constants";
 import { RenderInfo } from "./debug/RenderInfo";
 import { ALWAYS_LABELED } from "./labels/fade";
@@ -105,7 +106,7 @@ export function Scene() {
               <>
                 <OfficeWorld layout={officeLayout} mix={mix} />
                 <OfficeProps accessories={accessories} />
-                <OfficeTeam layout={officeLayout} tags={tags} />
+                <OfficeTeam layout={officeLayout} accessories={accessories} tags={tags} />
               </>
             ) : (
               <PlaceholderFloor />
@@ -125,6 +126,7 @@ export function Scene() {
       </Canvas>
       <ZoneLabelLayer labels={labels} registry={registry} />
       {officeLayout && <OfficeTagLayer layout={officeLayout} registry={tags} />}
+      {officeLayout && <TalkHintLayer />}
       {/* Covers the view for a moment when reduced motion swaps a camera move for a cut. */}
       <div
         ref={fade}

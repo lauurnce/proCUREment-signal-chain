@@ -1,6 +1,6 @@
 # Progress
 
-Now: Phase 4 in `p4-team`. P4.2 done, waiting at the gate. Next: P4.3 movement and Walk around mode.
+Now: Phase 4 in `p4-team`. P4.3 done, waiting at the gate. Next: P4.4 Design Council on characters and movement, then `/checkpoint Phase 4`.
 
 ## Phases
 - [x] 0. Kickoff and alignment (main checkout)
@@ -19,8 +19,11 @@ Now: Phase 4 in `p4-team`. P4.2 done, waiting at the gate. Next: P4.3 movement a
 - Confirm the authority rule thresholds (5 percent, 2K, and the currency) before they drive real routing.
 - Which Leads cover which groups? Placeholder for now.
 - Confirm the pnpm release-age exceptions for new package versions (D-024).
+- Frame rate in Walk around mode on the M4 Pro: the cloud session measured only software rendering (see P4.3). Open `/?walk=1` with r3f-perf to check it on real hardware.
+- Standing helpers are about 1.9 m tall next to 0.74 m desks. Keep, or shorten the legs? (for the P4.4 council)
 
 ## Log
+- 28 Sep 2026, P4.3 (cloud session): helpers come alive. A walk grid in 0.5 m cells built from the same boxes the office draws, with A* and path smoothing (D-070). Each helper has a small behavior machine fed by its live status and step (D-071): working helpers type, "waiting on you" raises a hand with an amber "!" bubble, a break walks to Merienda Corner, a meeting walks to the step's room or the Huddle Room, and a step in another zone (SAP Station, Endorsement Bridge, Mail Dock and others) means a trip there, a moment of work, and the walk back. Standing, walking with a gentle bob, turning before walking, and sitting down (D-072). Walk around mode: G or `?walk=1`, WASD, arrow keys or a click to move, the camera follows, a Talk hint under you within 1.5 m, E fires `onTalk` for the panel, Esc goes back to the Overview (D-073). Fixed blank name tags in Walk around at night (D-074). 29 draw calls at the Overview and 28 in Walk around, 73.3k triangles (was 70k). Frame rate in the cloud, software rendering only: Overview 3.4 fps (P4.2 was 2.8 on the same machine, so no loss), Walk around 4 to 12 fps. 233 unit tests (167 web), 13 smoke tests, 61 shots, all reviewed.
 - 27 Sep 2026, P4.2: name tags over every helper except off-duty ones (badge, name, status dot, plus the role when zoomed in), with status from /api/state. Tags spread to the nearest free spot and keep the four main zone names clear. Clicking a helper selects them: the camera eases in, a ring shows on the floor, the tag gets an outline, Esc clears, a drag never selects. `selectSeat` and `onSeatSelected` are ready for the panel (D-067 to D-069). Still 29 draw calls and 70k triangles at the Overview. 211 unit tests and 10 smoke tests pass.
 - 27 Sep 2026, P4.1: character generator. All 26 roster seats sit at their desk slots, each with its own look from the roster seed (body, hair, outfit, accessory) and a track badge in shape plus color (star, triangle, diamond, square). Drawn as one crowd of instanced parts (D-063 to D-066): 29 draw calls and 70k triangles at the Overview, up from 16 and 14k. The Lab diorama uses the same recipe. 197 unit tests pass. The Overview budget test now covers the helpers too (45 calls, 100k triangles). Frame rate on real hardware not measured yet.
 - 27 Sep 2026, P3.5: Design Council review (`docs/design/reviews/2026-09-27-office-world.md`, Clarity 3, Brand 4, Charm 3, Craft 3, Smooth 4, Realism 4). Applied the 5 Must fixes and the picked Should fixes: the bridge as the hero, names at the Overview, framing around the page controls, backing pills, a night lift, lower glass, a bridge view on key 5, accent selected buttons, no desk flags (D-057 to D-062). 16 draw calls, 14.2k triangles.

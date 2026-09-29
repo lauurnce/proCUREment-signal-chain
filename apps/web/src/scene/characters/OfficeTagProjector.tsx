@@ -17,6 +17,25 @@ function setCompact(el: HTMLElement, compact: boolean) {
   const [small, full] = el.children as unknown as [HTMLElement?, HTMLElement?];
   if (small) small.style.display = compact ? "block" : "none";
   if (full) full.style.display = compact ? "none" : "block";
+  refreshInherited(el);
+}
+
+/** Shows or hides a tag. */
+function setShown(el: HTMLElement, shown: boolean) {
+  const visibility = shown ? "visible" : "hidden";
+  if (el.style.visibility === visibility) return;
+  el.style.visibility = visibility;
+  refreshInherited(el);
+}
+
+/**
+ * Chrome passes `visibility` down to children through a shortcut. When a pill turns from
+ * display none to block while its tag also turns visible, some parts inside kept "hidden", so
+ * the tag drew as a blank white pill (seen in Walk around mode at night, P4.3). Changing a
+ * custom property on the tag makes Chrome recompute everything inside it the normal way.
+ */
+function refreshInherited(el: HTMLElement) {
+  el.style.setProperty("--tag-state", `${el.dataset.mode ?? ""}-${el.style.visibility}`);
 }
 
 /**
@@ -82,7 +101,7 @@ export function OfficeTagProjector({
       const y = Math.round(spot.y);
       const fits = labelPlacement({ x, y, width: b.w, height: b.h }, size, overlays);
       b.el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
-      b.el.style.visibility = fits ? "visible" : "hidden";
+      setShown(b.el, fits);
     }
   });
 

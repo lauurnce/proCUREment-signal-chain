@@ -1,31 +1,48 @@
-import type { LayoutFile } from "@hq/shared";
-import { useEffect, useMemo } from "react";
+import type { Accessory, LayoutFile } from "@hq/shared";
+import { useEffect, useMemo, useRef } from "react";
+import { useStore } from "../../state/store";
 import { ALWAYS_LABELED } from "../labels/fade";
 import { labelPoint } from "../layout/boxes";
 import type { TagRegistry } from "../tags/TagProjector";
 import { Crowd } from "./Crowd";
+import { navGridFor } from "./navGrid";
 import { OfficeTagProjector } from "./OfficeTagProjector";
-import type { Vec3 } from "./recipe";
 import { SeatPicker } from "./SeatPicker";
 import { SeatTestHook } from "./SeatTestHook";
 import { setSeatSpots } from "./selection";
-import { tagAnchors } from "./tags";
+import { TeamDrive } from "./teamDrive";
 import { useOfficeTeam } from "./useOfficeTeam";
+import { WalkControls } from "./WalkControls";
 
 const params = new URLSearchParams(window.location.search);
 /** ?shots=1 poses every helper at the same moment, so screenshots match run to run. */
 const isShots = params.has("shots");
 const SHOTS_TIME = isShots ? 1.6 : null;
+/** Screenshots start this many seconds into the day, so some helpers are on their way. */
+const SHOTS_DAY = 12;
 const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+const NO_WORKFLOWS: never[] = [];
+
 /**
- * All 26 helpers at their desks, drawn as one crowd, with their click areas and the placement
- * of their name tags (the tags themselves are OfficeTagLayer, in the page).
+ * All 26 helpers, drawn as one crowd, with their click areas and the placement of their name
+ * tags (the tags themselves are OfficeTagLayer, in the page). Each helper follows its live
+ * status: it types, raises a hand, walks to the zone of its step, or takes a break. The Walk
+ * around avatar is one more member of the crowd.
  */
-export function OfficeTeam({ layout, tags }: { layout: LayoutFile; tags: TagRegistry }) {
-  const { team } = useOfficeTeam(layout);
+export function OfficeTeam({
+  layout,
+  accessories,
+  tags,
+}: {
+  layout: LayoutFile;
+  accessories: Accessory[];
+  tags: TagRegistry;
+}) {
+  const { team, seats } = useOfficeTeam(layout);
+  const workflows = useStore((state) => state.data?.workflows ?? NO_WORKFLOWS);
   const still = useMemo(reducedMotion, []);
-  const anchors = useMemo(() => (team ? tagAnchors(team.members) : []), [team]);
+  const grid = useMemo(() => navGridFor(layout, accessories), [layout, accessories]);
   const keepClear = useMemo(
     () =>
       layout.zones
@@ -34,21 +51,49 @@ export function OfficeTeam({ layout, tags }: { layout: LayoutFile; tags: TagRegi
     [layout],
   );
 
+  // A new team (or a new floor plan) gets a new driver, and everyone starts where they belong.
+  const seatsRef = useRef(seats);
+  seatsRef.current = seats;
+  const workflowsRef = useRef(workflows);
+  workflowsRef.current = workflows;
+  const drive = useMemo(() => {
+    if (!team) return null;
+    const d = new TeamDrive(team.members, grid, layout, still);
+    d.setGoals(seatsRef.current, workflowsRef.current, layout, grid, true);
+    if (isShots) {
+      d.fastForward(SHOTS_DAY);
+      d.frozen = true;
+    }
+    return d;
+  }, [team, grid, layout, still]);
+
+  // Later status changes walk the helpers to their new goal.
+  const firstSeats = useRef(true);
   useEffect(() => {
-    if (!team) return;
+    if (!drive) return;
+    if (firstSeats.current) {
+      firstSeats.current = false;
+      return;
+    }
+    drive.setGoals(seats, workflows, layout, grid, false);
+  }, [drive, seats, workflows, layout, grid]);
+
+  useEffect(() => {
+    if (!team || !drive) return;
     if (team.missing.length) {
       console.warn(`No desk in office/layout.json for: ${team.missing.join(", ")}`);
     }
-    setSeatSpots(new Map(team.members.map((m) => [m.id, m.position as Vec3])));
-  }, [team]);
+    setSeatSpots(drive.spots);
+  }, [team, drive]);
 
-  if (!team) return null;
+  if (!team || !drive) return null;
   return (
     <>
-      <Crowd members={team.members} frozenAt={SHOTS_TIME} still={still} />
-      <SeatPicker members={team.members} />
-      <OfficeTagProjector anchors={anchors} registry={tags} keepClear={keepClear} />
-      {isShots && <SeatTestHook />}
+      <Crowd members={drive.members} frozenAt={SHOTS_TIME} still={still} drive={drive} />
+      <SeatPicker members={team.members} drive={drive} />
+      <OfficeTagProjector anchors={drive.anchors} registry={tags} keepClear={keepClear} />
+      <WalkControls drive={drive} layout={layout} seats={seats} />
+      {isShots && <SeatTestHook drive={drive} />}
     </>
   );
 }

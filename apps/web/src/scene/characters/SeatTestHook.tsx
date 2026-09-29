@@ -2,14 +2,31 @@ import { useThree } from "@react-three/fiber";
 import { useEffect } from "react";
 import { Vector3 } from "three";
 import { onSeatSelected, type SeatSelected, selectSeat, useSelection } from "./selection";
+import type { TeamDrive } from "./teamDrive";
+import { enterWalkMode, isWalking, onTalk, talk } from "./walk";
 
 /** What Playwright can reach in ?shots=1 mode. */
 type SeatTestApi = {
-  /** Where a seated helper's chest is on screen, in CSS pixels from the canvas top left. */
+  /** Where a helper's chest is on screen, in CSS pixels from the canvas top left. */
   seatPoint: (seatId: string) => { x: number; y: number } | null;
   selectSeat: typeof selectSeat;
   /** Every selection event since the page loaded. */
   events: SeatSelected[];
+  /** What each helper is doing: its legs and its body activity. */
+  motions: () => Record<string, { motion: string; activity: string; visible: boolean }>;
+  /** Walk around mode. */
+  walk: {
+    enter: () => void;
+    active: () => boolean;
+    /** Where the avatar stands. */
+    avatar: () => { x: number; z: number };
+    /** Puts the avatar a meter from a helper, facing them. */
+    placeNear: (seatId: string) => boolean;
+    /** Who E would talk to now. */
+    near: () => string | null;
+    /** Every talk since the page loaded. */
+    talks: string[];
+  };
 };
 
 declare global {
@@ -18,14 +35,16 @@ declare global {
   }
 }
 
-/** Shares seat positions and the selection API with Playwright. Mounted with ?shots=1 only. */
-export function SeatTestHook() {
+/** Shares seat positions, selection and Walk around mode with Playwright. ?shots=1 only. */
+export function SeatTestHook({ drive }: { drive: TeamDrive }) {
   const camera = useThree((state) => state.camera);
   const size = useThree((state) => state.size);
 
   useEffect(() => {
     const events: SeatSelected[] = [];
-    const stop = onSeatSelected((event) => events.push(event));
+    const talks: string[] = [];
+    const stopSelect = onSeatSelected((event) => events.push(event));
+    const stopTalk = onTalk((seatId) => talks.push(seatId));
     window.__HQ_SEATS__ = {
       seatPoint: (seatId) => {
         const spot = useSelection.getState().seats.get(seatId);
@@ -35,12 +54,36 @@ export function SeatTestHook() {
       },
       selectSeat,
       events,
+      motions: () =>
+        Object.fromEntries(
+          drive.agents.map((a) => [
+            a.id,
+            { motion: a.motion, activity: a.poseInput().activity, visible: a.visible },
+          ]),
+        ),
+      walk: {
+        enter: enterWalkMode,
+        active: isWalking,
+        avatar: () => ({ x: drive.avatar.x, z: drive.avatar.z }),
+        placeNear: (seatId) => {
+          const agent = drive.agents.find((a) => a.id === seatId);
+          if (!agent) return false;
+          // One meter behind the helper, in the aisle (helpers face their desks), facing them.
+          const x = agent.x - Math.sin(agent.heading) * 1.0;
+          const z = agent.z - Math.cos(agent.heading) * 1.0;
+          drive.avatar.place([x, z], agent.heading);
+          return true;
+        },
+        near: () => talk.near,
+        talks,
+      },
     };
     return () => {
-      stop();
+      stopSelect();
+      stopTalk();
       window.__HQ_SEATS__ = undefined;
     };
-  }, [camera, size]);
+  }, [camera, size, drive]);
 
   return null;
 }
