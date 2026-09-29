@@ -1,4 +1,4 @@
-import type { QueueItem, Seat, Workflow } from "@hq/shared";
+import type { AuthorityRule, QueueItem, Seat, Workflow } from "@hq/shared";
 import { typeStyle } from "../../theme/style";
 import type { Decision } from "../DecisionButton";
 import { DecisionCard } from "../DecisionCard";
@@ -14,6 +14,7 @@ type Props = {
   focusedId: string | null;
   seats: Seat[];
   workflows: Workflow[];
+  rules: AuthorityRule[];
   now: Date;
   onFilter: (f: QueueFilter) => void;
   onFocus: (id: string) => void;
@@ -78,7 +79,7 @@ export function NeedsYouTab(p: Props) {
               >
                 {item.id === p.focusedId ? (
                   <DecisionCard
-                    item={toDecisionItem(p.seats, p.workflows, item)}
+                    item={toDecisionItem(p.seats, p.workflows, item, p.rules)}
                     onDecide={p.onDecide}
                     onOpen={() => p.onOpen(item.id)}
                     focusId={`card-${item.id}`}

@@ -1,5 +1,6 @@
 import type { QueueItem } from "@hq/shared";
 import { typeStyle } from "../../theme/style";
+import { EMAIL_NOTE } from "./itemView";
 import type { Section } from "./markdown";
 
 /** The email draft as it would look: every recipient, the subject and the message. Drafts only. */
@@ -47,7 +48,7 @@ export function EmailPreview({
         </p>
       </div>
       <p className="m-0" style={typeStyle("small")}>
-        Draft only. Nothing is sent from here. Lab only. This draft is not in Outlook.
+        {EMAIL_NOTE} Nothing is sent from here.
       </p>
     </section>
   );

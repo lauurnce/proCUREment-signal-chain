@@ -1,4 +1,4 @@
-import type { QueueItem, Seat, Workflow } from "@hq/shared";
+import type { AuthorityRule, QueueItem, Seat, Workflow } from "@hq/shared";
 import { describe, expect, it } from "vitest";
 import { keepCodesTogether, stepInfo, toDecisionItem, whyText } from "./itemView";
 import { type KeyInput, panelAction } from "./keys";
@@ -117,14 +117,37 @@ describe("focused card from a queue item", () => {
     });
   });
 
-  it("explains the authority rule in plain words", () => {
-    expect(whyText(seats, item)).toBe(
-      "Price is up 6.5 percent. Changes of 5 percent or more need a Category Manager.",
+  const rules = [
+    {
+      id: "price-large",
+      when: { type: "price-change", minPercent: 5 },
+      decidedBy: "CM",
+      plainEnglish: "Price change of 5 percent or more: the Category Manager must approve.",
+    },
+  ] as AuthorityRule[];
+
+  it("names who must decide and why, in the rule's own words", () => {
+    expect(whyText(seats, item, rules)).toBe(
+      "CM 02 must decide. Price change of 5 percent or more: the Category Manager must approve.",
+    );
+    expect(whyText(seats, { ...item, approver: "mgr-01" }, rules)).toMatch(/^You must decide\./);
+  });
+
+  it("says so when the rule is missing from the file", () => {
+    expect(whyText(seats, item, [])).toBe(
+      'CM 02 must decide. The rule "price-large" is not in the authority rules file.',
+    );
+  });
+
+  it("tells email items that Approve only creates a draft", () => {
+    const email = { ...item, rule: undefined, kind: "email-draft" } as QueueItem;
+    expect(whyText(seats, email, rules)).toBe(
+      "Ops 07 helper drafted this email. Approve creates a draft. Sending is a separate step.",
     );
   });
 
   it("labels team items and sends back to the helper, not the person", () => {
-    const card = toDecisionItem(seats, workflows, item);
+    const card = toDecisionItem(seats, workflows, item, rules);
     expect(card.decidingAs).toBe("CM 02");
     expect(card.sendBackTo).toBe("Ops 07 helper");
     expect(card.ruleConfirmed).toBe(false);

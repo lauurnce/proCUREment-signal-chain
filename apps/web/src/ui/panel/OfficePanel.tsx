@@ -12,6 +12,7 @@ const params = new URLSearchParams(window.location.search);
 const NOW = params.has("shots") ? new Date("2026-09-25T09:35:00+08:00") : null;
 const TAB = TABS.find((t) => t.id === params.get("tab"))?.id;
 const OPEN_FIRST = params.get("open") === "1";
+const FILTER = params.get("filter") === "team" ? "team" : undefined;
 
 /** Decisions are mocked until the vault writes land (P5.2 and later). */
 export const OFFICE_NOTE = "Demo: decisions are not saved yet.";
@@ -45,7 +46,7 @@ export function OfficePanel({
           note={OFFICE_NOTE}
           onRetry={retryNow}
           onShowOffice={onShowOffice}
-          initial={{ tab: TAB, openFirst: OPEN_FIRST }}
+          initial={{ tab: TAB, openFirst: OPEN_FIRST, filter: FILTER }}
         />
       ) : (
         <PanelSkeleton link={link} onRetry={retryNow} onShowOffice={onShowOffice} />

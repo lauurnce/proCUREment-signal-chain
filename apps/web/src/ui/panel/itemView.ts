@@ -1,4 +1,4 @@
-import type { QueueItem, Seat, Workflow } from "@hq/shared";
+import type { AuthorityRule, QueueItem, Seat, Workflow } from "@hq/shared";
 import type { DecisionItem } from "../DecisionCard";
 import { firstLine, sections } from "./markdown";
 import { decidingAs, helperName } from "./queue";
@@ -19,16 +19,24 @@ export function reference(item: QueueItem): string | null {
   return /\b(PO|PR|RFQ|INV)-\d+/.exec(`${item.title} ${item.body}`)?.[0] ?? null;
 }
 
-/** "Why this came to you", in plain words (copy deck, section 3). */
-export function whyText(seats: Seat[], item: QueueItem): string {
+/** Shown on every email item, so no one thinks Approve sends the email. */
+export const EMAIL_NOTE = "Approve creates a draft. Sending is a separate step.";
+
+/**
+ * "Why this came to you", in plain words (copy deck, section 3). An item routed by the
+ * authority rule names who must decide and why, in the rule's own words from
+ * data/authority-rules.template.json.
+ */
+export function whyText(seats: Seat[], item: QueueItem, rules: AuthorityRule[]): string {
   const helper = helperName(seats, item.from);
-  if (item.rule === "price-large") {
-    const pct = /(\d+(?:\.\d+)?) percent/.exec(item.title)?.[1];
-    return `Price is up ${pct ?? "5 or more"} percent. Changes of 5 percent or more need a Category Manager.`;
+  if (item.rule) {
+    const who = decidingAs(seats, item) ?? "You";
+    const rule = rules.find((r) => r.id === item.rule);
+    return rule
+      ? `${who} must decide. ${rule.plainEnglish}`
+      : `${who} must decide. The rule "${item.rule}" is not in the authority rules file.`;
   }
-  if (item.kind === "email-draft") {
-    return `${helper} drafted this email. It needs your OK before it is saved to Outlook.`;
-  }
+  if (item.kind === "email-draft") return `${helper} drafted this email. ${EMAIL_NOTE}`;
   return `${helper} prepared this for your review.`;
 }
 
@@ -47,6 +55,7 @@ export function toDecisionItem(
   seats: Seat[],
   workflows: Workflow[],
   item: QueueItem,
+  rules: AuthorityRule[],
 ): DecisionItem {
   const info = stepInfo(workflows, item);
   const as = decidingAs(seats, item);
@@ -61,7 +70,7 @@ export function toDecisionItem(
       { label: "Decides", value: as ? `${as} (you decide for the seat in this demo)` : "You" },
     ],
     fromTrack: fromSeat?.track ?? item.track,
-    why: whyText(seats, item),
+    why: whyText(seats, item, rules),
     ruleConfirmed: !item.rule,
     decidingAs: as ?? undefined,
     suggestion: suggestion(item),

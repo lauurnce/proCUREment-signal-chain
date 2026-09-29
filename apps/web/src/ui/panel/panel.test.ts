@@ -1,6 +1,6 @@
 import type { QueueItem, Seat } from "@hq/shared";
 import { describe, expect, it } from "vitest";
-import { decidingAs, helperName, needsYou } from "./queue";
+import { decidingAs, helperName, needsYou, urgency } from "./queue";
 import { ago, fullTime } from "./time";
 
 const item = (id: string, approver: string, created: string, status = "needs-you") =>
@@ -18,6 +18,25 @@ describe("needs you list", () => {
     item("q-3", "cm-02", "2026-09-25T09:20:00+08:00"),
     item("q-4", "mgr-01", "2026-09-25T07:00:00+08:00", "approved"),
   ];
+
+  it("puts the most urgent first: escalation, rule, email draft, then the rest", () => {
+    const at = "2026-09-25T09:00:00+08:00";
+    const mixed = [
+      { ...item("summary", "mgr-01", at), kind: "summary" },
+      { ...item("email", "mgr-01", at), kind: "email-draft" },
+      { ...item("old-summary", "mgr-01", "2026-09-25T08:00:00+08:00"), kind: "summary" },
+      { ...item("rule", "mgr-01", at), kind: "approval", rule: "price-large" },
+      { ...item("esc", "mgr-01", at), kind: "escalation" },
+    ] as QueueItem[];
+    expect(needsYou(mixed, "mine").map((q) => q.id)).toEqual([
+      "esc",
+      "rule",
+      "email",
+      "old-summary",
+      "summary",
+    ]);
+    expect(urgency(mixed[0] as QueueItem)).toBe(3);
+  });
 
   it("shows only what the Sr. Manager decides, oldest first", () => {
     expect(needsYou(queue, "mine").map((q) => q.id)).toEqual(["q-1", "q-2"]);

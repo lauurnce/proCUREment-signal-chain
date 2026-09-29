@@ -36,8 +36,8 @@ type PanelState = {
 };
 
 type PanelActions = {
-  /** Fresh state for a page. Screenshots can open a tab or the first item directly. */
-  start: (initial?: { tab?: TabId; openFirst?: boolean }) => void;
+  /** Fresh state for a page. Screenshots can open a tab, a filter or the first item directly. */
+  start: (initial?: { tab?: TabId; openFirst?: boolean; filter?: QueueFilter }) => void;
   setTab: (tab: TabId) => void;
   /** The HUD button and the skip link: open Needs you and put focus on the card. */
   showNeedsYou: () => void;
@@ -84,6 +84,7 @@ export const usePanelStore = create<PanelStore>()((set, get) => ({
     set({
       ...fresh(),
       tab,
+      filter: initial?.filter ?? "mine",
       detailOpen: Boolean(initial?.openFirst),
       // On load, focus goes to the first card without scrolling (D-048).
       focusRequest:

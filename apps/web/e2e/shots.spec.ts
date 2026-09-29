@@ -37,6 +37,9 @@ const pages: Target[] = [
   ),
   // P5.1 HQ panel in the office: an item open, and under 960 px the full width panel.
   { name: "office-detail", path: "/?shots=1&open=1", fullPage: false },
+  // P5.2: team items sorted by urgency, the rule item first, as a card and in full.
+  { name: "office-needs-team", path: "/?shots=1&filter=team", fullPage: false },
+  { name: "office-detail-rule", path: "/?shots=1&filter=team&open=1", fullPage: false },
   {
     name: "office-narrow",
     path: "/?shots=1",

@@ -24,7 +24,7 @@ import {
   panelCounts,
   usePanelStore,
 } from "./panelStore";
-import { decidingAs, helperName, needsYou } from "./queue";
+import { decidingAs, helperName, needsYou, type QueueFilter } from "./queue";
 import { TeamTab } from "./TeamTab";
 import { clockTime } from "./time";
 import { UndoBar } from "./UndoBar";
@@ -38,7 +38,7 @@ type Props = {
   /** Live counts for the stats card and the page title (D-042). */
   onCounts?: (counts: PanelCounts) => void;
   /** Screenshots can open a tab or an item directly. */
-  initial?: { tab?: TabId; openFirst?: boolean };
+  initial?: { tab?: TabId; openFirst?: boolean; filter?: QueueFilter };
   /** Says that nothing is saved or sent yet. Defaults to the Lab wording. */
   note?: string;
   /** "Try again" in the offline banner. */
@@ -65,7 +65,7 @@ export function Panel({
   onRetry,
   onShowOffice,
 }: Props) {
-  const { seats, queue, workflows, tasks } = data;
+  const { seats, queue, workflows, tasks, authorityRules } = data;
   const s = usePanelStore(
     useShallow((p) => ({
       tab: p.tab,
@@ -264,6 +264,7 @@ export function Panel({
                   item={focused}
                   seats={seats}
                   workflows={workflows}
+                  rules={authorityRules}
                   position={`${index + 1} of ${items.length}`}
                   onBack={() => {
                     act.setDetailOpen(false);
@@ -282,6 +283,7 @@ export function Panel({
                   focusedId={focused?.id ?? null}
                   seats={seats}
                   workflows={workflows}
+                  rules={authorityRules}
                   now={now}
                   onFilter={act.setFilter}
                   onFocus={(id) => act.focusCard(id, { target: "card", id })}

@@ -201,6 +201,49 @@ test("the office panel shows live items, and decisions are only a demo", async (
   expect(errors).toEqual([]);
 });
 
+test("Needs you puts urgent items first and explains the rule and the email draft", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/?shots=1");
+  await waitForReady(page);
+
+  // For you: the email draft comes first, and says Approve does not send it.
+  const items = page.locator("[data-item]");
+  await expect(items.first()).toHaveAttribute("data-item", "q-0001");
+  await expect(page.getByTestId("decision-card")).toContainText(
+    "Approve creates a draft. Sending is a separate step.",
+  );
+
+  // Team items: the one the authority rule routed comes first, with who decides and why.
+  await page.getByRole("button", { name: /Team items/ }).click();
+  await expect(items.first()).toHaveAttribute("data-item", "q-0003");
+  await expect(items.first()).toContainText("Price change of 6.5 percent");
+
+  // The detail view has the status, and the draft repeats the note.
+  await page.getByRole("button", { name: /For you/ }).click();
+  await page.getByTestId("decision-card").focus();
+  await page.keyboard.press("Enter");
+  const detail = page.getByTestId("item-detail");
+  await expect(detail).toContainText("Needs your decision");
+  await expect(detail.getByTestId("email-preview")).toContainText(
+    "Approve creates a draft. Sending is a separate step.",
+  );
+  expect(errors).toEqual([]);
+});
+
+test("the authority rule line names who decides, in the rule's words", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/?shots=1");
+  await waitForReady(page);
+  await page.getByRole("button", { name: /Team items/ }).click();
+  // The most urgent item is the focused card after the switch.
+  await expect(page.locator('[data-item="q-0003"]').getByTestId("decision-card")).toContainText(
+    "CM 02 must decide. Price change of 5 percent or more: the Category Manager must approve.",
+  );
+});
+
 test("under 960 px the panel goes full width, and Show office swaps to the office", async ({
   page,
 }) => {

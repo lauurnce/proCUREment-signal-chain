@@ -1,4 +1,4 @@
-import type { QueueItem, Seat, Workflow } from "@hq/shared";
+import type { AuthorityRule, QueueItem, QueueStatus, Seat, Workflow } from "@hq/shared";
 import { typeStyle } from "../../theme/style";
 import { type Decision, DecisionButton } from "../DecisionButton";
 import { PanelTitle } from "../PanelTitle";
@@ -15,6 +15,7 @@ type Props = {
   item: QueueItem;
   seats: Seat[];
   workflows: Workflow[];
+  rules: AuthorityRule[];
   position: string;
   onBack: () => void;
   onPrev: () => void;
@@ -27,6 +28,17 @@ type Props = {
 const TITLES: Record<string, string> = { "Recommendation from the helper": "Helper suggests" };
 const SKIP = new Set(["Draft email"]);
 
+/** The item status in plain words. */
+const STATUS: Record<QueueStatus, string> = {
+  "needs-you": "Needs your decision",
+  approved: "Approved",
+  held: "On hold",
+  "sent-back": "Sent back",
+  instructed: "Instructed",
+  sent: "Sent",
+  done: "Done",
+};
+
 const LINK =
   "inline-flex min-h-6 min-w-6 items-center justify-center rounded-button px-2 py-1 hover:bg-panel focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
@@ -35,6 +47,7 @@ export function ItemDetail({
   item,
   seats,
   workflows,
+  rules,
   position,
   onBack,
   onPrev,
@@ -49,6 +62,7 @@ export function ItemDetail({
   const ref = reference(item);
   const helper = helperName(seats, item.from);
   const facts = [
+    { label: "Status", value: STATUS[item.status] },
     { label: "From", value: helper, badge: true },
     ...(item.supplier ? [{ label: "Supplier", value: item.supplier }] : []),
     { label: "Decides", value: as ? `${as} (you decide for the seat in this demo)` : "You" },
@@ -131,7 +145,7 @@ export function ItemDetail({
             )}
           </div>
           <p className="m-0" style={typeStyle("body")}>
-            {whyText(seats, item)}
+            {whyText(seats, item, rules)}
           </p>
         </div>
         {body
