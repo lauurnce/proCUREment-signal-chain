@@ -4,7 +4,11 @@ import { track } from "../../theme/tokens";
 import { type Framing, fitRects, MAX_ZOOM, type Viewport } from "../camera/presets";
 import type { TagData } from "../tags/TagLayer";
 import type { TagAnchor } from "../tags/TagProjector";
+import type { Wait } from "./behavior";
 import type { CrowdMember } from "./crowdPlan";
+
+/** An office tag: the Lab tag plus whether the helper waits on you (its tag always shows). */
+export type OfficeTagData = TagData & { waitsOnYou: boolean };
 
 /** A seated helper's tag sits 2.4 m above the floor, 0.35 m over the hair (D-045). */
 export const SEATED_TAG_HEIGHT = 2.4;
@@ -19,17 +23,27 @@ export const ROLE_HIDE_AT = 1.45;
  * The name points at the helper, never the person (D-028, D-046). The role is the track name,
  * until helpers get job nicknames.
  */
-export function tagsFor(seats: Seat[], members: CrowdMember[]): TagData[] {
+export function tagsFor(
+  seats: Seat[],
+  members: CrowdMember[],
+  /** Who waiting helpers wait on (behavior.waitsFor). */
+  waits: Map<string, Wait> = new Map(),
+): OfficeTagData[] {
   const drawn = new Set(members.map((m) => m.id));
   return seats
-    .filter((s) => drawn.has(s.id) && s.status !== "off-duty")
-    .map((s) => ({
-      id: s.id,
-      track: s.track,
-      name: s.helper.name ?? `${s.displayName} helper`,
-      role: track[s.track].label,
-      status: s.status,
-    }));
+    .filter((s) => drawn.has(s.id))
+    .map((s) => {
+      const wait = waits.get(s.id);
+      return {
+        id: s.id,
+        track: s.track,
+        name: s.helper.name ?? `${s.displayName} helper`,
+        // A helper waiting on someone else says so, as a kind of decision (D-046).
+        role: wait?.decider ? `Waiting for ${wait.decider} decision` : track[s.track].label,
+        status: s.status,
+        waitsOnYou: s.status === "waiting-on-you" && (wait?.onYou ?? true),
+      };
+    });
 }
 
 export function tagAnchors(members: CrowdMember[]): TagAnchor[] {

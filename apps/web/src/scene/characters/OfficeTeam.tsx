@@ -23,6 +23,7 @@ const SHOTS_DAY = 12;
 const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const NO_WORKFLOWS: never[] = [];
+const NO_QUEUE: never[] = [];
 
 /**
  * All 26 helpers, drawn as one crowd, with their click areas and the placement of their name
@@ -41,6 +42,7 @@ export function OfficeTeam({
 }) {
   const { team, seats } = useOfficeTeam(layout);
   const workflows = useStore((state) => state.data?.workflows ?? NO_WORKFLOWS);
+  const queue = useStore((state) => state.data?.queue ?? NO_QUEUE);
   const still = useMemo(reducedMotion, []);
   const grid = useMemo(() => navGridFor(layout, accessories), [layout, accessories]);
   const keepClear = useMemo(
@@ -56,10 +58,12 @@ export function OfficeTeam({
   seatsRef.current = seats;
   const workflowsRef = useRef(workflows);
   workflowsRef.current = workflows;
+  const queueRef = useRef(queue);
+  queueRef.current = queue;
   const drive = useMemo(() => {
     if (!team) return null;
     const d = new TeamDrive(team.members, grid, layout, still);
-    d.setGoals(seatsRef.current, workflowsRef.current, layout, grid, true);
+    d.setGoals(seatsRef.current, workflowsRef.current, layout, grid, true, queueRef.current);
     if (isShots) {
       d.fastForward(SHOTS_DAY);
       d.frozen = true;
@@ -75,8 +79,8 @@ export function OfficeTeam({
       firstSeats.current = false;
       return;
     }
-    drive.setGoals(seats, workflows, layout, grid, false);
-  }, [drive, seats, workflows, layout, grid]);
+    drive.setGoals(seats, workflows, layout, grid, false, queue);
+  }, [drive, seats, workflows, layout, grid, queue]);
 
   useEffect(() => {
     if (!team || !drive) return;

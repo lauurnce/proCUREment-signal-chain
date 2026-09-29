@@ -15,9 +15,9 @@ import { color } from "../../theme/tokens";
 import { useMaterial } from "../materials";
 import type { CrowdMember } from "./crowdPlan";
 import { STAND_CHEST } from "./motion";
-import { selectSeat, useSelectedSeat } from "./selection";
+import { hover, selectSeat, useSelectedSeat } from "./selection";
 import type { TeamDrive } from "./teamDrive";
-import { isWalking } from "./walk";
+import { canSteer, isWalking } from "./walk";
 
 /** The click area around a seated helper: bigger than the body, so a helper is easy to hit. */
 const HIT = { width: 0.8, height: 1.6, depth: 0.8 };
@@ -46,7 +46,7 @@ export function SeatPicker({ members, drive }: { members: CrowdMember[]; drive: 
   const selectedIndex = members.findIndex((m) => m.id === selected);
   // The ring follows the tag outline: accent by day, light blue on the navy night scene.
   const night = useStore((state) => state.light === "night");
-  const ringMaterial = useMaterial(night ? color.blueLight : color.accent, { opacity: 0.7 });
+  const ringMaterial = useMaterial(night ? color.blueLight : color.accent, { opacity: 0.9 });
 
   useFrame(() => {
     const mesh = hits.current;
@@ -71,7 +71,11 @@ export function SeatPicker({ members, drive }: { members: CrowdMember[]; drive: 
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") selectSeat(null, "keyboard");
+      // Esc steps back one thing at a time: a dialog or the panel handles it first (they have
+      // focus), then Walk around (which marks the event handled), then the selection.
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      if (!canSteer(event.target) || isWalking()) return;
+      selectSeat(null, "keyboard");
     };
     window.addEventListener("keydown", onKey);
     return () => {
@@ -106,8 +110,14 @@ export function SeatPicker({ members, drive }: { members: CrowdMember[]; drive: 
         onPointerOver={() => {
           document.body.style.cursor = "pointer";
         }}
+        onPointerMove={(event) => {
+          // The hovered helper's chip opens to its name (council, 29 Sep 2026).
+          hover.seatId =
+            event.instanceId === undefined ? null : (members[event.instanceId]?.id ?? null);
+        }}
         onPointerOut={() => {
           document.body.style.cursor = "";
+          hover.seatId = null;
         }}
       />
       {selectedIndex >= 0 && (

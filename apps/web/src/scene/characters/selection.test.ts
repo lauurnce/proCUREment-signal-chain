@@ -87,11 +87,11 @@ describe("office name tags", () => {
     expect(tag).toMatchObject({ name: "CM 03 helper", role: "Category Manager", track: "CM" });
   });
 
-  it("off-duty helpers get no tag", () => {
+  it("a paused helper keeps its tag, which says Paused (privacy, council 29 Sep 2026)", () => {
     const off = seats.map((s) => (s.id === "ops-02" ? { ...s, status: "off-duty" as const } : s));
-    const ids = tagsFor(off, team.members).map((t) => t.id);
-    expect(ids).not.toContain("ops-02");
-    expect(ids).toHaveLength(25);
+    const tags = tagsFor(off, team.members);
+    expect(tags).toHaveLength(26);
+    expect(tags.find((t) => t.id === "ops-02")?.status).toBe("off-duty");
   });
 
   it("status comes from the seat", () => {

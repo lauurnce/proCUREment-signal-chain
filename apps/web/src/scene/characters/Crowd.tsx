@@ -1,8 +1,9 @@
 import { useFrame } from "@react-three/fiber";
 import { useContext, useLayoutEffect, useMemo, useRef } from "react";
-import { Color, type InstancedMesh, Matrix4 } from "three";
-import { color } from "../../theme/tokens";
-import { SurfaceContext, sharedMaterial } from "../materials";
+import { Color, type InstancedMesh, Matrix4, MeshStandardMaterial } from "three";
+import { useStore } from "../../state/store";
+import { color, world } from "../../theme/tokens";
+import { type Surface, SurfaceContext } from "../materials";
 import type { Appearance } from "./appearance";
 import {
   type BoneOrigins,
@@ -41,6 +42,31 @@ type Props = {
 };
 
 const ROUGHNESS: Record<Finish, number> = { matte: 0.85, eye: 0.6, lens: 0.4 };
+/** At night the helpers get a faint moonlight glow, so dark hair and navy tops still read. */
+const NIGHT_LIFT = 0.12;
+
+const crowdMaterials = new Map<string, MeshStandardMaterial>();
+
+/**
+ * The helpers' own materials (white, so instance colors show). Not shared with the world,
+ * because only the helpers get the night lift (council, 29 Sep 2026).
+ */
+function crowdMaterial(finish: Finish, surface: Surface, night: boolean) {
+  const roughness = Math.min(1, ROUGHNESS[finish] + surface.roughnessBoost);
+  const key = `${finish}|${roughness}|${night}`;
+  let material = crowdMaterials.get(key);
+  if (!material) {
+    material = new MeshStandardMaterial({
+      color: color.white,
+      roughness,
+      metalness: 0,
+      emissive: night ? color.blueLight : world.noGlow,
+      emissiveIntensity: night ? NIGHT_LIFT : 0,
+    });
+    crowdMaterials.set(key, material);
+  }
+  return material;
+}
 const scratch = new Matrix4();
 const pose: Pose = { ...STILL };
 
@@ -90,6 +116,7 @@ function writePoses(
  */
 export function Crowd({ members, frozenAt, still, drive }: Props) {
   const surface = useContext(SurfaceContext);
+  const night = useStore((state) => state.light === "night") || surface.night;
   const plan = useMemo(() => planCrowd(members), [members]);
   const meshes = useRef(new Map<string, InstancedMesh>());
   const bones = useMemo(() => plan.seats.map(newBones), [plan]);
@@ -131,12 +158,10 @@ export function Crowd({ members, frozenAt, still, drive }: Props) {
             if (mesh) meshes.current.set(batch.key, mesh);
             else meshes.current.delete(batch.key);
           }}
-          args={[
-            characterGeometry(batch.shape),
-            // Instance colors multiply the material color, so the batch materials are white.
-            sharedMaterial(color.white, surface, { roughness: ROUGHNESS[batch.finish] }),
-            batch.entries.length,
-          ]}
+          args={[characterGeometry(batch.shape), undefined, batch.entries.length]}
+          // Instance colors multiply the material color, so the batch materials are white.
+          // A prop, not an arg, so day and night swap it without rebuilding the mesh.
+          material={crowdMaterial(batch.finish, surface, night)}
           castShadow={batch.castShadow}
           receiveShadow
           // The helpers barely move and spread over the whole floor, so culling saves nothing.

@@ -1,11 +1,21 @@
-import type { LayoutFile, Seat, Workflow } from "@hq/shared";
+import type { LayoutFile, QueueItem, Seat, Workflow } from "@hq/shared";
 import { Matrix4, Quaternion, Vector3 } from "three";
 import type { TagAnchor } from "../tags/TagProjector";
 import { appearanceFor } from "./appearance";
-import { Agent, goalFor } from "./behavior";
+import { Agent, goalFor, waitsFor, waverOf, type ZoneCrowd } from "./behavior";
 import type { CrowdDrive } from "./Crowd";
 import type { CrowdMember } from "./crowdPlan";
-import { type Pose, poseInto, STAND_CHEST } from "./motion";
+import {
+  type Activity,
+  blendPose,
+  bubblePop,
+  ease,
+  POSE_BLEND,
+  type Pose,
+  poseInto,
+  STAND_CHEST,
+  STILL,
+} from "./motion";
 import type { FloorPoint, NavGrid } from "./navGrid";
 import type { Vec3 } from "./recipe";
 import { SEATED_TAG_HEIGHT } from "./tags";
@@ -44,8 +54,14 @@ export class TeamDrive implements CrowdDrive {
   /** The crowd: every helper, then the avatar last. */
   readonly members: CrowdMember[];
   private readonly matrices: Matrix4[];
+  /** Per member: the activity now, the one before, and when it changed, for pose blends. */
+  private readonly activity: (Activity | null)[];
+  private readonly previous: (Activity | null)[];
+  private readonly changedAt: number[];
+  private readonly from: Pose = { ...STILL };
 
   constructor(helpers: CrowdMember[], grid: NavGrid, layout: LayoutFile, still: boolean) {
+    const crowd: ZoneCrowd = new Map();
     this.agents = helpers.map(
       (m) =>
         new Agent(
@@ -54,6 +70,7 @@ export class TeamDrive implements CrowdDrive {
           grid,
           appearanceFor(m.seed).phase,
           still,
+          crowd,
         ),
     );
     const home = avatarHome(layout, grid);
@@ -75,6 +92,9 @@ export class TeamDrive implements CrowdDrive {
     }));
     this.spots = new Map(helpers.map((m) => [m.id, [...m.position] as Vec3]));
     this.matrices = this.members.map(() => new Matrix4());
+    this.activity = this.members.map(() => null);
+    this.previous = this.members.map(() => null);
+    this.changedAt = this.members.map(() => Number.NEGATIVE_INFINITY);
   }
 
   /** New live status from the server. `first` places everyone at once, with no walk. */
@@ -84,11 +104,15 @@ export class TeamDrive implements CrowdDrive {
     layout: LayoutFile,
     grid: NavGrid,
     first: boolean,
+    queue: QueueItem[] = [],
   ) {
     const byId = new Map(seats.map((s) => [s.id, s]));
+    const waits = waitsFor(seats, queue);
+    const waver = waverOf(waits);
     for (const agent of this.agents) {
       const seat = byId.get(agent.id);
-      if (seat) agent.setGoal(goalFor(seat, workflows, layout, grid), first);
+      agent.waves = agent.id === waver;
+      if (seat) agent.setGoal(goalFor(seat, workflows, layout, grid, waits.get(agent.id)), first);
     }
   }
 
@@ -148,7 +172,21 @@ export class TeamDrive implements CrowdDrive {
   pose(m: number, time: number, out: Pose): Pose {
     const agent = this.agents[m];
     const input = agent ? agent.poseInput() : this.avatar.poseInput();
+    // A new activity blends in over 140 ms, so an arm never jumps (council, 29 Sep 2026).
+    const was = this.activity[m] ?? null;
+    if (was !== input.activity) {
+      this.previous[m] = was ?? input.activity;
+      this.activity[m] = input.activity;
+      this.changedAt[m] = was === null ? Number.NEGATIVE_INFINITY : time;
+    }
     poseInto(out, time, input);
+    const t = (time - (this.changedAt[m] as number)) / POSE_BLEND;
+    if (t < 1) {
+      poseInto(this.from, time, { ...input, activity: this.previous[m] as Activity });
+      blendPose(out, this.from, ease(t));
+    }
+    const since = time - (this.changedAt[m] as number);
+    if (input.activity === "hand" && since < 0.45) out.bubble = bubblePop(since);
     if (agent && !agent.visible) out.bubble = 0;
     return out;
   }

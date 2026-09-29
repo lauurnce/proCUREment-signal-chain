@@ -1,7 +1,7 @@
-import type { LayoutFile, Seat, Workflow } from "@hq/shared";
+import type { LayoutFile, QueueItem, Seat, Track, Workflow } from "@hq/shared";
 import { seededRandom } from "./appearance";
 import type { Activity, PoseInput } from "./motion";
-import { WALK } from "./motion";
+import { ease, WALK } from "./motion";
 import type { FloorPoint, NavGrid } from "./navGrid";
 
 /**
@@ -13,14 +13,21 @@ import type { FloorPoint, NavGrid } from "./navGrid";
  * - hidden: off duty, the chair is empty.
  */
 export type Goal =
-  | { kind: "desk"; activity: "typing" | "idle" | "hand" }
+  | { kind: "desk"; activity: "typing" | "idle" | "hand" | "wait" }
   | { kind: "stay"; zone: string; spot: FloorPoint; face: number; activity: "idle" | "typing" }
   | { kind: "visit"; zone: string; spot: FloorPoint; face: number }
   | { kind: "hidden" };
 
 /** Seconds at the zone on a visit, and at the desk between visits. */
 export const VISIT_WORK: [number, number] = [6, 10];
-export const VISIT_DESK: [number, number] = [20, 40];
+export const VISIT_DESK: [number, number] = [45, 90];
+/** At most this many helpers visit one zone at a time. The rest wait at their desks. */
+export const MAX_AT_ZONE = 3;
+/** A helper that finds its zone full tries again after this many seconds. */
+const ZONE_FULL_RETRY: [number, number] = [4, 8];
+
+/** How many helpers are away on a visit, by zone. One map is shared by the whole team. */
+export type ZoneCrowd = Map<string, number>;
 /** The first trip leaves within this many seconds of the page opening, so the office wakes up. */
 export const FIRST_TRIP: [number, number] = [2, 20];
 
@@ -80,14 +87,74 @@ export function spotIn(
 }
 
 /** The goal for a seat's live status. */
+/** The player's seat: "waiting on you" means waiting on this seat's decision. */
+export const PLAYER_SEAT = "mgr-01";
+
+const DECIDER: Record<Track, string> = {
+  MGR: "the Sr. Manager",
+  LEAD: "a Lead",
+  CM: "a CM",
+  OPS: "an Ops Buyer",
+};
+
+/** What a waiting helper waits on, from the open Needs you items. */
+export type Wait = {
+  /** True when the Sr. Manager decides (or no item says otherwise). */
+  onYou: boolean;
+  /** "a CM" when someone else decides. Never a seat (D-046). */
+  decider: string | null;
+  /** When the item came in, to find the helper that has waited longest. */
+  since: string | null;
+};
+
+/**
+ * Who each waiting helper waits on. The same rule as the panel's Team tab: the open item the
+ * helper sent, or else one that waits on this seat's own decision.
+ */
+export function waitsFor(seats: Seat[], queue: QueueItem[]): Map<string, Wait> {
+  const out = new Map<string, Wait>();
+  for (const seat of seats) {
+    if (seat.status !== "waiting-on-you") continue;
+    const open = queue.filter((q) => q.status === "needs-you");
+    const item = open.find((q) => q.from === seat.id) ?? open.find((q) => q.approver === seat.id);
+    const onYou = !item || item.approver === PLAYER_SEAT;
+    const track = item ? seats.find((s) => s.id === item.approver)?.track : undefined;
+    out.set(seat.id, {
+      onYou,
+      decider: onYou ? null : track ? DECIDER[track] : "a teammate",
+      since: item?.created ?? null,
+    });
+  }
+  return out;
+}
+
+/** The one helper that waves: the one waiting on you the longest. Null when none. */
+export function waverOf(waits: Map<string, Wait>): string | null {
+  let best: [string, string] | null = null;
+  for (const [id, w] of waits) {
+    if (!w.onYou) continue;
+    const since = w.since ?? "9999";
+    if (!best || since < best[1]) best = [id, since];
+  }
+  return best?.[0] ?? null;
+}
+
 export function goalFor(
   seat: Seat,
   workflows: Workflow[],
   layout: LayoutFile,
   grid: NavGrid,
+  /** Who it waits on, when it waits. Unknown means it waits on you. */
+  wait?: Wait,
 ): Goal {
-  if (seat.status === "off-duty") return { kind: "hidden" };
-  if (seat.status === "waiting-on-you") return { kind: "desk", activity: "hand" };
+  // A paused helper stays in its chair, still: an empty chair would read as a person away
+  // (privacy guardrail, council 29 Sep 2026).
+  if (seat.status === "off-duty") return { kind: "desk", activity: "idle" };
+  // Only work that waits on you raises a hand with the amber "!". Work that waits on a CM
+  // shows a calm hollow bubble (council, 29 Sep 2026, Lawrence's choice).
+  if (seat.status === "waiting-on-you") {
+    return { kind: "desk", activity: wait && !wait.onYou ? "wait" : "hand" };
+  }
   const zone = stepZone(seat, workflows);
   if (seat.status === "on-break") {
     const at = spotIn(MERIENDA, seat.id, layout, grid);
@@ -106,7 +173,7 @@ export function goalFor(
   return desk("typing");
 }
 
-const desk = (activity: "typing" | "idle" | "hand"): Goal => ({ kind: "desk", activity });
+const desk = (activity: "typing" | "idle" | "hand" | "wait"): Goal => ({ kind: "desk", activity });
 
 type Place = { kind: "desk" } | { kind: "spot"; spot: FloorPoint; face: number };
 
@@ -141,6 +208,8 @@ export class Agent {
   /** 0 to 1, how much of the walk cycle shows. */
   walkBlend = 0;
   goal: Goal = { kind: "desk", activity: "idle" };
+  /** Only the helper that has waited on you longest waves its raised hand. */
+  waves = true;
 
   private path: FloorPoint[] = [];
   private leg = 1;
@@ -157,6 +226,10 @@ export class Agent {
   private readonly grid: NavGrid;
   /** Reduced motion: every trip is one cut, with no walk in between. */
   private readonly still: boolean;
+  /** Visits in progress across the team, so a zone never gets crowded (council). */
+  private readonly crowd: ZoneCrowd;
+  /** The zone this helper counts itself in, while away on a visit. */
+  private holding: string | null = null;
 
   constructor(
     id: string,
@@ -164,8 +237,10 @@ export class Agent {
     grid: NavGrid,
     phase: number,
     still = false,
+    crowd: ZoneCrowd = new Map(),
   ) {
     this.id = id;
+    this.crowd = crowd;
     this.seat = seat;
     this.grid = grid;
     this.phase = phase;
@@ -183,6 +258,7 @@ export class Agent {
   setGoal(goal: Goal, first = false): void {
     const before = this.goal;
     this.goal = goal;
+    if (goal.kind !== "visit" || goal.zone !== this.holding) this.release();
     this.visible = goal.kind !== "hidden";
     if (goal.kind === "hidden") {
       this.placeAt({ kind: "desk" });
@@ -214,7 +290,10 @@ export class Agent {
         break;
       case "sitting":
         this.stand = Math.max(0, this.stand - dt / WALK.standSeconds);
-        if (this.stand <= 0) this.motion = "seated";
+        if (this.stand <= 0) {
+          this.motion = "seated";
+          this.release();
+        }
         break;
       case "walking":
         this.walk(dt);
@@ -230,6 +309,12 @@ export class Agent {
         break;
     }
     const moving = this.motion === "walking";
+    // On arrival, finish the step so the feet come together (half a stride each step).
+    if (!moving && this.walkBlend > 0.05) {
+      const half = WALK.strideMeters / 2;
+      const target = Math.ceil(this.walked / half - 1e-6) * half;
+      this.walked = Math.min(target, this.walked + WALK.speed * dt);
+    }
     const k = Math.min(1, dt * 6);
     this.walkBlend += ((moving ? 1 : 0) - this.walkBlend) * k;
     this.tickVisit(dt);
@@ -247,9 +332,11 @@ export class Agent {
     return {
       activity,
       phase: this.phase,
-      stand: this.stand,
+      // Standing up and sitting down start and stop softly (move easing, council 29 Sep).
+      stand: ease(this.stand),
       stride: this.walked / WALK.strideMeters,
       walk: this.walkBlend,
+      wave: this.waves,
     };
   }
 
@@ -265,12 +352,31 @@ export class Agent {
     this.timer -= dt;
     if (this.timer > 0) return;
     if (this.at.kind === "desk") {
+      const zone = this.goal.zone;
+      if ((this.crowd.get(zone) ?? 0) >= MAX_AT_ZONE) {
+        this.timer = between(this.random, ZONE_FULL_RETRY);
+        return;
+      }
+      this.crowd.set(zone, (this.crowd.get(zone) ?? 0) + 1);
+      this.holding = zone;
       this.timer = between(this.random, VISIT_WORK);
       this.travel({ kind: "spot", spot: this.goal.spot, face: this.goal.face });
+      // No way there: it stays at the desk, so it does not count at the zone.
+      if (this.headed.kind === "desk") this.release();
     } else {
       this.timer = between(this.random, VISIT_DESK);
       this.travel({ kind: "desk" });
+      // Counted until it sits down again, so the zone is not over-full while it walks back.
     }
+  }
+
+  /** Stops counting this helper at a zone. */
+  private release() {
+    if (!this.holding) return;
+    const n = (this.crowd.get(this.holding) ?? 1) - 1;
+    if (n > 0) this.crowd.set(this.holding, n);
+    else this.crowd.delete(this.holding);
+    this.holding = null;
   }
 
   private travel(target: Place) {
@@ -300,6 +406,7 @@ export class Agent {
     this.path = [];
     this.walkBlend = 0;
     if (target.kind === "desk") {
+      this.release();
       this.heading = this.seat.heading;
       this.stand = 0;
       this.motion = "seated";

@@ -1,7 +1,7 @@
 import type { Track } from "@hq/shared";
 import { Euler, Matrix4, Quaternion, Vector3 } from "three";
 import { type Appearance, appearanceFor } from "./appearance";
-import { type Activity, type Pose, STAND_CHEST, STAND_JOINT } from "./motion";
+import { type Activity, type Pose, STAND_CHEST, STAND_JOINT, STAND_THIGH } from "./motion";
 import {
   BASE_SIZE,
   BONES,
@@ -108,7 +108,7 @@ const bubbleSize = new Vector3();
  * the right of the head on screen: screen right on the floor is (1, 0, -1) / sqrt 2.
  */
 const BUBBLE_SIDE = 0.34 / Math.SQRT2;
-const BUBBLE_ABOVE_HEAD = 0.22;
+const BUBBLE_ABOVE_HEAD = 0.25;
 
 /**
  * The world matrix of each bone of one helper for a pose, written into `out`.
@@ -146,7 +146,10 @@ export function writeBones(
     .multiply(offset.makeTranslation(rx, ry + pose.rightHandLift, rz + 0.1 * Math.sin(pose.armR)))
     .multiply(turn.makeRotationZ(pose.rollR))
     .multiply(roll.makeRotationX(pose.armR));
-  // Legs hang from the hip joints. The hip rises as the helper stands, so the feet stay down.
+  // Legs hang from the hip joints. Standing, the thigh shortens (the seated thigh lies along
+  // the seat, the standing one is mostly hidden in the torso), so a helper stands about 1.65 m
+  // tall (council, 29 Sep 2026). The hip rises by the standing thigh, so the feet stay down.
+  const thigh = THIGH + (STAND_THIGH - THIGH) * pose.stand;
   const hip = HIP + pose.stand * STAND_JOINT + pose.bob;
   out.thighL
     .copy(root)
@@ -158,21 +161,24 @@ export function writeBones(
     .multiply(turn.makeRotationX(pose.thighR));
   out.shinL
     .copy(out.thighL)
-    .multiply(offset.makeTranslation(0, -THIGH, 0))
+    .multiply(offset.makeTranslation(0, -thigh, 0))
     .multiply(turn.makeRotationX(pose.kneeL));
   out.shinR
     .copy(out.thighR)
-    .multiply(offset.makeTranslation(0, -THIGH, 0))
+    .multiply(offset.makeTranslation(0, -thigh, 0))
     .multiply(turn.makeRotationX(pose.kneeR));
+  // The thigh part is built at the seated length, so scale it to the current one.
+  offset.makeScale(1, thigh / THIGH, 1);
+  out.thighL.multiply(offset);
+  out.thighR.multiply(offset);
   // The bubble: over the head, to its right on screen, always facing the camera.
   where.setFromMatrixPosition(root);
   const top = hy + 0.5 + chest + BUBBLE_ABOVE_HEAD;
+  where.set(where.x + BUBBLE_SIDE, top, where.z - BUBBLE_SIDE);
   const size = pose.bubble > 0 ? pose.bubble : 0;
-  out.bubble.compose(
-    where.set(where.x + BUBBLE_SIDE, top, where.z - BUBBLE_SIDE),
-    bubbleTurn,
-    bubbleSize.set(size, size, size),
-  );
+  out.bubble.compose(where, bubbleTurn, bubbleSize.set(size, size, size));
+  const hollow = pose.bubbleHollow > 0 ? pose.bubbleHollow : 0;
+  out.bubbleHollow.compose(where, bubbleTurn, bubbleSize.set(hollow, hollow, hollow));
 }
 
 /** One matrix per bone of one helper. */

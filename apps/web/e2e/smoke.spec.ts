@@ -224,6 +224,8 @@ test("Walk around: G starts it, keys move you, Talk shows near a helper, E talks
   await page.keyboard.press("g");
   await expect(walk).toBeVisible();
   await expect(page.getByTestId("walk-you")).toBeVisible();
+  // The canvas takes focus, so the keys steer at once.
+  expect(await page.evaluate(() => document.activeElement?.tagName)).toBe("CANVAS");
 
   // Hold W: the avatar walks up the screen, away from the camera (x and z both go down).
   const before = await page.evaluate(() => window.__HQ_SEATS__?.walk.avatar());
@@ -239,6 +241,8 @@ test("Walk around: G starts it, keys move you, Talk shows near a helper, E talks
   const hint = page.getByTestId("talk-hint");
   await expect(hint).toBeVisible();
   await expect(hint).toContainText("Talk to CM 02 helper");
+  // Screen readers hear who is in reach.
+  await expect(page.getByTestId("walk-live")).toHaveText("Near CM 02 helper. Press E to talk.");
   await page.keyboard.press("e");
   expect(await page.evaluate(() => window.__HQ_SEATS__?.walk.talks)).toEqual(["cm-02"]);
   await expect(hint).toContainText("Card coming soon");
@@ -249,6 +253,20 @@ test("Walk around: G starts it, keys move you, Talk shows near a helper, E talks
   await expect(page.getByTestId("walk-you")).toBeHidden();
   expect(await page.evaluate(() => window.__HQ_SEATS__?.walk.active())).toBe(false);
   expect(errors).toEqual([]);
+});
+
+test("at the Overview most tags are chips, and a helper waiting on you shows its name", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/?shots=1");
+  await waitForReady(page);
+  // vault.sample: cm-05 waits on you. cm-01 is working.
+  await expect(page.getByTestId("office-tag-cm-05")).toHaveAttribute("data-mode", "compact");
+  await expect(page.getByTestId("office-tag-cm-01")).toHaveAttribute("data-mode", "chip");
+  // Zoomed in, every tag is full.
+  await page.keyboard.press("2");
+  await expect(page.getByTestId("office-tag-cm-01")).toHaveAttribute("data-mode", "full");
 });
 
 test("?walk=1 opens in Walk around, and a view key leaves it", async ({ page }) => {

@@ -8,7 +8,7 @@ type Props = {
   track: Track;
   /** Seat plus "helper", for example "CM 03 helper" (D-028). */
   name: string;
-  /** The job nickname, or the track name when there is none. Replaced by "Off duty" when off. */
+  /** The job nickname, or the track name when there is none. Replaced by "Paused" when the helper is paused. */
   role: string;
   status: SeatStatus;
   /** Overview size: the dot and the name only, no role line (council review, Must 4). */

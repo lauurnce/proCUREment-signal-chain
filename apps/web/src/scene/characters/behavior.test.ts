@@ -1,10 +1,21 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { AccessoriesFile, LayoutFile, type Seat, WorkflowsFile } from "@hq/shared";
+import { AccessoriesFile, LayoutFile, type QueueItem, type Seat, WorkflowsFile } from "@hq/shared";
 import { describe, expect, it } from "vitest";
 import { seatSpot } from "../layout/boxes";
-import { Agent, FIRST_TRIP, goalFor, spotIn, stepZone, turnBetween, VISIT_DESK } from "./behavior";
-import { WALK } from "./motion";
+import {
+  Agent,
+  FIRST_TRIP,
+  goalFor,
+  MAX_AT_ZONE,
+  spotIn,
+  stepZone,
+  turnBetween,
+  VISIT_DESK,
+  waitsFor,
+  waverOf,
+} from "./behavior";
+import { blendPose, bubblePop, poseAt, WALK } from "./motion";
 import { navGridFor } from "./navGrid";
 
 const root = resolve(__dirname, "../../../../..");
@@ -24,7 +35,7 @@ const seat = (id: string, more: Partial<Seat> = {}): Seat =>
     ...more,
   }) as Seat;
 
-function agentFor(id: string, still = false) {
+function agentFor(id: string, still = false, crowd?: Map<string, number>) {
   const slot = layout.deskSlots.find((s) => s.seat === id);
   if (!slot) throw new Error(`no desk for ${id}`);
   const spot = seatSpot(slot);
@@ -34,6 +45,7 @@ function agentFor(id: string, still = false) {
     grid,
     0.3,
     still,
+    crowd,
   );
 }
 
@@ -72,8 +84,10 @@ describe("goals from the live status", () => {
     expect(
       goalFor(seat("lead-02", { status: "in-meeting" }), workflows, layout, grid),
     ).toMatchObject({ kind: "stay", zone: "huddle-room" });
+    // A paused helper stays in its chair, never an empty chair (privacy, council 29 Sep).
     expect(goalFor(seat("ops-01", { status: "off-duty" }), workflows, layout, grid)).toEqual({
-      kind: "hidden",
+      kind: "desk",
+      activity: "idle",
     });
   });
 
@@ -181,7 +195,37 @@ describe("a helper's day", () => {
       if (x.motion === "seated") back = true;
     });
     expect(back).toBe(true);
-    expect(VISIT_DESK[0]).toBeGreaterThan(10);
+    expect(VISIT_DESK).toEqual([45, 90]);
+  });
+
+  it("sends at most 3 helpers to one zone at a time", () => {
+    const crowd = new Map<string, number>();
+    const ids = ["cm-01", "cm-02", "cm-03", "cm-04", "cm-05"];
+    const team = ids.map((id) => {
+      const a = agentFor(id, false, crowd);
+      a.setGoal(
+        goalFor(
+          seat(id, { currentWorkflow: "cm-pr-stock-item-approval", currentStep: "extract" }),
+          workflows,
+          layout,
+          grid,
+        ),
+        true,
+      );
+      return a;
+    });
+    let most = 0;
+    for (let t = 0; t < 120; t += 1 / 30) {
+      for (const a of team) a.step(1 / 30);
+      const away = team.filter((a) => a.motion !== "seated").length;
+      most = Math.max(most, away);
+      expect(crowd.get("sap-station") ?? 0).toBeLessThanOrEqual(MAX_AT_ZONE);
+    }
+    expect(most).toBe(MAX_AT_ZONE);
+    // Back at their desks, nobody is counted at the zone.
+    for (const a of team) a.setGoal({ kind: "desk", activity: "typing" });
+    for (let t = 0; t < 40; t += 1 / 30) for (const a of team) a.step(1 / 30);
+    expect(crowd.size).toBe(0);
   });
 
   it("raises a hand at the desk while it waits on you", () => {
@@ -207,5 +251,64 @@ describe("a helper's day", () => {
   it("turns the short way round", () => {
     expect(turnBetween(3, -3)).toBeCloseTo(2 * Math.PI - 6, 5);
     expect(turnBetween(0.5, 1)).toBeCloseTo(0.5, 5);
+  });
+});
+
+describe("who a waiting helper waits on", () => {
+  const seats = [
+    seat("cm-02", { status: "waiting-on-you", track: "CM" }),
+    seat("cm-05", { status: "waiting-on-you", track: "CM" }),
+    seat("ops-03", { status: "waiting-on-you", track: "OPS" }),
+    seat("ops-07", { track: "OPS" }),
+    { ...seat("mgr-01"), track: "MGR" } as Seat,
+  ];
+  const item = (id: string, from: string, approver: string, created: string) =>
+    ({ id, from, approver, created, status: "needs-you" }) as QueueItem;
+  const queue = [
+    item("q-1", "ops-03", "mgr-01", "2026-09-25T08:40:00+08:00"),
+    item("q-2", "cm-05", "mgr-01", "2026-09-25T09:05:00+08:00"),
+    item("q-3", "ops-07", "cm-02", "2026-09-25T09:20:00+08:00"),
+  ];
+  const waits = waitsFor(seats, queue);
+
+  it("waits on you when the Sr. Manager decides, else names the kind of decider", () => {
+    expect(waits.get("ops-03")).toMatchObject({ onYou: true, decider: null });
+    expect(waits.get("cm-02")).toMatchObject({ onYou: false, decider: "a CM" });
+  });
+
+  it("only the helper that has waited longest waves", () => {
+    expect(waverOf(waits)).toBe("ops-03");
+  });
+
+  it("raises a hand only for you; other waits get the hollow bubble", () => {
+    expect(goalFor(seats[0] as Seat, workflows, layout, grid, waits.get("cm-02"))).toEqual({
+      kind: "desk",
+      activity: "wait",
+    });
+    expect(goalFor(seats[2] as Seat, workflows, layout, grid, waits.get("ops-03"))).toEqual({
+      kind: "desk",
+      activity: "hand",
+    });
+  });
+});
+
+describe("pose polish", () => {
+  it("the bubble pops once, then settles", () => {
+    expect(bubblePop(0)).toBe(0);
+    expect(bubblePop(0.16)).toBeCloseTo(1.15, 5);
+    expect(bubblePop(0.5)).toBe(1);
+  });
+
+  it("blends one pose into the next instead of snapping", () => {
+    const from = poseAt(1, "typing", 0.2);
+    const to = poseAt(1, "hand", 0.2);
+    const half = blendPose({ ...to }, from, 0.5);
+    expect(half.armR).toBeCloseTo((from.armR + to.armR) / 2, 5);
+  });
+
+  it("the hollow bubble shows only while waiting on someone else", () => {
+    expect(poseAt(1, "wait", 0.3).bubbleHollow).toBe(1);
+    expect(poseAt(1, "wait", 0.3).bubble).toBe(0);
+    expect(poseAt(1, "hand", 0.3).bubbleHollow).toBe(0);
   });
 });

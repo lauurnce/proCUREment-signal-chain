@@ -55,6 +55,12 @@ export function onSeatSelected(listener: (event: SeatSelected) => void): () => v
   };
 }
 
+/**
+ * The helper under the mouse, or null. Read every frame by the tag projector, so it is a plain
+ * value and never causes a render.
+ */
+export const hover: { seatId: string | null } = { seatId: null };
+
 /** The selected seat id, for React components. */
 export const useSelectedSeat = () => useSelection((state) => state.selected);
 

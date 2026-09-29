@@ -10,6 +10,11 @@ type SeatTestApi = {
   /** Where a helper's chest is on screen, in CSS pixels from the canvas top left. */
   seatPoint: (seatId: string) => { x: number; y: number } | null;
   selectSeat: typeof selectSeat;
+  /**
+   * Runs the day on until the helper is at the zone of its trip (up to two minutes), then
+   * selects it and frames it there, not at its desk.
+   */
+  frameTrip: (seatId: string) => boolean;
   /** Every selection event since the page loaded. */
   events: SeatSelected[];
   /** What each helper is doing: its legs and its body activity. */
@@ -53,6 +58,17 @@ export function SeatTestHook({ drive }: { drive: TeamDrive }) {
         return { x: ((p.x + 1) / 2) * size.width, y: ((1 - p.y) / 2) * size.height };
       },
       selectSeat,
+      frameTrip: (seatId) => {
+        const agent = drive.agents.find((a) => a.id === seatId);
+        if (agent?.goal.kind !== "visit") return false;
+        for (let t = 0; t < 120 && agent.motion !== "standing"; t += 0.5) drive.fastForward(0.5);
+        if (agent.motion !== "standing" || !selectSeat(seatId, "api")) return false;
+        const focus = useSelection.getState().focus;
+        useSelection.setState({
+          focus: { seatId, point: [agent.x, 0, agent.z], request: (focus?.request ?? 0) + 1 },
+        });
+        return true;
+      },
       events,
       motions: () =>
         Object.fromEntries(

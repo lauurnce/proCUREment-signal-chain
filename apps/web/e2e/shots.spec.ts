@@ -24,6 +24,8 @@ type Target = {
   only?: { width: number; height: number }[];
   /** Select this helper first, as a click would, and let the camera arrive. */
   select?: string;
+  /** Like select, but frames the helper at the zone of its trip, not at its desk. */
+  trip?: string;
   /** Walk around mode, with the avatar placed in front of this helper. */
   walkTo?: string;
 };
@@ -77,7 +79,7 @@ const pages: Target[] = [
   // Merienda Corner, a trip to the SAP Station, and Walk around mode next to a helper.
   { name: "office-waiting", path: "/?shots=1", fullPage: false, select: "cm-05" },
   { name: "office-merienda", path: "/?shots=1", fullPage: false, select: "ops-08" },
-  { name: "office-sap-trip", path: "/?shots=1", fullPage: false, select: "cm-10" },
+  { name: "office-sap-trip", path: "/?shots=1", fullPage: false, trip: "cm-10" },
   { name: "office-walk", path: "/?shots=1", fullPage: false, walkTo: "cm-02" },
   { name: "office-walk-night", path: "/?shots=1&time=night", fullPage: false, walkTo: "ops-03" },
 ];
@@ -90,6 +92,17 @@ for (const target of pages) {
   for (const size of target.only ?? sizes) {
     test(`${target.name} at ${size.width}x${size.height}`, async ({ page }) => {
       const errors = collectErrors(page);
+      // Headless software WebGL can lose its context in a long run, which gives a blank frame.
+      // Such a shot fails instead of saving an empty canvas (council, 29 Sep 2026).
+      await page.addInitScript(() => {
+        document.addEventListener(
+          "webglcontextlost",
+          () => {
+            (window as { __GL_LOST__?: boolean }).__GL_LOST__ = true;
+          },
+          true,
+        );
+      });
       await page.setViewportSize(size);
       await page.goto(target.path);
       await waitForReady(page);
@@ -101,6 +114,13 @@ for (const target of pages) {
         await page.evaluate((id) => window.__HQ_SEATS__?.selectSeat(id), target.select);
         await page.waitForTimeout(800);
       }
+      if (target.trip) {
+        await page.emulateMedia({ reducedMotion: "reduce" });
+        const there = await page.evaluate((id) => window.__HQ_SEATS__?.frameTrip(id), target.trip);
+        expect(there, `${target.trip} reaches the zone of its trip`).toBe(true);
+        // The camera travels further than for a desk, so give the tags time to catch up.
+        await page.waitForTimeout(2000);
+      }
       if (target.walkTo) {
         await page.emulateMedia({ reducedMotion: "reduce" });
         // Entering puts the avatar at the Sr. Manager's door, so place it after that.
@@ -111,6 +131,12 @@ for (const target of pages) {
         await expect(page.getByTestId("talk-hint")).toBeVisible();
         await page.waitForTimeout(2500);
       }
+      const lost = await page.evaluate(() => {
+        const canvas = document.querySelector("canvas");
+        const gl = canvas?.getContext("webgl2") ?? canvas?.getContext("webgl");
+        return Boolean((window as { __GL_LOST__?: boolean }).__GL_LOST__ || gl?.isContextLost());
+      });
+      expect(lost, "the WebGL context was lost, so the shot would be blank").toBe(false);
       const file = join(outDir, `${target.name}-${size.width}x${size.height}.png`);
       await page.screenshot({ path: file, fullPage: target.fullPage });
       expect(errors).toEqual([]);

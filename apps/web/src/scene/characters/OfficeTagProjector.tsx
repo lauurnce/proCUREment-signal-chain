@@ -4,20 +4,34 @@ import { Vector3 } from "three";
 import { overlayRects } from "../../state/overlays";
 import { labelPlacement } from "../labels/fade";
 import type { TagAnchor, TagRegistry } from "../tags/TagProjector";
+import { hover } from "./selection";
+import { hint } from "./TalkHintLayer";
 import { compactAt, spreadTags, type TagBox } from "./tags";
 
 /** Zone labels sit just above the floor (the same height as ZoneLabelProjector uses). */
 const ZONE_LABEL_Y = 0.05;
 
-/** Shows the compact pill (first child) or the full pill (second child) of a tag. */
-function setCompact(el: HTMLElement, compact: boolean) {
-  const mode = compact ? "compact" : "full";
-  if (el.dataset.mode === mode) return;
-  el.dataset.mode = mode;
-  const [small, full] = el.children as unknown as [HTMLElement?, HTMLElement?];
-  if (small) small.style.display = compact ? "block" : "none";
-  if (full) full.style.display = compact ? "none" : "block";
+type Form = "chip" | "compact" | "full";
+const FORMS: Form[] = ["chip", "compact", "full"];
+
+/** Shows one form of a tag: its children are the chip, the compact pill and the full pill. */
+function setForm(el: HTMLElement, form: Form) {
+  if (el.dataset.mode === form) return;
+  el.dataset.mode = form;
+  FORMS.forEach((name, i) => {
+    const child = el.children[i] as HTMLElement | undefined;
+    if (child) child.style.display = name === form ? (name === "chip" ? "flex" : "block") : "none";
+  });
   refreshInherited(el);
+}
+
+/**
+ * Zoomed in, every tag is full. At the Overview, most tags are chips, and a key tag (waiting on
+ * you, or selected) or the hovered one shows its name (council, 29 Sep 2026).
+ */
+function formFor(el: HTMLElement, id: string, zoomedOut: boolean): Form {
+  if (!zoomedOut) return "full";
+  return el.dataset.key === "1" || hover.seatId === id ? "compact" : "chip";
 }
 
 /** Shows or hides a tag. */
@@ -40,7 +54,7 @@ function refreshInherited(el: HTMLElement) {
 
 /**
  * Moves each office name tag to its helper every frame, through the DOM (no React state).
- * - Compact (dot and name) near the Overview zoom, full (plus the role) when zoomed in.
+ * - Chips near the Overview zoom (key and hovered tags show a name), full when zoomed in.
  * - Tags never overlap: a tag behind takes the nearest free spot up or to the side (spreadTags).
  * - A tag that would be cut at a screen edge or sit under a page overlay hides, like the
  *   zone labels (D-061).
@@ -78,11 +92,13 @@ export function OfficeTagProjector({
         h: el.offsetHeight,
       });
     }
+    // In Walk around mode, "You" and the Talk hint stay readable too.
+    clear.push(...hint.boxes);
     const boxes: (TagBox & { el: HTMLElement })[] = [];
     for (const anchor of anchors) {
       const el = registry.get(anchor.id);
       if (!el) continue;
-      setCompact(el, compact.current);
+      setForm(el, formFor(el, anchor.id, compact.current));
       point.set(...anchor.position).project(camera);
       boxes.push({
         id: anchor.id,

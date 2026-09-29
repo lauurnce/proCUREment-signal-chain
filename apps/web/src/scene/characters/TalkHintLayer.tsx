@@ -1,4 +1,6 @@
+import { useStore } from "../../state/store";
 import { typeStyle } from "../../theme/style";
+import type { TagBox } from "./tags";
 import { useWalk } from "./walk";
 
 /**
@@ -11,8 +13,12 @@ export const hint = {
   talk: null as HTMLElement | null,
   talkText: null as HTMLElement | null,
   talkKey: null as HTMLElement | null,
+  /** Read aloud by screen readers when the helper in reach changes. */
+  live: null as HTMLElement | null,
   /** "Card coming soon" shows until this time (performance.now), after E. */
   noteUntil: 0,
+  /** Where "You" and the Talk hint sit on screen this frame, so name tags flow around them. */
+  boxes: [] as TagBox[],
 };
 
 const PILL = "invisible absolute top-0 left-0 whitespace-nowrap rounded-pill will-change-transform";
@@ -23,6 +29,8 @@ const PILL = "invisible absolute top-0 left-0 whitespace-nowrap rounded-pill wil
  */
 export function TalkHintLayer() {
   const active = useWalk((s) => s.active);
+  // A navy pill is lost on the navy night scene, so "You" turns white with navy text.
+  const night = useStore((state) => state.light === "night");
   return (
     <div
       data-testid="walk-layer"
@@ -33,8 +41,8 @@ export function TalkHintLayer() {
           hint.you = el;
         }}
         data-testid="walk-you"
-        className={`${PILL} bg-navy px-2.5 py-0.5`}
-        style={typeStyle("tagName", "white")}
+        className={`${PILL} px-2.5 py-0.5 ${night ? "border border-hairline bg-white" : "bg-navy"}`}
+        style={typeStyle("tagName", night ? "navy" : "white")}
       >
         You
       </div>
@@ -61,6 +69,14 @@ export function TalkHintLayer() {
           E
         </kbd>
       </div>
+      <p
+        ref={(el) => {
+          hint.live = el;
+        }}
+        data-testid="walk-live"
+        aria-live="polite"
+        className="sr-only"
+      />
       {active && (
         <p
           data-testid="walk-help"

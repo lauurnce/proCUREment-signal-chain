@@ -30,7 +30,8 @@ export type Bone =
   | "thighR"
   | "shinL"
   | "shinR"
-  | "bubble";
+  | "bubble"
+  | "bubbleHollow";
 
 export const BONES: Bone[] = [
   "root",
@@ -44,6 +45,7 @@ export const BONES: Bone[] = [
   "shinL",
   "shinR",
   "bubble",
+  "bubbleHollow",
 ];
 
 /** Thigh length, hip joint to knee. The seated thigh lies on the seat, reaching forward. */
@@ -276,10 +278,19 @@ function addAccessory(add: Add, look: Appearance) {
  * so it reads without color vision, like the status dot (D-045).
  */
 function addBubble(add: Add) {
-  add("bubble", "box", [0, 0, 0], [0.26, 0.3, 0.05], world.paper);
-  add("bubble", "box", [-0.07, -0.17, 0], [0.07, 0.07, 0.05], world.paper, {
+  // 0.28 m wide with a navy edge behind, so it reads on the pale floor (council, 29 Sep 2026).
+  add("bubble", "box", [0, 0, -0.012], [0.32, 0.36, 0.03], color.navy);
+  add("bubble", "box", [0, 0, 0], [0.28, 0.32, 0.05], world.paper);
+  add("bubble", "box", [-0.08, -0.18, 0], [0.08, 0.08, 0.05], world.paper, {
     rot: [0, 0, Math.PI / 4],
   });
-  add("bubble", "box", [0, 0.035, 0.03], [0.05, 0.14, 0.02], color.statusWaiting);
-  add("bubble", "box", [0, -0.085, 0.03], [0.05, 0.05, 0.02], color.statusWaiting);
+  add("bubble", "box", [0, 0.04, 0.03], [0.055, 0.15, 0.02], color.statusWaiting);
+  add("bubble", "box", [0, -0.09, 0.03], [0.055, 0.055, 0.02], color.statusWaiting);
+  // The hollow bubble for "waiting on someone else": the same shape with three calm dots,
+  // no amber, so only work that waits on you calls for attention.
+  add("bubbleHollow", "box", [0, 0, -0.012], [0.32, 0.36, 0.03], color.inkMuted);
+  add("bubbleHollow", "box", [0, 0, 0], [0.28, 0.32, 0.05], world.paper);
+  for (const x of [-0.08, 0, 0.08]) {
+    add("bubbleHollow", "box", [x, 0, 0.03], [0.045, 0.045, 0.02], color.inkMuted);
+  }
 }

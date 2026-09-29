@@ -7,10 +7,11 @@ const TAU = Math.PI * 2;
  * What a helper does with its body.
  * - idle: breathes. Seated, the hands rest on the desk. Standing, the arms hang.
  * - typing: types in bursts. Standing, it works at a counter or a terminal.
- * - hand: waiting on you. Raises a hand with a small "!" bubble.
+ * - hand: waiting on you. Raises a hand with an amber "!" bubble.
+ * - wait: waiting on someone else (a CM decision). Sits still with a hollow "..." bubble.
  * - walk: walks (the stride comes from the distance walked).
  */
-export type Activity = "idle" | "typing" | "hand" | "walk";
+export type Activity = "idle" | "typing" | "hand" | "wait" | "walk";
 
 /**
  * Walking and standing values, next to the seated ones in `motion.character` (theme/tokens.ts).
@@ -43,10 +44,15 @@ export const WALK = {
 const RAISE_ROLL = 0.5;
 const RAISE_LIFT = 0.16;
 
-/** The standing hip rises this much above the seated hip, so the feet stay on the floor. */
-export const STAND_JOINT = 0.44;
-/** The standing chest rises less than the hip: the top of the thigh tucks into the torso. */
-export const STAND_CHEST = 0.28;
+/**
+ * Standing height, about 1.65 m (council, 29 Sep 2026, Lawrence's choice; it was 1.9 m and
+ * looked like stilts). The thigh is this long when standing (0.44 m seated, along the seat).
+ */
+export const STAND_THIGH = 0.14;
+/** The standing hip rises by the standing thigh, so the feet stay on the floor. */
+export const STAND_JOINT = STAND_THIGH;
+/** The chest rises a little less than the hip: the hip joint tucks just inside the torso. */
+export const STAND_CHEST = 0.035;
 
 /** Offsets and joint turns for one helper. Pure math, so it is easy to test. */
 export type Pose = {
@@ -70,8 +76,10 @@ export type Pose = {
   armR: number;
   /** Tilts a forearm out to the side, radians, so a raised hand clears the head. */
   rollR: number;
-  /** The "!" bubble, 0 hidden to 1 shown. */
+  /** The amber "!" bubble (waiting on you), 0 hidden to 1 shown. */
   bubble: number;
+  /** The hollow "..." bubble (waiting on someone else), 0 hidden to 1 shown. */
+  bubbleHollow: number;
 };
 
 export const STILL: Pose = {
@@ -90,6 +98,7 @@ export const STILL: Pose = {
   armR: 0,
   rollR: 0,
   bubble: 0,
+  bubbleHollow: 0,
 };
 
 /** 1 while typing, 0 while pausing to read, with a short soft blend between them. */
@@ -114,6 +123,8 @@ export type PoseInput = {
   stride?: number;
   /** 0 to 1: how much of the walk cycle shows, so a walk starts and stops softly. */
   walk?: number;
+  /** A raised hand waves unless this is false. */
+  wave?: boolean;
 };
 
 /** Writes the pose for time t (seconds) into `out`. Never allocates, so it is safe per frame. */
@@ -131,6 +142,7 @@ export function poseInto(out: Pose, t: number, input: PoseInput): Pose {
   out.stand = stand;
   out.bob = 0;
   out.bubble = 0;
+  out.bubbleHollow = 0;
   out.rollR = 0;
   // Seated legs fold at hip and knee. Standing legs are straight.
   out.thighL = out.thighR = (-Math.PI / 2) * (1 - stand);
@@ -152,13 +164,17 @@ export function poseInto(out: Pose, t: number, input: PoseInput): Pose {
 
   if (activity === "hand") {
     // The right forearm points up, tilted out so the hand clears the head, and waves a little.
-    const wave = Math.sin(time * WALK.waveHz * TAU) * WALK.wave;
+    // Only one helper waves at a time (the one that has waited longest), so there is one
+    // attention cue. The others hold their hand still (council, 29 Sep 2026).
+    const wave = input.wave === false ? 0 : Math.sin(time * WALK.waveHz * TAU) * WALK.wave;
     out.armR = -Math.PI / 2;
     out.rollR = RAISE_ROLL + wave;
     out.rightHandLift = RAISE_LIFT;
     out.headTilt *= 0.5;
     out.bubble = 1;
   }
+
+  if (activity === "wait") out.bubbleHollow = 1;
 
   if (walk > 0) {
     const s = Math.sin((input.stride ?? 0) * TAU);
@@ -174,6 +190,33 @@ export function poseInto(out: Pose, t: number, input: PoseInput): Pose {
     out.bob = (1 - Math.abs(s)) * WALK.bob * walk;
     out.headTilt *= 1 - walk * 0.6;
   }
+  return out;
+}
+
+/** How long one activity blends into the next (typing to a raised hand), seconds. */
+export const POSE_BLEND = 0.14;
+
+/** A soft start and stop for 0 to 1 (smoothstep), for standing up, sitting down and blends. */
+export const ease = (t: number) => {
+  const x = Math.min(1, Math.max(0, t));
+  return x * x * (3 - 2 * x);
+};
+
+const POSE_KEYS = Object.keys(STILL) as (keyof Pose)[];
+
+/**
+ * The "!" bubble's size when it appears: it grows to 115 percent in 160 ms, then settles to 100
+ * percent by 450 ms. One small bounce, then calm (council, 29 Sep 2026).
+ */
+export function bubblePop(elapsed: number): number {
+  if (elapsed >= 0.45) return 1;
+  if (elapsed < 0.16) return 1.15 * ease(elapsed / 0.16);
+  return 1.15 - 0.15 * ease((elapsed - 0.16) / 0.29);
+}
+
+/** Mixes `from` into `out` so joints glide instead of snapping: t 0 is `from`, 1 is `out`. */
+export function blendPose(out: Pose, from: Pose, t: number): Pose {
+  for (const key of POSE_KEYS) out[key] = from[key] + (out[key] - from[key]) * t;
   return out;
 }
 
