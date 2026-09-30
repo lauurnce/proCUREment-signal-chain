@@ -49,12 +49,12 @@ const DECIDER: Record<Track, { short: string; long: string }> = {
 export function decidingAs(seats: Seat[], item: QueueItem): string | null {
   if (item.approver === PLAYER_SEAT) return null;
   const track = seats.find((s) => s.id === item.approver)?.track;
-  return track ? DECIDER[track].short : "a teammate";
+  return track ? DECIDER[track].short : "a team";
 }
 
 /** The Decides row: "You", or "A Category Manager (you, in this demo)". */
 export function decidesLine(seats: Seat[], item: QueueItem): string {
   if (item.approver === PLAYER_SEAT) return "You";
   const track = seats.find((s) => s.id === item.approver)?.track;
-  return `${track ? DECIDER[track].long : "A teammate"} (you, in this demo)`;
+  return `${track ? DECIDER[track].long : "The team"} (you, in this demo)`;
 }

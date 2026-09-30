@@ -6,6 +6,7 @@ import type { ConnectionStatus } from "../../state/store";
 import { bezier } from "../../theme/style";
 import { motion as tokens } from "../../theme/tokens";
 import type { Decision } from "../DecisionButton";
+import { officeLink } from "../officeLink";
 import { audiences as allAudiences } from "./audience";
 import { BoardTab } from "./BoardTab";
 import { InstructionBox, LAB_NOTE } from "./InstructionBox";
@@ -224,6 +225,8 @@ export function Panel({
     if (action === "back") {
       if (s.helpOpen) act.setHelpOpen(false);
       else if (s.detailOpen && !isField(e.target)) act.setDetailOpen(false);
+      // Nothing left to close in the panel: Esc stops Walk around (council, 30 Sep 2026).
+      else if (!isField(e.target)) officeLink()?.exitWalkMode();
       // Back to the last card: from a text box, from the detail, or after closing the key list.
       act.requestFocus(s.tab === "needs" ? { target: "card" } : { target: "panel" });
       return;
@@ -240,8 +243,9 @@ export function Panel({
     if (action === "prev") return move(-1);
     if (action === "open") {
       if (!focused) return;
-      act.setDetailOpen(true);
-      return act.requestFocus({ target: "detail", id: focused.id });
+      // Remember which item is open, so "Back to decision" can return to it.
+      act.focusCard(focused.id, { target: "detail", id: focused.id });
+      return act.setDetailOpen(true);
     }
     const decisions = {
       approve: "approve",

@@ -191,6 +191,11 @@ export class TeamDrive implements CrowdDrive {
     return out;
   }
 
+  /** The helper you talk to glances toward you (E in Walk around). */
+  greet(seatId: string): void {
+    this.agents.find((a) => a.id === seatId)?.greetToward([this.avatar.x, this.avatar.z]);
+  }
+
   /** Where helper `i` stands now, for its click area. */
   helper(i: number): Agent | undefined {
     return this.agents[i];

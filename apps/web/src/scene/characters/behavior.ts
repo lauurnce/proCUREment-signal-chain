@@ -1,7 +1,12 @@
-import type { LayoutFile, QueueItem, Seat, Track, Workflow } from "@hq/shared";
+import type { LayoutFile, QueueItem, Seat, Workflow } from "@hq/shared";
+import { PLAYER_SEAT, waitingItem, waitingLine } from "../../state/waiting";
 import { seededRandom } from "./appearance";
 import type { Activity, PoseInput } from "./motion";
 import { ease, WALK } from "./motion";
+
+/** The enter easing (a quick start and a soft stop), for the glance. */
+const easeEnter = (t: number) => 1 - (1 - t) ** 3;
+
 import type { FloorPoint, NavGrid } from "./navGrid";
 
 /**
@@ -87,22 +92,14 @@ export function spotIn(
 }
 
 /** The goal for a seat's live status. */
-/** The player's seat: "waiting on you" means waiting on this seat's decision. */
-export const PLAYER_SEAT = "mgr-01";
-
-const DECIDER: Record<Track, string> = {
-  MGR: "the Sr. Manager",
-  LEAD: "a Lead",
-  CM: "a CM",
-  OPS: "an Ops Buyer",
-};
+export { PLAYER_SEAT } from "../../state/waiting";
 
 /** What a waiting helper waits on, from the open Needs you items. */
 export type Wait = {
   /** True when the Sr. Manager decides (or no item says otherwise). */
   onYou: boolean;
-  /** "a CM" when someone else decides. Never a seat (D-046). */
-  decider: string | null;
+  /** What it waits on when someone else decides, like "Waiting for a CM decision" (D-046). */
+  line: string | null;
   /** When the item came in, to find the helper that has waited longest. */
   since: string | null;
 };
@@ -115,13 +112,11 @@ export function waitsFor(seats: Seat[], queue: QueueItem[]): Map<string, Wait> {
   const out = new Map<string, Wait>();
   for (const seat of seats) {
     if (seat.status !== "waiting-on-you") continue;
-    const open = queue.filter((q) => q.status === "needs-you");
-    const item = open.find((q) => q.from === seat.id) ?? open.find((q) => q.approver === seat.id);
+    const item = waitingItem(seat.id, queue);
     const onYou = !item || item.approver === PLAYER_SEAT;
-    const track = item ? seats.find((s) => s.id === item.approver)?.track : undefined;
     out.set(seat.id, {
       onYou,
-      decider: onYou ? null : track ? DECIDER[track] : "a teammate",
+      line: onYou ? null : waitingLine(seats, seat.id, item),
       since: item?.created ?? null,
     });
   }
@@ -182,6 +177,13 @@ export type Motion = "seated" | "rising" | "walking" | "turning" | "sitting" | "
 
 const TURN_FIRST = 0.35;
 
+/**
+ * When you talk to a helper (E), it glances toward you: at most this far (radians, so a seated
+ * helper's legs stay under the desk), in 220 ms with the enter easing, held a few seconds, then
+ * back at the normal turn rate (the council's signature moment, 30 Sep 2026).
+ */
+const GREET = { maxTurn: 1, seconds: 0.22, hold: 4 } as const;
+
 /** The shortest signed turn from heading a to heading b, in radians. */
 export function turnBetween(a: number, b: number): number {
   let d = (b - a) % (Math.PI * 2);
@@ -230,6 +232,8 @@ export class Agent {
   private readonly crowd: ZoneCrowd;
   /** The zone this helper counts itself in, while away on a visit. */
   private holding: string | null = null;
+  /** A glance toward you after a talk: where from, where to, and the time since it began. */
+  private greet: { from: number; to: number; t: number } | null = null;
 
   constructor(
     id: string,
@@ -280,9 +284,43 @@ export class Agent {
     if (!samePlace(target, this.headed)) this.travel(target);
   }
 
+  /** Glances toward `point` (you), when it is sitting or standing still. */
+  greetToward(point: FloorPoint): void {
+    if (this.motion !== "seated" && this.motion !== "standing") return;
+    const rest = this.restHeading();
+    const turn = turnBetween(rest, headingTo([this.x, this.z], point));
+    const to = rest + Math.max(-GREET.maxTurn, Math.min(GREET.maxTurn, turn));
+    // Reduced motion: the glance is one cut.
+    if (this.still) this.heading = to;
+    this.greet = { from: this.heading, to, t: 0 };
+  }
+
+  /** The way it faces when it is not glancing: its desk, or the spot it stands at. */
+  private restHeading(): number {
+    return this.headed.kind === "desk" ? this.seat.heading : this.headed.face;
+  }
+
+  private stepGreet(dt: number) {
+    const g = this.greet;
+    if (!g) return;
+    // Any move ends the glance, and the walk takes over the heading.
+    if (this.motion !== "seated" && this.motion !== "standing") {
+      this.greet = null;
+      return;
+    }
+    g.t += dt;
+    if (g.t < GREET.seconds + GREET.hold) {
+      const k = this.still ? 1 : easeEnter(Math.min(1, g.t / GREET.seconds));
+      this.heading = g.from + turnBetween(g.from, g.to) * k;
+      return;
+    }
+    if (this.turnToward(this.restHeading(), dt)) this.greet = null;
+  }
+
   /** Moves the helper by `dt` seconds. */
   step(dt: number): void {
     if (!this.visible) return;
+    this.stepGreet(dt);
     switch (this.motion) {
       case "rising":
         this.stand = Math.min(1, this.stand + dt / WALK.standSeconds);

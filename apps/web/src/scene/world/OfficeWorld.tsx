@@ -25,7 +25,8 @@ const GLOW = {
   seam: { day: 0, night: 0.25 },
   capiz: { day: 0.2, night: 1.4 },
   dash: { day: 0.2, night: 1.0 },
-  rim: { day: 0, night: 0.5 }, // a faint mid-blue edge, so the slab reads on the navy backdrop
+  // A faint lighter edge, so the slab reads on the navy backdrop (Lawrence's choice, 30 Sep 2026).
+  rim: { day: 0, night: 0.9 },
 } as const;
 const GLASS_OPACITY = { day: 0.35, night: 0.2 } as const;
 /** Warm window light on the floor at night: #FFE2A8 at 12 percent. */
@@ -92,7 +93,7 @@ export function OfficeWorld({ layout, mix }: { layout: LayoutFile; mix: NightMix
       glass,
       rim: new MeshStandardMaterial({
         color: world.slabEdge,
-        emissive: world.bridgeSeam,
+        emissive: world.slabEdgeNight,
         emissiveIntensity: 0,
         roughness: 0.85,
         metalness: 0,

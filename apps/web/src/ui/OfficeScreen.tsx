@@ -60,14 +60,19 @@ export function OfficeScreen() {
   // Walk around (P45). A narrow screen swaps back to the panel to show it.
   useEffect(() => {
     if (!link) return;
-    const open = (seatId: string) => {
-      showHelper(seatId);
-      if (!wide) setOfficeShown(false);
+    const open = (seatId: string, talk: boolean) => {
+      // A narrow screen hides the office to show the panel, so walking stops there and focus
+      // moves to the opened row (keys must never steer an avatar you cannot see).
+      if (!wide) {
+        link.exitWalkMode();
+        setOfficeShown(false);
+      }
+      showHelper(seatId, { focus: !wide, talk });
     };
     const stopSelect = link.onSeatSelected((event) => {
-      if (event.source === "click" && event.seatId) open(event.seatId);
+      if (event.source === "click" && event.seatId) open(event.seatId, false);
     });
-    const stopTalk = link.onTalk(open);
+    const stopTalk = link.onTalk((seatId) => open(seatId, true));
     return () => {
       stopSelect();
       stopTalk();

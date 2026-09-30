@@ -1,9 +1,9 @@
 ---
 seat: cm-02
 status: waiting-on-you
-workingOn: "Price change of 5 percent or more on PO-452114 needs a CM decision"
-currentWorkflow: ops-po-amendments
-currentStep: decide
+workingOn: "Price change from Ops on PO-452114 (6.5 percent), ready for the CM's decision"
+currentWorkflow: null
+currentStep: null
 updated: 2026-09-25T09:30:00+08:00
 ---
 # CM 02 · Category Manager (placeholder)

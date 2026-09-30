@@ -50,8 +50,8 @@ export function DecisionCard({
       tabIndex={focusId ? 0 : undefined}
       aria-label={item.title}
       // One signal for the focused card: a 2 px accent border on white (council, 29 Sep 2026).
-      // Keyboard focus adds a navy outline outside it.
-      className="overflow-hidden rounded-card border-2 border-accent bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy"
+      // Keyboard focus turns the same border navy, so there is only one ring (council, 30 Sep 2026).
+      className="overflow-hidden rounded-card border-2 border-accent bg-white focus-visible:border-navy focus-visible:outline-none"
     >
       <div className="flex flex-col gap-3 p-5">
         <div className="flex flex-wrap items-center gap-2">

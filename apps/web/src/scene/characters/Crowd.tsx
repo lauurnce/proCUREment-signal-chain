@@ -43,7 +43,7 @@ type Props = {
 
 const ROUGHNESS: Record<Finish, number> = { matte: 0.85, eye: 0.6, lens: 0.4 };
 /** At night the helpers get a faint moonlight glow, so dark hair and navy tops still read. */
-const NIGHT_LIFT = 0.12;
+const NIGHT_LIFT = 0.22; // 0.12 was not enough: helpers faded into the floor (council, 30 Sep 2026)
 
 const crowdMaterials = new Map<string, MeshStandardMaterial>();
 

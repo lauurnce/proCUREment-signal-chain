@@ -20,6 +20,11 @@ export const isWalking = () => useWalk.getState().active;
 export const enterWalkMode = () => useWalk.setState({ active: true });
 export const exitWalkMode = () => useWalk.setState({ active: false });
 export const toggleWalkMode = () => useWalk.setState((s) => ({ active: !s.active }));
+/** Calls `listener` each time Walk around starts or stops. Returns a stop function. */
+export const onWalkChange = (listener: (walking: boolean) => void) =>
+  useWalk.subscribe((s, was) => {
+    if (s.active !== was.active) listener(s.active);
+  });
 
 /** A helper is close enough to talk to within this many meters (isometric-office skill). */
 export const TALK_REACH = 1.5;

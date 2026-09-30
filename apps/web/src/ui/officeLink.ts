@@ -1,4 +1,5 @@
 import type { OfficeLink } from "@hq/shared";
+import { useEffect, useState } from "react";
 import { create } from "zustand";
 
 /**
@@ -18,6 +19,17 @@ export function connectOffice(link: OfficeLink): () => void {
 
 /** The connected office, or null before the merge. For React components. */
 export const useOfficeLink = () => useLink((s) => s.link);
+
+/** True while Walk around mode is on in the connected office. For React components. */
+export function useWalking(): boolean {
+  const link = useOfficeLink();
+  const [walking, setWalking] = useState(false);
+  useEffect(() => {
+    if (!link) return;
+    return link.onWalkChange(setWalking);
+  }, [link]);
+  return walking;
+}
 
 /** The connected office, or null. For event handlers. */
 export const officeLink = () => useLink.getState().link;

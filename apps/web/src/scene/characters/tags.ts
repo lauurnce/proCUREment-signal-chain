@@ -39,7 +39,7 @@ export function tagsFor(
         track: s.track,
         name: s.helper.name ?? `${s.displayName} helper`,
         // A helper waiting on someone else says so, as a kind of decision (D-046).
-        role: wait?.decider ? `Waiting for ${wait.decider} decision` : track[s.track].label,
+        role: wait?.line ?? track[s.track].label,
         status: s.status,
         waitsOnYou: s.status === "waiting-on-you" && (wait?.onYou ?? true),
       };

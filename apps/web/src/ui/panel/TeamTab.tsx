@@ -2,21 +2,15 @@ import type { QueueItem, Seat, Workflow } from "@hq/shared";
 import { motion as m } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { useStore } from "../../state/store";
+import { waitingItem, waitingLine } from "../../state/waiting";
 import { bezier, typeStyle } from "../../theme/style";
 import { status as statusTokens, motion as tokens } from "../../theme/tokens";
 import { useOfficeLink } from "../officeLink";
 import { StatusDot } from "../StatusDot";
 import { TrackBadge } from "../TrackBadge";
+import { reference } from "./itemView";
 import { usePanelStore } from "./panelStore";
-import { helperName, PLAYER_SEAT } from "./queue";
-
-// Who decides, by track, without naming a seat (a seat maps to a real person).
-const DECISION_BY: Record<string, string> = {
-  CM: "a CM decision",
-  OPS: "an Ops decision",
-  LEAD: "a Lead decision",
-  MGR: "your decision",
-};
+import { helperName } from "./queue";
 
 type Group = { label: string; seats: Seat[]; pods?: { label: string; seats: Seat[] }[] };
 
@@ -161,27 +155,35 @@ export function TeamTab({
   const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set());
   const link = useOfficeLink();
   const asked = usePanelStore((s) => s.helper);
+  const back = usePanelStore((s) => (s.detailOpen ? s.focusedId : null));
   const list = useRef<HTMLDivElement>(null);
+  // The helper selected in the office: one row shows it (aria-current and an accent bar).
+  const [selected, setSelected] = useState<string | null>(null);
+  useEffect(() => {
+    if (!link) return;
+    setSelected(link.selectedSeat());
+    return link.onSeatSelected((event) => setSelected(event.seatId));
+  }, [link]);
   // A helper clicked in the office (or talked to in Walk around) opens here, in view. Focus
-  // stays where it is, so Walk around keeps its keys.
+  // stays where it is, so Walk around keeps its keys, except on a narrow screen.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new request is the only trigger.
   useEffect(() => {
     if (!asked) return;
     setOpen((was) => new Set(was).add(asked.seatId));
+    usePanelStore.getState().say(`${helperName(seats, asked.seatId)} opened in Team.`);
     requestAnimationFrame(() => {
-      list.current
-        ?.querySelector(`[data-seat="${asked.seatId}"]`)
-        ?.scrollIntoView({ block: "nearest" });
+      const row = list.current?.querySelector<HTMLElement>(`[data-seat="${asked.seatId}"]`);
+      row?.scrollIntoView({ block: "nearest" });
+      if (asked.focus) row?.querySelector("button")?.focus({ preventScroll: true });
     });
   }, [asked]);
   const statusWord = (seat: Seat) => {
+    // Breaks are scenery in the office only: a row next to a seat label must never read like
+    // a log of a person's break (Lawrence's choice, council 30 Sep 2026).
+    if (seat.status === "on-break") return "Between tasks";
     if (seat.status !== "waiting-on-you") return statusTokens[seat.status].label;
-    // The open item this helper sent, or one that waits on this seat's own decision.
-    const waiting =
-      queue.find((q) => q.from === seat.id && q.status === "needs-you") ??
-      queue.find((q) => q.approver === seat.id && q.status === "needs-you");
-    if (!waiting || waiting.approver === PLAYER_SEAT) return "Waiting on you";
-    const track = seats.find((s) => s.id === waiting.approver)?.track;
-    return `Waiting for ${DECISION_BY[track ?? ""] ?? "a team decision"}`;
+    // One wording with the name tags in the office (state/waiting.ts).
+    return waitingLine(seats, seat.id, waitingItem(seat.id, queue));
   };
   const stepLine = (seat: Seat) => {
     const w = workflows.find((x) => x.id === seat.currentWorkflow);
@@ -196,15 +198,25 @@ export function TeamTab({
       else next.add(id);
       return next;
     });
-    // Opening a row also shows that helper in the office (the office link, P45).
+    // Opening a row also shows that helper in the office (the office link, P45). Closing the
+    // selected row clears the selection.
     if (opening) link?.selectSeat(id, "api");
+    else if (id === selected) link?.selectSeat(null, "api");
   };
 
   const row = (seat: Seat) => {
     const expanded = open.has(seat.id);
     const detailId = `team-detail-${seat.id}`;
     return (
-      <li key={seat.id} data-seat={seat.id} className="border-t border-hairline first:border-t-0">
+      // scroll-mt leaves room for the sticky group header when a row scrolls into view.
+      <li
+        key={seat.id}
+        data-seat={seat.id}
+        aria-current={seat.id === selected ? "true" : undefined}
+        className={`scroll-mt-10 border-t border-hairline first:border-t-0 ${
+          seat.id === selected ? "-ml-2 border-l-2 border-l-accent pl-1.5" : ""
+        }`}
+      >
         <button
           type="button"
           aria-expanded={expanded}
@@ -219,7 +231,7 @@ export function TeamTab({
             <span className="flex items-center justify-between gap-2">
               <span style={typeStyle("tagName")}>{helperName(seats, seat.id)}</span>
               <span className="flex shrink-0 items-center gap-1.5">
-                <StatusDot id={seat.status} />
+                {seat.status !== "on-break" && <StatusDot id={seat.status} />}
                 <span style={typeStyle("small", "ink")}>{statusWord(seat)}</span>
                 <span
                   aria-hidden="true"
@@ -230,7 +242,7 @@ export function TeamTab({
                 </span>
               </span>
             </span>
-            {seat.workingOn && (
+            {seat.workingOn && seat.status !== "on-break" && (
               <span className="truncate" style={typeStyle("small", "ink")} title={seat.workingOn}>
                 {seat.workingOn}
               </span>
@@ -253,9 +265,30 @@ export function TeamTab({
 
   return (
     <div ref={list} className="flex flex-col gap-4 px-4 py-4">
+      {back && (
+        // The item that was open before a helper was opened from the office.
+        <button
+          type="button"
+          data-testid="back-to-decision"
+          onClick={() => {
+            const act = usePanelStore.getState();
+            act.setTab("needs");
+            act.requestFocus({ target: "detail", id: back });
+          }}
+          className="self-start rounded-button border border-accent bg-white px-3 py-1.5 hover:bg-panel focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          style={{ ...typeStyle("small", "accent"), fontWeight: 700 }}
+        >
+          Back to decision
+          {(() => {
+            const item = queue.find((q) => q.id === back);
+            const ref = item ? reference(item) : null;
+            return ref ? ` on ${ref}` : "";
+          })()}
+        </button>
+      )}
       <p className="m-0" style={typeStyle("small")}>
-        Each seat has an AI helper. This page shows the helpers' work, not the people. Open a row to
-        see the steps.
+        Each desk has an AI helper. Here you see the helpers' work, never the people. Open a row to
+        see its steps and find it in the office.
       </p>
       {groups(seats).map((g) => (
         <section key={g.label} className="flex flex-col">

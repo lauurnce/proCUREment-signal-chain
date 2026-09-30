@@ -16,10 +16,16 @@ export type OfficeLink = {
    * selection. Returns false for a seat that is not drawn in the office.
    */
   selectSeat: (seatId: string | null, source?: SeatSelectSource) => boolean;
+  /** The helper selected in the office now, or null. */
+  selectedSeat: () => string | null;
   /** Calls `listener` on every selection change. Returns a function that stops it. */
   onSeatSelected: (listener: (event: SeatSelected) => void) => () => void;
   /** Starts Walk around mode (the panel's Walk around pill). */
   enterWalkMode: () => void;
+  /** Stops Walk around mode and goes back to the Overview (the pill, or Esc in the panel). */
+  exitWalkMode: () => void;
+  /** Calls `listener` with true or false whenever Walk around starts or stops. Returns a stop function. */
+  onWalkChange: (listener: (walking: boolean) => void) => () => void;
   /** Calls `listener` when you talk to a helper in Walk around mode (E). Returns a stop function. */
   onTalk: (listener: (seatId: string) => void) => () => void;
 };

@@ -23,7 +23,9 @@ export type Preset = {
 };
 
 export const PRESETS: Preset[] = [
-  { id: "overview", key: "1", name: "Overview", label: "Whole office", zones: [], height: 2.8 },
+  // Lower than the wings: at the Overview only the walls reach up, and a tall box left empty
+  // bands above and below the office (council, 30 Sep 2026).
+  { id: "overview", key: "1", name: "Overview", label: "Whole office", zones: [], height: 2.2 },
   { id: "cm", key: "2", name: "CM Wing", label: "CM Wing", zones: ["cm-wing"], height: 2.4 },
   { id: "ops", key: "3", name: "Ops Wing", label: "Ops Wing", zones: ["ops-wing"], height: 2.8 },
   // Her office together with the bridge, so her view to the bridge reads.
@@ -223,25 +225,27 @@ export function fitRects(
   return centered(best);
 }
 
-/** The ground the landmarks cover, which can reach past the floor (the loading dock). */
-function landmarkArea(layout: LayoutFile): Rect | null {
-  const boxes = Object.values(landmarkBoxes(layout.landmarks)).flat();
-  if (boxes.length === 0) return null;
-  const reach = (b: (typeof boxes)[number]) => Math.hypot(b.size[0], b.size[2]) / 2;
-  const minX = Math.min(...boxes.map((b) => b.pos[0] - reach(b)));
-  const maxX = Math.max(...boxes.map((b) => b.pos[0] + reach(b)));
-  const minZ = Math.min(...boxes.map((b) => b.pos[2] - reach(b)));
-  const maxZ = Math.max(...boxes.map((b) => b.pos[2] + reach(b)));
-  return [minX, minZ, maxX - minX, maxZ - minZ];
+/**
+ * The landmark pieces that reach past the floor (the loading dock), each as its own rect.
+ * One rect around all of them had empty corners far outside the office, which framed the
+ * Overview too small (council, 30 Sep 2026).
+ */
+function beyondFloor(layout: LayoutFile): Rect[] {
+  const { width, depth } = layout.floor;
+  return Object.values(landmarkBoxes(layout.landmarks))
+    .flat()
+    .map((b): Rect => {
+      // Half the longer side: landmarks turn in 90 degree steps, so this covers any turn.
+      const r = Math.max(b.size[0], b.size[2]) / 2;
+      return [b.pos[0] - r, b.pos[2] - r, r * 2, r * 2];
+    })
+    .filter(([x, z, w, d]) => x < 0 || z < 0 || x + w > width || z + d > depth);
 }
 
 /** The rects a preset fits: its zones, or the whole floor plus anything built past its edge. */
 export function presetRects(preset: Preset, layout: LayoutFile): Rect[] {
   const floor: Rect = [0, 0, layout.floor.width, layout.floor.depth];
-  if (preset.zones.length === 0) {
-    const area = landmarkArea(layout);
-    return area ? [floor, area] : [floor];
-  }
+  if (preset.zones.length === 0) return [floor, ...beyondFloor(layout)];
   const rects = layout.zones.filter((zone) => preset.zones.includes(zone.id)).map((z) => z.rect);
   return rects.length > 0 ? rects : [floor];
 }

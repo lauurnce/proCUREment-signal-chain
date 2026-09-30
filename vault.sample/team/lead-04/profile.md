@@ -1,7 +1,7 @@
 ---
 seat: lead-04
 status: on-break
-workingOn: "Coffee at Merienda Corner"
+workingOn: "Recharging at Merienda Corner"
 currentWorkflow: null
 currentStep: null
 updated: 2026-09-25T09:30:00+08:00

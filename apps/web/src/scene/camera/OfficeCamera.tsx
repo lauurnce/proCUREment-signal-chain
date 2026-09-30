@@ -34,10 +34,36 @@ const CHEST = 0.8;
 /** How quickly the follow camera catches up, per second. Higher is tighter. */
 const FOLLOW = 5;
 
-const walkFraming = (overviewZoom: number): Framing => ({
-  target: [walker.x - CHEST, 0, walker.z - CHEST],
-  zoom: Math.min(MAX_ZOOM, overviewZoom * WALK_ZOOM),
-});
+/** Screen right on the floor, for a true isometric camera. */
+const SCREEN_RIGHT = [Math.SQRT1_2, -Math.SQRT1_2] as const;
+
+/**
+ * Where the camera aims to keep you in the middle of the free space, left of the docked
+ * panel: the aim moves right by half the panel's width (council, 30 Sep 2026).
+ */
+function walkTarget(zoom: number, rightInset: number): [number, number, number] {
+  const shift = rightInset / 2 / zoom;
+  return [
+    walker.x - CHEST + SCREEN_RIGHT[0] * shift,
+    0,
+    walker.z - CHEST + SCREEN_RIGHT[1] * shift,
+  ];
+}
+
+const walkZoom = (overviewZoom: number) => Math.min(MAX_ZOOM, overviewZoom * WALK_ZOOM);
+
+/**
+ * How long a move takes: 360 ms for a short hop, up to 800 ms for a long one, by how far the
+ * picture travels on screen (council, 30 Sep 2026).
+ */
+function moveMs(from: Framing, to: Framing): number {
+  const dx = to.target[0] - from.target[0];
+  const dz = to.target[2] - from.target[2];
+  const pixels = Math.hypot(dx, dz) * Math.max(from.zoom, to.zoom);
+  const zoomChange = Math.abs(Math.log(to.zoom / from.zoom)) * 600;
+  const reach = Math.min(1, (pixels + zoomChange) / 900);
+  return motion.duration.slow + (motion.duration.camera - motion.duration.slow) * reach;
+}
 const easeMove = easingFromCss(motion.easing.move);
 /** For a move that takes over from another one: it starts fast, so there is no stop. */
 const easeTakeOver = easingFromCss(motion.easing.enter);
@@ -49,7 +75,11 @@ type Tween = {
   from: Framing;
   to: Framing;
   elapsed: number;
+  /** How long the whole move takes, in ms. */
+  ms: number;
   ease: (t: number) => number;
+  /** A walk entry: the aim follows the avatar while the move runs. */
+  follow?: boolean;
 };
 
 /**
@@ -200,7 +230,9 @@ export function OfficeCamera({
     const cc = controls.current;
     if (!cc || !walking || !framed.current) return;
     userMoved.current = true;
-    moveTo(cc, walkFraming(camera.userData.overviewZoom ?? cc.minZoom), null);
+    const zoom = walkZoom(camera.userData.overviewZoom ?? cc.minZoom);
+    moveTo(cc, { target: walkTarget(zoom, dockedPanelInset(sizeRef.current.width)), zoom }, null);
+    if (tween.current) tween.current.follow = true;
   }, [walking]);
 
   function jump(cc: CameraControlsImpl, framing: Framing) {
@@ -228,11 +260,13 @@ export function OfficeCamera({
     }
     const target = new Vector3();
     cc.getTarget(target);
+    const from: Framing = { target: [target.x, target.y, target.z], zoom: camera.zoom };
     tween.current = {
       view: toView,
-      from: { target: [target.x, target.y, target.z], zoom: camera.zoom },
+      from,
       to,
       elapsed: 0,
+      ms: moveMs(from, to),
       ease: tween.current ? easeTakeOver : easeMove,
     };
   }
@@ -256,17 +290,17 @@ export function OfficeCamera({
       // Follow the avatar with a soft lag, the same on any frame rate.
       const k = 1 - Math.exp(-FOLLOW * Math.min(delta, 0.05));
       const t = cc.getTarget(follow.current);
-      cc.setTarget(
-        t.x + (walker.x - CHEST - t.x) * k,
-        0,
-        t.z + (walker.z - CHEST - t.z) * k,
-        false,
-      );
+      const [ax, , az] = walkTarget(camera.zoom, dockedPanelInset(sizeRef.current.width));
+      cc.setTarget(t.x + (ax - t.x) * k, 0, t.z + (az - t.z) * k, false);
       return;
     }
     // Cap one frame at 1/20 s, so a stall (like a tab switch) does not end the move in one jump.
     move.elapsed += Math.min(delta, 0.05) * 1000;
-    const t = Math.min(1, move.elapsed / motion.duration.camera);
+    // A walk entry keeps aiming at you, so it never lands on a spot you already left.
+    if (move.follow && isWalking()) {
+      move.to.target = walkTarget(move.to.zoom, dockedPanelInset(sizeRef.current.width));
+    }
+    const t = Math.min(1, move.elapsed / move.ms);
     const { target, zoom } = mixFraming(move.from, move.to, move.ease(t));
     cc.setTarget(...target, false);
     cc.zoomTo(zoom, false);

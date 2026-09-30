@@ -248,6 +248,19 @@ describe("a helper's day", () => {
     expect(a.walkBlend).toBe(0);
   });
 
+  it("glances toward you when you talk, within a small turn, then looks back", () => {
+    const a = agentFor("cm-02");
+    a.setGoal({ kind: "desk", activity: "wait" }, true);
+    const rest = a.heading;
+    // You stand right behind the chair: the glance turns at most 1 radian.
+    a.greetToward([a.x - Math.sin(rest) * 1.2, a.z - Math.cos(rest) * 1.2]);
+    run(a, 0.25);
+    expect(Math.abs(turnBetween(rest, a.heading))).toBeCloseTo(1, 2);
+    // A few seconds later it faces its desk again.
+    run(a, 6);
+    expect(a.heading).toBeCloseTo(rest, 5);
+  });
+
   it("turns the short way round", () => {
     expect(turnBetween(3, -3)).toBeCloseTo(2 * Math.PI - 6, 5);
     expect(turnBetween(0.5, 1)).toBeCloseTo(0.5, 5);
@@ -272,8 +285,8 @@ describe("who a waiting helper waits on", () => {
   const waits = waitsFor(seats, queue);
 
   it("waits on you when the Sr. Manager decides, else names the kind of decider", () => {
-    expect(waits.get("ops-03")).toMatchObject({ onYou: true, decider: null });
-    expect(waits.get("cm-02")).toMatchObject({ onYou: false, decider: "a CM" });
+    expect(waits.get("ops-03")).toMatchObject({ onYou: true, line: null });
+    expect(waits.get("cm-02")).toMatchObject({ onYou: false, line: "Ready for its CM" });
   });
 
   it("only the helper that has waited longest waves", () => {

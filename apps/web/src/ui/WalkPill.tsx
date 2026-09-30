@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useOverlayRect } from "../state/overlays";
 import { bezier, typeStyle } from "../theme/style";
 import { motion } from "../theme/tokens";
-import { useOfficeLink } from "./officeLink";
+import { useOfficeLink, useWalking } from "./officeLink";
 
 /**
  * Bottom center of the office. Starts Walk around mode through the office link once the office
@@ -12,6 +12,7 @@ import { useOfficeLink } from "./officeLink";
  */
 export function WalkPill() {
   const link = useOfficeLink();
+  const walking = useWalking();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
@@ -73,14 +74,31 @@ export function WalkPill() {
         ref={button}
         type="button"
         data-testid="walk-pill"
-        aria-expanded={open}
+        aria-expanded={link ? undefined : open}
         aria-controls={open ? "walk-note" : undefined}
-        onClick={() => (link ? link.enterWalkMode() : setOpen((v) => !v))}
-        title="Walk the office with W, A, S, D. Press Esc to stop."
-        className="rounded-pill border border-hairline bg-white px-4 py-2 shadow-float transition-[transform,border-color] duration-[140ms] ease-enter hover:border-accent active:scale-[0.97] active:duration-[80ms] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-        style={{ ...typeStyle("small", "navy"), fontWeight: 700 }}
+        // While walking, the pill shows that the mode is on and becomes the way out
+        // (accent selected style, D-057; council 30 Sep 2026).
+        aria-pressed={link ? walking : undefined}
+        onClick={() => {
+          if (!link) return setOpen((v) => !v);
+          if (walking) link.exitWalkMode();
+          else link.enterWalkMode();
+        }}
+        title={walking ? "Stop walking. Esc also stops." : "Walk the office. Press Esc to stop."}
+        className={`flex items-center gap-2 rounded-pill border px-4 py-2 shadow-float transition-[transform,border-color,background-color] duration-[140ms] ease-enter active:scale-[0.97] active:duration-[80ms] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+          walking ? "border-accent bg-accent" : "border-hairline bg-white hover:border-accent"
+        }`}
+        style={{ ...typeStyle("small", walking ? "white" : "navy"), fontWeight: 700 }}
       >
-        Walk around
+        {walking ? "Stop walking" : "Walk around"}
+        {walking && (
+          <kbd
+            className="rounded-chip border border-white/60 px-1.5 font-mono"
+            style={typeStyle("label", "white")}
+          >
+            Esc
+          </kbd>
+        )}
       </button>
     </div>
   );

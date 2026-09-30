@@ -142,7 +142,8 @@ for (const target of pages) {
         // shot does not depend on how fast this machine draws frames.
         await page.emulateMedia({ reducedMotion: "reduce" });
         await page.evaluate((id) => window.__HQ_SEATS__?.selectSeat(id), target.select);
-        await page.waitForTimeout(800);
+        // Software rendering is slow, so give the tags time to follow the camera cut.
+        await page.waitForTimeout(1500);
       }
       if (target.trip) {
         await page.emulateMedia({ reducedMotion: "reduce" });

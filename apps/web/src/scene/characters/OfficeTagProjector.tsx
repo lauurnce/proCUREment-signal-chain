@@ -3,6 +3,7 @@ import { useMemo, useRef } from "react";
 import { Vector3 } from "three";
 import { overlayRects } from "../../state/overlays";
 import { labelPlacement } from "../labels/fade";
+import { OFF_SCREEN } from "../labels/ZoneLabelProjector";
 import type { TagAnchor, TagRegistry } from "../tags/TagProjector";
 import { hover } from "./selection";
 import { hint } from "./TalkHintLayer";
@@ -116,7 +117,7 @@ export function OfficeTagProjector({
       const x = Math.round(spot.x);
       const y = Math.round(spot.y);
       const fits = labelPlacement({ x, y, width: b.w, height: b.h }, size, overlays);
-      b.el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
+      b.el.style.transform = fits ? `translate(${x}px, ${y}px) translate(-50%, -50%)` : OFF_SCREEN;
       setShown(b.el, fits);
     }
   });

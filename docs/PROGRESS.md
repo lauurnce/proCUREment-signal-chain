@@ -1,6 +1,6 @@
 # Progress
 
-Now: P45 done in the main checkout. Phases 4 and 5 are merged into `main` and connected. Next: `/design-council integrated HQ, office and panel together`, then `/checkpoint Phases 4 and 5`.
+Now: P45 council fixes applied on `main`, `/checkpoint Phases 4 and 5` next. Then Phase 6 (live data and Demo Day).
 
 ## Phases
 - [x] 0. Kickoff and alignment (main checkout)
@@ -14,15 +14,14 @@ Now: P45 done in the main checkout. Phases 4 and 5 are merged into `main` and co
 - [ ] 8. Polish and v0.1.0 (`p8-polish`)
 
 ## Open questions
-- Night: the navy slab rim almost disappears on the navy backdrop. Kept quiet for now, or add a faint lighter edge at night?
 - Which Outlook account will we test with? (personal Outlook.com recommended)
 - Confirm the authority rule thresholds (5 percent, 2K, and the currency) before they drive real routing.
 - Which Leads cover which groups? Placeholder for now.
 - Confirm the pnpm release-age exceptions for new package versions (D-024).
 - Frame rate in Walk around mode on the M4 Pro: the cloud session measured only software rendering (see P4.3). Open `/?walk=1` with r3f-perf to check it on real hardware.
-- Standing helpers are about 1.9 m tall next to 0.74 m desks. Keep, or shorten the legs? (for the P4.4 council)
 
 ## Log
+- 30 Sep 2026, P45 council (`docs/design/reviews/2026-09-30-integrated-hq.md`, Clarity 4, Brand 4, Charm 4, Craft 3, Smooth 4, Realism 3). Applied the 5 Musts and every Should, plus the signature glance: "Stop walking" and Esc always end walking, nothing covers anything, a tighter Overview (89 percent of the free width), helpers and a lighter slab edge at night, one waiting wording, breaks as scenery only, a "Back to decision" link, one selected Team row (D-099 to D-107). 194 unit tests and 24 smoke tests pass.
 - 30 Sep 2026, P45 (cloud session): merged p5-panel, then p4-team, into `main`. Four files had both sides added in the same spot, all kept (Lawrence's choice). A camera break from the merge fixed: a selected helper is framed left of the docked panel (D-098). Connected the halves: a Team row selects the helper in the office, a click on a helper or E in Walk around opens their card in the panel, the Walk around pill starts walking (D-097). Walk values moved into the motion tokens. 22 smoke tests pass.
 - 29 Sep 2026, P4.4: Design Council review (`docs/design/reviews/2026-09-29-characters-movement.md`, Clarity 3, Brand 4, Charm 4, Craft 3, Smooth 3, Realism 4). Applied the 5 Must fixes and all Should fixes: "Recharging" and "Paused" (a paused helper keeps its chair), chips at the Overview with names only for key tags, "You" and the Talk hint kept clear, an amber "!" only for waiting on you and a hollow "..." for other waits, one waving helper, about 1.65 m standing, poses that glide, a night glow, calmer trips (at most 3 at a zone), one Esc order, canvas focus and a screen reader line in Walk around, and shots that fail on a lost canvas (D-075 to D-079). 29 draw calls, 75k triangles at the Overview. 174 unit tests and 14 smoke tests pass.
 - 28 Sep 2026, P4.3 (cloud session): helpers come alive. A walk grid in 0.5 m cells built from the same boxes the office draws, with A* and path smoothing (D-070). Each helper has a small behavior machine fed by its live status and step (D-071): working helpers type, "waiting on you" raises a hand with an amber "!" bubble, a break walks to Merienda Corner, a meeting walks to the step's room or the Huddle Room, and a step in another zone (SAP Station, Endorsement Bridge, Mail Dock and others) means a trip there, a moment of work, and the walk back. Standing, walking with a gentle bob, turning before walking, and sitting down (D-072). Walk around mode: G or `?walk=1`, WASD, arrow keys or a click to move, the camera follows, a Talk hint under you within 1.5 m, E fires `onTalk` for the panel, Esc goes back to the Overview (D-073). Fixed blank name tags in Walk around at night (D-074). 29 draw calls at the Overview and 28 in Walk around, 73.3k triangles (was 70k). Frame rate in the cloud, software rendering only: Overview 3.4 fps (P4.2 was 2.8 on the same machine, so no loss), Walk around 4 to 12 fps. 233 unit tests (167 web), 13 smoke tests, 61 shots, all reviewed.

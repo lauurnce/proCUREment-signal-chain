@@ -15,6 +15,9 @@ export type ZoneLabel = {
   always: boolean;
 };
 
+/** Where a hidden label or tag waits, far outside the screen. */
+export const OFF_SCREEN = "translate(-10000px, -10000px)";
+
 /** Labels sit just above the floor, so they stay under the zone they name. */
 const LABEL_Y = 0.05;
 
@@ -51,7 +54,12 @@ export function ZoneLabelProjector({
           overlays,
         );
       if (!shown) {
-        if (el.style.visibility !== "hidden") el.style.visibility = "hidden";
+        // Off screen too: a hidden label must never paint at its start spot, the top left
+        // corner (seen under the stats card, council 30 Sep 2026).
+        if (el.style.visibility !== "hidden") {
+          el.style.visibility = "hidden";
+          el.style.transform = OFF_SCREEN;
+        }
         continue;
       }
       el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;

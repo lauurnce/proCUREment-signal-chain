@@ -12,6 +12,8 @@ export const hint = {
   you: null as HTMLElement | null,
   talk: null as HTMLElement | null,
   talkText: null as HTMLElement | null,
+  /** The help line while walking, so name tags flow around it too. */
+  help: null as HTMLElement | null,
   /** Read aloud by screen readers when the helper in reach changes. */
   live: null as HTMLElement | null,
   /** Where "You" and the Talk hint sit on screen this frame, so name tags flow around them. */
@@ -73,6 +75,9 @@ export function TalkHintLayer() {
       />
       {active && (
         <p
+          ref={(el) => {
+            hint.help = el;
+          }}
           data-testid="walk-help"
           role="status"
           // Just above the Walk around pill, centered in the office area left of the docked
@@ -80,7 +85,7 @@ export function TalkHintLayer() {
           className="absolute bottom-[84px] left-1/2 m-0 -translate-x-1/2 whitespace-nowrap rounded-pill border border-hairline bg-white px-4 py-1.5 shadow-float min-[960px]:left-[calc((100%-clamp(440px,36vw,600px)-12px)/2)]"
           style={typeStyle("small", "ink")}
         >
-          Walk around: WASD, arrow keys or a click to move. E to talk. Esc to leave.
+          Move with W A S D, the arrow keys, or a click. Press E to talk. Press Esc to stop.
         </p>
       )}
     </div>

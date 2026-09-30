@@ -115,17 +115,21 @@ export function NeedsYouTab(p: Props) {
         </ul>
       )}
       {below > 0 && (
-        <button
-          type="button"
-          data-testid="more-below"
-          onClick={() =>
-            list.current?.lastElementChild?.scrollIntoView({ behavior: "smooth", block: "end" })
-          }
-          className="sticky bottom-2 self-center rounded-pill border border-hairline bg-white px-3 py-1 shadow-float focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          style={{ ...typeStyle("small", "navy"), fontWeight: 700 }}
-        >
-          {below} more below
-        </button>
+        // A fade at the bottom edge, with the hint inside it, so it never sits on a card's
+        // text (council, 30 Sep 2026).
+        <div className="pointer-events-none sticky bottom-0 -mt-12 flex h-12 items-end justify-center bg-gradient-to-b from-white/0 to-white pb-1">
+          <button
+            type="button"
+            data-testid="more-below"
+            onClick={() =>
+              list.current?.lastElementChild?.scrollIntoView({ behavior: "smooth", block: "end" })
+            }
+            className="pointer-events-auto rounded-pill px-3 py-0.5 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            style={{ ...typeStyle("small", "navy"), fontWeight: 700 }}
+          >
+            {below} more below
+          </button>
+        </div>
       )}
     </div>
   );

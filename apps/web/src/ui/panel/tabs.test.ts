@@ -62,9 +62,12 @@ describe("office link", () => {
     expect(officeLink()).toBeNull();
     const link: OfficeLink = {
       selectSeat: () => true,
+      selectedSeat: () => null,
       onSeatSelected: () => () => {},
       enterWalkMode: () => {},
+      exitWalkMode: () => {},
       onTalk: () => () => {},
+      onWalkChange: () => () => {},
     };
     const unplug = connectOffice(link);
     expect(officeLink()).toBe(link);

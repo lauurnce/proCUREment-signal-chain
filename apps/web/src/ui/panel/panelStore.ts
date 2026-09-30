@@ -34,7 +34,7 @@ type PanelState = {
   announce: string;
   focusRequest: FocusRequest | null;
   /** A helper to open in the Team tab (a click on them in the office, or E in Walk around). */
-  helper: { seatId: string; request: number } | null;
+  helper: { seatId: string; request: number; focus: boolean } | null;
 };
 
 type PanelActions = {
@@ -42,7 +42,7 @@ type PanelActions = {
   start: (initial?: { tab?: TabId; openFirst?: boolean; filter?: QueueFilter }) => void;
   setTab: (tab: TabId) => void;
   /** Opens the Team tab with this helper's row open and in view. */
-  showHelper: (seatId: string) => void;
+  showHelper: (seatId: string, options?: { focus?: boolean; talk?: boolean }) => void;
   /** The HUD button and the skip link: open Needs you and put focus on the card. */
   showNeedsYou: () => void;
   setFilter: (filter: QueueFilter) => void;
@@ -97,11 +97,17 @@ export const usePanelStore = create<PanelStore>()((set, get) => ({
     });
   },
   setTab: (tab) => set({ tab }),
-  showHelper: (seatId) =>
+  // An open item stays open, so "Back to decision" returns to it (council, 30 Sep 2026).
+  // After a talk (E), the instruction box is addressed to that helper.
+  showHelper: (seatId, options) =>
     set((s) => ({
       tab: "team",
-      detailOpen: false,
-      helper: { seatId, request: (s.helper?.request ?? 0) + 1 },
+      helper: {
+        seatId,
+        request: (s.helper?.request ?? 0) + 1,
+        focus: Boolean(options?.focus),
+      },
+      ...(options?.talk ? { audienceId: `seat:${seatId}` } : {}),
     })),
   showNeedsYou: () => set({ tab: "needs", detailOpen: false, focusRequest: { target: "card" } }),
   setFilter: (filter) => set({ filter }),

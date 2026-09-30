@@ -32,6 +32,13 @@ const YOU_HEIGHT = 2.0;
 /** The ring under your feet: 0.9 m across, so you find yourself in the crowd (council). */
 const YOU_RING = new RingGeometry(0.36, 0.45, 40);
 
+/** Stops Walk around and goes back to the Overview (Esc, the pill, or Esc in the panel). */
+export function leaveWalk() {
+  if (!isWalking()) return;
+  exitWalkMode();
+  useStore.getState().goToView("overview");
+}
+
 const helperName = (seat: Seat) => seat.helper.name ?? `${seat.displayName} helper`;
 
 /**
@@ -89,8 +96,7 @@ export function WalkControls({
       if (event.key === "Escape") {
         // One Esc, one step back: leaving Walk around does not also clear a selection.
         event.preventDefault();
-        exitWalkMode();
-        useStore.getState().goToView("overview");
+        leaveWalk();
         return;
       }
       if (event.code === "KeyE" && !event.repeat) {
@@ -143,6 +149,13 @@ export function WalkControls({
         h,
       });
     };
+    const help = walking ? hint.help : null;
+    if (help?.isConnected) {
+      // Centered on its left edge by a -50 percent shift, so offsetLeft is its center.
+      const w = help.offsetWidth;
+      const h = help.offsetHeight;
+      hint.boxes.push({ id: "walk-help", x: help.offsetLeft, y: help.offsetTop + h / 2, w, h });
+    }
     if (ring.current) {
       ring.current.visible = walking;
       ring.current.position.set(a.x, 0.014, a.z);

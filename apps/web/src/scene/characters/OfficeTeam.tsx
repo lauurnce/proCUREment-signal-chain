@@ -2,7 +2,6 @@ import type { Accessory, LayoutFile } from "@hq/shared";
 import { useEffect, useMemo, useRef } from "react";
 import { useStore } from "../../state/store";
 import { connectOffice } from "../../ui/officeLink";
-import { ALWAYS_LABELED } from "../labels/fade";
 import { labelPoint } from "../layout/boxes";
 import type { TagRegistry } from "../tags/TagProjector";
 import { Crowd } from "./Crowd";
@@ -10,11 +9,11 @@ import { navGridFor } from "./navGrid";
 import { OfficeTagProjector } from "./OfficeTagProjector";
 import { SeatPicker } from "./SeatPicker";
 import { SeatTestHook } from "./SeatTestHook";
-import { onSeatSelected, selectSeat, setSeatSpots } from "./selection";
+import { onSeatSelected, selectSeat, setSeatSpots, useSelection } from "./selection";
 import { TeamDrive } from "./teamDrive";
 import { useOfficeTeam } from "./useOfficeTeam";
-import { WalkControls } from "./WalkControls";
-import { enterWalkMode, onTalk } from "./walk";
+import { leaveWalk, WalkControls } from "./WalkControls";
+import { enterWalkMode, onTalk, onWalkChange } from "./walk";
 
 const params = new URLSearchParams(window.location.search);
 /** ?shots=1 poses every helper at the same moment, so screenshots match run to run. */
@@ -49,9 +48,8 @@ export function OfficeTeam({
   const grid = useMemo(() => navGridFor(layout, accessories), [layout, accessories]);
   const keepClear = useMemo(
     () =>
-      layout.zones
-        .filter((zone) => ALWAYS_LABELED.includes(zone.id))
-        .map((zone) => ({ id: zone.id, at: labelPoint(zone) })),
+      // Every zone label that shows (hidden ones are skipped each frame), council 30 Sep 2026.
+      layout.zones.map((zone) => ({ id: zone.id, at: labelPoint(zone) })),
     [layout],
   );
 
@@ -92,11 +90,22 @@ export function OfficeTeam({
     setSeatSpots(drive.spots);
   }, [team, drive]);
 
+  // The helper you talk to glances toward you.
+  useEffect(() => (drive ? onTalk((seatId) => drive.greet(seatId)) : undefined), [drive]);
+
   // Plugs the office into the HQ panel (the office link, P45) while the helpers are drawn.
   const ready = Boolean(team && drive);
   useEffect(() => {
     if (!ready) return;
-    return connectOffice({ selectSeat, onSeatSelected, enterWalkMode, onTalk });
+    return connectOffice({
+      selectSeat,
+      selectedSeat: () => useSelection.getState().selected,
+      onSeatSelected,
+      enterWalkMode,
+      exitWalkMode: leaveWalk,
+      onTalk,
+      onWalkChange,
+    });
   }, [ready]);
 
   if (!team || !drive) return null;

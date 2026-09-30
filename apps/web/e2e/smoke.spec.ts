@@ -278,12 +278,55 @@ test("the office panel shows live items, and decisions are only a demo", async (
   await expect(tab).toHaveAttribute("aria-selected", "true");
   await expect(page.getByTestId("decision-card")).toBeFocused();
 
-  // The Walk around pill starts Walk around, and Esc leaves it.
-  await page.getByTestId("walk-pill").click();
+  // The Walk around pill starts Walk around and shows it is on, and Esc leaves it.
+  const pill = page.getByTestId("walk-pill");
+  await pill.click();
   await expect(page.getByTestId("walk-help")).toBeVisible();
+  await expect(pill).toHaveAttribute("aria-pressed", "true");
+  await expect(pill).toContainText("Stop walking");
   await page.keyboard.press("Escape");
   await expect(page.getByTestId("walk-help")).toHaveCount(0);
+  await expect(pill).toHaveAttribute("aria-pressed", "false");
   expect(errors).toEqual([]);
+});
+
+test("Walk around always ends: the pill stops it, and so does Esc from the panel", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/?shots=1");
+  await waitForReady(page);
+  const pill = page.getByTestId("walk-pill");
+  const help = page.getByTestId("walk-help");
+  await pill.click();
+  await expect(help).toBeVisible();
+  await pill.click();
+  await expect(help).toHaveCount(0);
+  // With focus in the panel and nothing open there, Esc stops walking.
+  await pill.click();
+  await expect(help).toBeVisible();
+  await page.getByTestId("decision-card").focus();
+  await page.keyboard.press("Escape");
+  await expect(help).toHaveCount(0);
+});
+
+test("a helper clicked in the office keeps a half-read decision to go back to", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/?shots=1");
+  await waitForReady(page);
+  await page.getByTestId("decision-card").focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByTestId("item-detail")).toBeVisible();
+  await page.evaluate(() => window.__HQ_SEATS__?.selectSeat("cm-05", "click"));
+  await expect(page.getByRole("tab", { name: "Team" })).toHaveAttribute("aria-selected", "true");
+  // One row shows the helper selected in the office.
+  await expect(page.locator('[data-seat="cm-05"]')).toHaveAttribute("aria-current", "true");
+  const back = page.getByTestId("back-to-decision");
+  await expect(back).toContainText("Back to decision on PO-451208");
+  await back.click();
+  await expect(page.getByTestId("item-detail")).toBeVisible();
 });
 
 test("Needs you puts urgent items first and explains the rule and the email draft", async ({

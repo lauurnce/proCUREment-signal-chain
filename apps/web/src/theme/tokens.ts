@@ -40,6 +40,7 @@ export const world = {
   floorWoodDeep: "#CFB68D", // rare darker plank
   slabSide: "#CBAE84",
   slabEdge: color.navy, // navy rim on the slab (D-029)
+  slabEdgeNight: color.blueLight, // its faint lighter glow at night (council, 30 Sep 2026)
   gridLine: "#D8C29C", // dev grid only
 
   // Zone rugs
@@ -121,7 +122,7 @@ export const worldLight = {
   skyDusk: 1.8,
   keyDusk: 3.4,
   skyNight: 1.25, // lifted from 0.9, so the wings are not black at night (council, 27 Sep 2026)
-  keyNight: 0.5,
+  keyNight: 0.9, // the moon models the helpers' shapes at night (council, 30 Sep 2026)
   lamp: { intensity: 3, distance: 5, decay: 2, max: 4 },
   contactShadowOpacity: { day: 0.35, night: 0.5 },
 } as const;
@@ -173,7 +174,7 @@ export type TrackShape = "star" | "triangle-outline" | "diamond" | "square";
 
 // Status is never shown by color alone. Always pair the shape with the label text.
 // Every status has its own shape. "on-break" and "off-duty" are both rings, so an
-// off-duty name tag also shows the words "Off duty".
+// off-duty name tag also shows the word "Paused".
 export const status = {
   working: { label: "Working", colorKey: "statusWorking", shape: "dot" },
   "waiting-on-you": { label: "Waiting on you", colorKey: "statusWaiting", shape: "dot-bang" },
