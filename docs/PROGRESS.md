@@ -1,6 +1,6 @@
 # Progress
 
-Now: P45 council fixes applied on `main`, `/checkpoint Phases 4 and 5` next. Then Phase 6 (live data and Demo Day).
+Now: Phases 4 and 5 done and merged (checkpoint d3b06e9). Next: Phase 6 in `p6-live` on the Mac, start from `docs/design/PHASE6_PLAN.md`.
 
 ## Phases
 - [x] 0. Kickoff and alignment (main checkout)
