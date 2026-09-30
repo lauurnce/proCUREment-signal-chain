@@ -6,20 +6,46 @@ import { Box3, Vector3 } from "three";
 import { dockedPanelInset, floatingOverlayRects } from "../../state/overlays";
 import { useStore, type ViewId } from "../../state/store";
 import { motion, world } from "../../theme/tokens";
+import { useSelection } from "../characters/selection";
+import { frameSeat } from "../characters/tags";
+import { exitWalkMode, isWalking, useWalk, walker } from "../characters/walk";
 import { ISO_AZIMUTH, ISO_POLAR } from "../constants";
-import { type Framing, framePreset, PRESETS, type Preset, presetById, zoomLimits } from "./presets";
+import {
+  type Framing,
+  framePreset,
+  MAX_ZOOM,
+  PRESETS,
+  type Preset,
+  presetById,
+  zoomLimits,
+} from "./presets";
 import { easingFromCss, mixFraming } from "./tween";
 
 const { ACTION } = CameraControlsImpl;
 /** Pan stays over the floor plus this margin, in meters. */
 const PAN_MARGIN = 2;
+/** Walk around mode frames you this much closer than the Overview. */
+const WALK_ZOOM = 2.4;
+/**
+ * The follow camera aims at the avatar's chest (0.8 m up), moved down the view line to the
+ * floor: on a true isometric view, (x, 0.8, z) and (x - 0.8, 0, z - 0.8) are the same pixel.
+ */
+const CHEST = 0.8;
+/** How quickly the follow camera catches up, per second. Higher is tighter. */
+const FOLLOW = 5;
+
+const walkFraming = (overviewZoom: number): Framing => ({
+  target: [walker.x - CHEST, 0, walker.z - CHEST],
+  zoom: Math.min(MAX_ZOOM, overviewZoom * WALK_ZOOM),
+});
 const easeMove = easingFromCss(motion.easing.move);
 /** For a move that takes over from another one: it starts fast, so there is no stop. */
 const easeTakeOver = easingFromCss(motion.easing.enter);
 
 /** A camera move in progress. `elapsed` adds up frame times, in ms. */
 type Tween = {
-  view: ViewId;
+  /** The view it moves to, or null for a move to a selected helper. */
+  view: ViewId | null;
   from: Framing;
   to: Framing;
   elapsed: number;
@@ -89,6 +115,8 @@ export function OfficeCamera({
   const camera = useThree((state) => state.camera);
   const view = useStore((state) => state.view);
   const viewRequest = useStore((state) => state.viewRequest);
+  const focus = useSelection((state) => state.focus);
+  const walking = useWalk((state) => state.active);
   const sizeRef = useRef(size);
   sizeRef.current = size;
   const layoutRef = useRef(layout);
@@ -145,20 +173,47 @@ export function OfficeCamera({
     // Already on the way there: keep going.
     if (framed.current && tween.current?.view === view) return;
     const to = frame(view, layoutRef.current, sizeRef.current);
-    const jump = (framing: Framing) => {
-      tween.current = null;
-      cc.setTarget(...framing.target, false);
-      cc.zoomTo(framing.zoom, false);
-    };
     if (!framed.current) {
       framed.current = true;
       cc.rotateTo(ISO_AZIMUTH, ISO_POLAR, false);
-      jump(to);
+      jump(cc, to);
       return;
     }
+    // A view key leaves Walk around mode.
+    if (isWalking()) exitWalkMode();
+    moveTo(cc, to, view);
+  }, [view, viewRequest, camera]);
+
+  // A selected helper (a click, or selectSeat from the panel): ease to their desk.
+  // In Walk around mode the camera stays with you.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: moveTo reads only refs and the camera. A new focus request is the trigger.
+  useEffect(() => {
+    const cc = controls.current;
+    if (!cc || !focus || !framed.current || isWalking()) return;
+    userMoved.current = true;
+    moveTo(cc, frameSeat(focus.point, sizeRef.current, around(sizeRef.current)), null);
+  }, [focus]);
+
+  // Walk around mode: ease in close to the avatar, then follow it (useFrame below).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: moveTo reads only refs and the camera.
+  useEffect(() => {
+    const cc = controls.current;
+    if (!cc || !walking || !framed.current) return;
+    userMoved.current = true;
+    moveTo(cc, walkFraming(camera.userData.overviewZoom ?? cc.minZoom), null);
+  }, [walking]);
+
+  function jump(cc: CameraControlsImpl, framing: Framing) {
+    tween.current = null;
+    cc.setTarget(...framing.target, false);
+    cc.zoomTo(framing.zoom, false);
+  }
+
+  /** Eases to a framing, or with reduced motion fades, cuts and fades back. */
+  function moveTo(cc: CameraControlsImpl, to: Framing, toView: ViewId | null) {
     if (prefersReducedMotion()) {
       const el = fade.current;
-      if (!el) return jump(to);
+      if (!el) return jump(cc, to);
       el.style.background =
         useStore.getState().light === "night" ? world.backdropNight : world.backdropDay;
       el.style.transition = `opacity ${motion.duration.fast}ms linear`;
@@ -166,7 +221,7 @@ export function OfficeCamera({
       clearTimeout(fadeTimer.current);
       fadeTimer.current = setTimeout(() => {
         fadeTimer.current = undefined;
-        jump(to);
+        jump(cc, to);
         el.style.opacity = "0";
       }, motion.duration.fast);
       return;
@@ -174,13 +229,13 @@ export function OfficeCamera({
     const target = new Vector3();
     cc.getTarget(target);
     tween.current = {
-      view,
+      view: toView,
       from: { target: [target.x, target.y, target.z], zoom: camera.zoom },
       to,
       elapsed: 0,
       ease: tween.current ? easeTakeOver : easeMove,
     };
-  }, [view, viewRequest, camera]);
+  }
 
   // Until the user moves the camera, keep the view fitted to the canvas size.
   useEffect(() => {
@@ -191,10 +246,24 @@ export function OfficeCamera({
     cc.zoomTo(framing.zoom, false);
   }, [size, layout]);
 
+  const follow = useRef(new Vector3());
   useFrame((_, delta) => {
     const move = tween.current;
     const cc = controls.current;
-    if (!move || !cc) return;
+    if (!cc) return;
+    if (!move) {
+      if (!isWalking()) return;
+      // Follow the avatar with a soft lag, the same on any frame rate.
+      const k = 1 - Math.exp(-FOLLOW * Math.min(delta, 0.05));
+      const t = cc.getTarget(follow.current);
+      cc.setTarget(
+        t.x + (walker.x - CHEST - t.x) * k,
+        0,
+        t.z + (walker.z - CHEST - t.z) * k,
+        false,
+      );
+      return;
+    }
     // Cap one frame at 1/20 s, so a stall (like a tab switch) does not end the move in one jump.
     move.elapsed += Math.min(delta, 0.05) * 1000;
     const t = Math.min(1, move.elapsed / motion.duration.camera);
@@ -213,13 +282,18 @@ export function OfficeCamera({
       minAzimuthAngle={ISO_AZIMUTH}
       maxAzimuthAngle={ISO_AZIMUTH}
       dollyToCursor
+      // In Walk around mode a click walks, so drags do not pan. The wheel still zooms.
       mouseButtons={{
-        left: ACTION.TRUCK,
+        left: walking ? ACTION.NONE : ACTION.TRUCK,
         middle: ACTION.NONE,
-        right: ACTION.TRUCK,
+        right: walking ? ACTION.NONE : ACTION.TRUCK,
         wheel: ACTION.ZOOM,
       }}
-      touches={{ one: ACTION.TOUCH_TRUCK, two: ACTION.TOUCH_ZOOM, three: ACTION.NONE }}
+      touches={{
+        one: walking ? ACTION.NONE : ACTION.TOUCH_TRUCK,
+        two: ACTION.TOUCH_ZOOM,
+        three: ACTION.NONE,
+      }}
     />
   );
 }

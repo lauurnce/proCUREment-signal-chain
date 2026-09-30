@@ -21,10 +21,15 @@ test("the office loads, draws the 3D floor, and shows the server is OK", async (
   expect(errors).toEqual([]);
 });
 
-/** Phase 3 world budget at the Overview, before helpers (docs/design/PHASE3_PLAN.md). */
-const WORLD_BUDGET = { calls: 40, triangles: 50_000 };
+/**
+ * Overview budget: the world (Phase 3, 40 calls and 50k triangles) plus the 26 helpers drawn as
+ * one crowd (P4.1, D-063). Well inside the skill budget of 150 calls and 250k triangles.
+ */
+const WORLD_BUDGET = { calls: 45, triangles: 100_000 };
 
-test("the office world stays inside its draw call and triangle budget", async ({ page }) => {
+test("the office with its helpers stays inside its draw call and triangle budget", async ({
+  page,
+}) => {
   const errors = collectErrors(page);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/?shots=1");
@@ -335,4 +340,130 @@ test("under 960 px the panel goes full width, and Show office swaps to the offic
   await page.getByRole("button", { name: "Show panel" }).click();
   await expect(panel).toBeVisible();
   expect(errors).toEqual([]);
+});
+
+test("clicking a helper selects them, tells onSeatSelected, and Esc clears it", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/?shots=1&view=cm");
+  await waitForReady(page);
+  await expect(page.getByTestId("office-tag-cm-03")).toBeVisible();
+
+  const point = await page.evaluate(() => window.__HQ_SEATS__?.seatPoint("cm-03"));
+  expect(point, "cm-03 is on screen").toBeTruthy();
+  await page
+    .getByTestId("office-canvas")
+    .click({ position: { x: point?.x ?? 0, y: point?.y ?? 0 } });
+
+  const tag = page.getByTestId("office-tag-cm-03");
+  await expect(tag).toHaveAttribute("data-selected", "true");
+  const events = await page.evaluate(() => window.__HQ_SEATS__?.events);
+  expect(events).toEqual([{ seatId: "cm-03", source: "click" }]);
+
+  await page.keyboard.press("Escape");
+  await expect(tag).toHaveAttribute("data-selected", "false");
+  expect(errors).toEqual([]);
+});
+
+test("helpers follow their live status: a raised hand, a break, a meeting, a trip", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/?shots=1");
+  await waitForReady(page);
+  const motions = await page.evaluate(() => window.__HQ_SEATS__?.motions());
+  if (!motions) throw new Error("no test hook");
+  // vault.sample: cm-05 waits on you, cm-09 is on a break, lead-02 is in a meeting.
+  expect(motions["cm-05"]).toMatchObject({ motion: "seated", activity: "hand" });
+  expect(motions["cm-09"]).toMatchObject({ motion: "standing" });
+  expect(motions["lead-02"]).toMatchObject({ motion: "standing" });
+  // 12 s into the day, at least one helper is on a trip to the zone of its step.
+  const away = Object.values(motions).filter((m) => m.motion !== "seated");
+  expect(away.length).toBeGreaterThan(3);
+  expect(errors).toEqual([]);
+});
+
+test("Walk around: G starts it, keys move you, Talk shows near a helper, E talks, Esc leaves", async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/?shots=1");
+  await waitForReady(page);
+  const walk = page.getByTestId("walk-help");
+  await expect(walk).toHaveCount(0);
+
+  await page.keyboard.press("g");
+  await expect(walk).toBeVisible();
+  await expect(page.getByTestId("walk-you")).toBeVisible();
+  // The canvas takes focus, so the keys steer at once.
+  expect(await page.evaluate(() => document.activeElement?.tagName)).toBe("CANVAS");
+
+  // Hold W: the avatar walks up the screen, away from the camera (x and z both go down).
+  const before = await page.evaluate(() => window.__HQ_SEATS__?.walk.avatar());
+  await page.keyboard.down("w");
+  await page.waitForTimeout(700);
+  await page.keyboard.up("w");
+  const after = await page.evaluate(() => window.__HQ_SEATS__?.walk.avatar());
+  expect(before && after).toBeTruthy();
+  expect((after?.x ?? 0) + (after?.z ?? 0)).toBeLessThan((before?.x ?? 0) + (before?.z ?? 0));
+
+  // Next to a helper, the Talk hint names them, and E tells onTalk.
+  await page.evaluate(() => window.__HQ_SEATS__?.walk.placeNear("cm-02"));
+  const hint = page.getByTestId("talk-hint");
+  await expect(hint).toBeVisible();
+  await expect(hint).toContainText("Talk to CM 02 helper");
+  // Screen readers hear who is in reach.
+  await expect(page.getByTestId("walk-live")).toHaveText("Near CM 02 helper. Press E to talk.");
+  await page.keyboard.press("e");
+  expect(await page.evaluate(() => window.__HQ_SEATS__?.walk.talks)).toEqual(["cm-02"]);
+  await expect(hint).toContainText("Card coming soon");
+
+  // Esc goes back to the Overview.
+  await page.keyboard.press("Escape");
+  await expect(walk).toHaveCount(0);
+  await expect(page.getByTestId("walk-you")).toBeHidden();
+  expect(await page.evaluate(() => window.__HQ_SEATS__?.walk.active())).toBe(false);
+  expect(errors).toEqual([]);
+});
+
+test("at the Overview most tags are chips, and a helper waiting on you shows its name", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/?shots=1");
+  await waitForReady(page);
+  // vault.sample: cm-05 waits on you. cm-01 is working.
+  await expect(page.getByTestId("office-tag-cm-05")).toHaveAttribute("data-mode", "compact");
+  await expect(page.getByTestId("office-tag-cm-01")).toHaveAttribute("data-mode", "chip");
+  // Zoomed in, every tag is full.
+  await page.keyboard.press("2");
+  await expect(page.getByTestId("office-tag-cm-01")).toHaveAttribute("data-mode", "full");
+});
+
+test("?walk=1 opens in Walk around, and a view key leaves it", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/?shots=1&walk=1");
+  await waitForReady(page);
+  await expect(page.getByTestId("walk-help")).toBeVisible();
+  await page.keyboard.press("1");
+  await expect(page.getByTestId("walk-help")).toHaveCount(0);
+});
+
+test("a drag across a helper pans the camera and selects nobody", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/?shots=1&view=cm");
+  await waitForReady(page);
+  const point = await page.evaluate(() => window.__HQ_SEATS__?.seatPoint("cm-03"));
+  const x = point?.x ?? 0;
+  const y = point?.y ?? 0;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + 80, y + 40, { steps: 8 });
+  await page.mouse.up();
+  const events = await page.evaluate(() => window.__HQ_SEATS__?.events);
+  expect(events).toEqual([]);
 });

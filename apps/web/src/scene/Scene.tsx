@@ -6,6 +6,9 @@ import { NeutralToneMapping } from "three";
 import { useStore } from "../state/store";
 import { world } from "../theme/tokens";
 import { OfficeCamera } from "./camera/OfficeCamera";
+import { OfficeTagLayer } from "./characters/OfficeTagLayer";
+import { OfficeTeam } from "./characters/OfficeTeam";
+import { TalkHintLayer } from "./characters/TalkHintLayer";
 import { CAMERA_DISTANCE, PLACEHOLDER_LAYOUT } from "./constants";
 import { RenderInfo } from "./debug/RenderInfo";
 import { ALWAYS_LABELED } from "./labels/fade";
@@ -19,6 +22,7 @@ import { labelPoint } from "./layout/boxes";
 import type { NightMix } from "./lighting/blend";
 import { OfficeLights } from "./lighting/OfficeLights";
 import { ReadySignal } from "./ReadySignal";
+import type { TagRegistry } from "./tags/TagProjector";
 import { OfficeProps } from "./world/OfficeProps";
 import { OfficeWorld } from "./world/OfficeWorld";
 import { PlaceholderFloor } from "./world/PlaceholderFloor";
@@ -57,6 +61,7 @@ export function Scene() {
   const accessories = useSameContent(office?.accessories ?? NO_ACCESSORIES);
   const layout: LayoutFile | null = office ? (officeLayout ?? PLACEHOLDER_LAYOUT) : null;
   const registry = useMemo<LabelRegistry>(() => new Map(), []);
+  const tags = useMemo<TagRegistry>(() => new Map(), []);
   const fade = useRef<HTMLDivElement>(null);
   // The day and night blend, shared by the lights and the glowing materials. Starts where the
   // page opens (?time=night), so there is no blend on load.
@@ -101,6 +106,7 @@ export function Scene() {
               <>
                 <OfficeWorld layout={officeLayout} mix={mix} />
                 <OfficeProps accessories={accessories} />
+                <OfficeTeam layout={officeLayout} accessories={accessories} tags={tags} />
               </>
             ) : (
               <PlaceholderFloor />
@@ -119,6 +125,8 @@ export function Scene() {
         )}
       </Canvas>
       <ZoneLabelLayer labels={labels} registry={registry} />
+      {officeLayout && <OfficeTagLayer layout={officeLayout} registry={tags} />}
+      {officeLayout && <TalkHintLayer />}
       {/* Covers the view for a moment when reduced motion swaps a camera move for a cut. */}
       <div
         ref={fade}

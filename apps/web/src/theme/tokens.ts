@@ -178,8 +178,10 @@ export const status = {
   working: { label: "Working", colorKey: "statusWorking", shape: "dot" },
   "waiting-on-you": { label: "Waiting on you", colorKey: "statusWaiting", shape: "dot-bang" },
   "in-meeting": { label: "In a meeting", colorKey: "statusMeeting", shape: "dot-pair" },
-  "on-break": { label: "On break", colorKey: "statusBreak", shape: "ring" },
-  "off-duty": { label: "Off duty", colorKey: "statusOff", shape: "ring" },
+  // Helper words, never a person's status: helpers recharge and pause, people take breaks and
+  // go home (privacy guardrail, council 29 Sep 2026).
+  "on-break": { label: "Recharging", colorKey: "statusBreak", shape: "ring" },
+  "off-duty": { label: "Paused", colorKey: "statusOff", shape: "ring" },
 } as const satisfies Record<SeatStatus, { label: string; colorKey: ColorKey; shape: StatusShape }>;
 
 // Track badges. The Leads triangle is an outline that points up, with no square behind it.
