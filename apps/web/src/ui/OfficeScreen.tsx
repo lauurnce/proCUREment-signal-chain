@@ -6,6 +6,7 @@ import { useStore } from "../state/store";
 import { typeStyle } from "../theme/style";
 import { AboutNote } from "./AboutNote";
 import { HealthBadge } from "./HealthBadge";
+import { useOfficeLink } from "./officeLink";
 import { OfficePanel } from "./panel/OfficePanel";
 import { usePanelStore } from "./panel/panelStore";
 import { useLiveCounts } from "./panel/useLiveCounts";
@@ -41,6 +42,8 @@ export function OfficeScreen() {
   const wide = useMediaQuery("(min-width: 960px)");
   const [officeShown, setOfficeShown] = useState(false);
   const showNeedsYou = usePanelStore((s) => s.showNeedsYou);
+  const showHelper = usePanelStore((s) => s.showHelper);
+  const link = useOfficeLink();
   const counts = useLiveCounts();
   const note = useRef<HTMLDivElement>(null);
   const controls = useRef<HTMLDivElement>(null);
@@ -52,6 +55,24 @@ export function OfficeScreen() {
   useEffect(() => {
     document.title = counts ? `Needs you (${counts.needsYou}) · SignalChain HQ` : "SignalChain HQ";
   }, [counts]);
+
+  // The office opens a helper's card in the panel: a click on the helper, or E next to them in
+  // Walk around (P45). A narrow screen swaps back to the panel to show it.
+  useEffect(() => {
+    if (!link) return;
+    const open = (seatId: string) => {
+      showHelper(seatId);
+      if (!wide) setOfficeShown(false);
+    };
+    const stopSelect = link.onSeatSelected((event) => {
+      if (event.source === "click" && event.seatId) open(event.seatId);
+    });
+    const stopTalk = link.onTalk(open);
+    return () => {
+      stopSelect();
+      stopTalk();
+    };
+  }, [link, showHelper, wide]);
 
   const panelShown = wide || !officeShown;
   const sceneShown = wide || officeShown;

@@ -13,32 +13,8 @@ const TAU = Math.PI * 2;
  */
 export type Activity = "idle" | "typing" | "hand" | "wait" | "walk";
 
-/**
- * Walking and standing values, next to the seated ones in `motion.character` (theme/tokens.ts).
- * They live here while Phase 4 owns only scene/characters, and move into the tokens at the
- * P4 and P5 merge.
- */
-export const WALK = {
-  /** Meters per second (isometric-office skill). */
-  speed: 1.2,
-  /** Meters per full stride: two steps of 0.6 m. */
-  strideMeters: 1.2,
-  /** Thigh swing each way, radians. */
-  thighSwing: 0.45,
-  /** The knee bends up to this much as the foot lifts, radians. */
-  kneeBend: 0.6,
-  /** Arm swing each way, radians. Arms swing against the legs. */
-  armSwing: 0.35,
-  /** The body rises this much at mid step, meters. A gentle bob. */
-  bob: 0.03,
-  /** How fast a helper turns to face where it goes, radians per second. */
-  turnRate: 7,
-  /** Standing up or sitting down, seconds. */
-  standSeconds: 0.45,
-  /** A raised hand waves this much each way, radians, this many times a second. */
-  wave: 0.12,
-  waveHz: 0.8,
-} as const;
+/** Walking and standing values, next to the seated ones (theme/tokens.ts, motion.walk). */
+export const WALK = motion.walk;
 
 /** A raised hand: the forearm tilts this far out from the head (radians) and lifts (meters). */
 const RAISE_ROLL = 0.5;

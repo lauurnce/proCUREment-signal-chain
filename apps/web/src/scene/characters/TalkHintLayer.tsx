@@ -12,11 +12,8 @@ export const hint = {
   you: null as HTMLElement | null,
   talk: null as HTMLElement | null,
   talkText: null as HTMLElement | null,
-  talkKey: null as HTMLElement | null,
   /** Read aloud by screen readers when the helper in reach changes. */
   live: null as HTMLElement | null,
-  /** "Card coming soon" shows until this time (performance.now), after E. */
-  noteUntil: 0,
   /** Where "You" and the Talk hint sit on screen this frame, so name tags flow around them. */
   boxes: [] as TagBox[],
 };
@@ -60,9 +57,6 @@ export function TalkHintLayer() {
           style={typeStyle("tagName")}
         />
         <kbd
-          ref={(el) => {
-            hint.talkKey = el;
-          }}
           className="rounded-chip border border-hairline px-1.5 font-mono"
           style={typeStyle("label", "navy")}
         >
@@ -81,7 +75,9 @@ export function TalkHintLayer() {
         <p
           data-testid="walk-help"
           role="status"
-          className="absolute top-4 left-1/2 m-0 -translate-x-1/2 rounded-pill border border-hairline bg-white px-4 py-1.5 shadow-float"
+          // Just above the Walk around pill, centered in the office area left of the docked
+          // panel (P45), so neither the panel nor the stats cover it.
+          className="absolute bottom-[84px] left-1/2 m-0 -translate-x-1/2 whitespace-nowrap rounded-pill border border-hairline bg-white px-4 py-1.5 shadow-float min-[960px]:left-[calc((100%-clamp(440px,36vw,600px)-12px)/2)]"
           style={typeStyle("small", "ink")}
         >
           Walk around: WASD, arrow keys or a click to move. E to talk. Esc to leave.

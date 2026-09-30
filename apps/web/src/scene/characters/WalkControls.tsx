@@ -25,8 +25,6 @@ const params = new URLSearchParams(window.location.search);
 /** ?walk=1 opens in Walk around mode (screenshots and links). */
 const START_WALKING = params.get("walk") === "1";
 const DRAG_PX = 5;
-/** How long "Card coming soon" shows after E, in ms. */
-const TALK_NOTE_MS = 1600;
 const point = new Vector3();
 /** The "You" marker's bottom edge, in meters: the standing head top is about 1.9 m. */
 const YOU_HEIGHT = 2.0;
@@ -80,7 +78,6 @@ export function WalkControls({
   }, [active, drive, canvas]);
 
   useEffect(() => {
-    let noteTimer: ReturnType<typeof setTimeout> | undefined;
     const onDown = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
       if (!canSteer(event.target)) return;
@@ -97,13 +94,8 @@ export function WalkControls({
         return;
       }
       if (event.code === "KeyE" && !event.repeat) {
-        if (talkNow()) {
-          hint.noteUntil = performance.now() + TALK_NOTE_MS;
-          clearTimeout(noteTimer);
-          noteTimer = setTimeout(() => {
-            hint.noteUntil = 0;
-          }, TALK_NOTE_MS);
-        }
+        // The panel opens the helper's card (the office link, P45).
+        talkNow();
         return;
       }
       if (STEER_KEYS.includes(event.code)) {
@@ -121,7 +113,6 @@ export function WalkControls({
       window.removeEventListener("keydown", onDown);
       window.removeEventListener("keyup", onUp);
       window.removeEventListener("blur", onBlur);
-      clearTimeout(noteTimer);
     };
   }, []);
 
@@ -161,10 +152,8 @@ export function WalkControls({
     const near = walking ? talk.near : null;
     const agent = near ? drive.agents.find((x) => x.id === near) : undefined;
     if (hint.talk && agent) {
-      const noting = performance.now() < hint.noteUntil;
-      const text = noting ? "Card coming soon" : `Talk to ${names.get(agent.id) ?? agent.id}`;
+      const text = `Talk to ${names.get(agent.id) ?? agent.id}`;
       if (hint.talkText && hint.talkText.textContent !== text) hint.talkText.textContent = text;
-      if (hint.talkKey) hint.talkKey.style.display = noting ? "none" : "";
       hint.talk.dataset.seat = agent.id;
     }
     // Under your feet: you look at the avatar, and the name tags above the heads stay clear.

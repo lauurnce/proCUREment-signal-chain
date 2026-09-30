@@ -30,6 +30,10 @@ type Target = {
   trip?: string;
   /** Walk around mode, with the avatar placed in front of this helper. */
   walkTo?: string;
+  /** Selects this helper as a click in the office would, so the panel opens their card. */
+  card?: string;
+  /** In Walk around, press E next to the helper, so the panel opens their card. */
+  talk?: boolean;
 };
 
 const pages: Target[] = [
@@ -101,6 +105,10 @@ const pages: Target[] = [
   { name: "office-sap-trip", path: "/?shots=1", fullPage: false, trip: "cm-10" },
   { name: "office-walk", path: "/?shots=1", fullPage: false, walkTo: "cm-02" },
   { name: "office-walk-night", path: "/?shots=1&time=night", fullPage: false, walkTo: "ops-03" },
+  // P45: the two halves connected. A click on a helper opens their card in the panel, and so
+  // does E next to them in Walk around.
+  { name: "office-card", path: "/?shots=1", fullPage: false, card: "cm-05" },
+  { name: "office-walk-talk", path: "/?shots=1", fullPage: false, walkTo: "cm-02", talk: true },
 ];
 
 test.beforeAll(() => {
@@ -151,7 +159,24 @@ for (const target of pages) {
         await page.evaluate((id) => window.__HQ_SEATS__?.walk.placeNear(id), target.walkTo);
         // The follow camera settles on the avatar, and the Talk hint shows.
         await expect(page.getByTestId("talk-hint")).toBeVisible();
+        if (target.talk) {
+          await page.locator("canvas").first().focus();
+          await page.keyboard.press("e");
+          await expect(page.getByRole("tab", { name: "Team" })).toHaveAttribute(
+            "aria-selected",
+            "true",
+          );
+        }
         await page.waitForTimeout(2500);
+      }
+      if (target.card) {
+        await page.emulateMedia({ reducedMotion: "reduce" });
+        await page.evaluate((id) => window.__HQ_SEATS__?.selectSeat(id, "click"), target.card);
+        await expect(page.locator(`[data-seat="${target.card}"] > button`)).toHaveAttribute(
+          "aria-expanded",
+          "true",
+        );
+        await page.waitForTimeout(1500);
       }
       const lost = await page.evaluate(() => {
         const canvas = document.querySelector("canvas");

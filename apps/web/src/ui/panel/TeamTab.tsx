@@ -1,12 +1,13 @@
 import type { QueueItem, Seat, Workflow } from "@hq/shared";
 import { motion as m } from "motion/react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useStore } from "../../state/store";
 import { bezier, typeStyle } from "../../theme/style";
 import { status as statusTokens, motion as tokens } from "../../theme/tokens";
 import { useOfficeLink } from "../officeLink";
 import { StatusDot } from "../StatusDot";
 import { TrackBadge } from "../TrackBadge";
+import { usePanelStore } from "./panelStore";
 import { helperName, PLAYER_SEAT } from "./queue";
 
 // Who decides, by track, without naming a seat (a seat maps to a real person).
@@ -158,6 +159,20 @@ export function TeamTab({
   workflows: Workflow[];
 }) {
   const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set());
+  const link = useOfficeLink();
+  const asked = usePanelStore((s) => s.helper);
+  const list = useRef<HTMLDivElement>(null);
+  // A helper clicked in the office (or talked to in Walk around) opens here, in view. Focus
+  // stays where it is, so Walk around keeps its keys.
+  useEffect(() => {
+    if (!asked) return;
+    setOpen((was) => new Set(was).add(asked.seatId));
+    requestAnimationFrame(() => {
+      list.current
+        ?.querySelector(`[data-seat="${asked.seatId}"]`)
+        ?.scrollIntoView({ block: "nearest" });
+    });
+  }, [asked]);
   const statusWord = (seat: Seat) => {
     if (seat.status !== "waiting-on-you") return statusTokens[seat.status].label;
     // The open item this helper sent, or one that waits on this seat's own decision.
@@ -173,13 +188,17 @@ export function TeamTab({
     const i = w?.steps.findIndex((s) => s.id === seat.currentStep) ?? -1;
     return w && i >= 0 ? `${w.name} · Step ${i + 1} of ${w.steps.length}` : null;
   };
-  const toggle = (id: string) =>
+  const toggle = (id: string) => {
+    const opening = !open.has(id);
     setOpen((was) => {
       const next = new Set(was);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
+    // Opening a row also shows that helper in the office (the office link, P45).
+    if (opening) link?.selectSeat(id, "api");
+  };
 
   const row = (seat: Seat) => {
     const expanded = open.has(seat.id);
@@ -233,7 +252,7 @@ export function TeamTab({
   }
 
   return (
-    <div className="flex flex-col gap-4 px-4 py-4">
+    <div ref={list} className="flex flex-col gap-4 px-4 py-4">
       <p className="m-0" style={typeStyle("small")}>
         Each seat has an AI helper. This page shows the helpers' work, not the people. Open a row to
         see the steps.

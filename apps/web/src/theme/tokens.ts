@@ -356,6 +356,19 @@ export const motion = {
     typingNod: 0.03, // tiny head nod while typing
     typingBurstSeconds: [2.4, 1.2], // type, then pause to read
   },
+  // Standing and walking helpers (Phase 4, D-072, D-078). Meters, seconds or radians.
+  walk: {
+    speed: 1.2, // meters per second
+    strideMeters: 1.2, // two steps of 0.6 m
+    thighSwing: 0.45, // each way
+    kneeBend: 0.6, // as the foot lifts
+    armSwing: 0.35, // each way, against the legs
+    bob: 0.03, // the body rises at mid step
+    turnRate: 7, // radians per second, to face where it goes
+    standSeconds: 0.45, // standing up or sitting down
+    wave: 0.12, // a raised hand waves this much each way
+    waveHz: 0.8,
+  },
 } as const;
 
 // Every screen-only addition to the deck palette (D-011).

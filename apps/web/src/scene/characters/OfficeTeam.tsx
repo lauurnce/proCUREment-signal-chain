@@ -1,6 +1,7 @@
 import type { Accessory, LayoutFile } from "@hq/shared";
 import { useEffect, useMemo, useRef } from "react";
 import { useStore } from "../../state/store";
+import { connectOffice } from "../../ui/officeLink";
 import { ALWAYS_LABELED } from "../labels/fade";
 import { labelPoint } from "../layout/boxes";
 import type { TagRegistry } from "../tags/TagProjector";
@@ -9,10 +10,11 @@ import { navGridFor } from "./navGrid";
 import { OfficeTagProjector } from "./OfficeTagProjector";
 import { SeatPicker } from "./SeatPicker";
 import { SeatTestHook } from "./SeatTestHook";
-import { setSeatSpots } from "./selection";
+import { onSeatSelected, selectSeat, setSeatSpots } from "./selection";
 import { TeamDrive } from "./teamDrive";
 import { useOfficeTeam } from "./useOfficeTeam";
 import { WalkControls } from "./WalkControls";
+import { enterWalkMode, onTalk } from "./walk";
 
 const params = new URLSearchParams(window.location.search);
 /** ?shots=1 poses every helper at the same moment, so screenshots match run to run. */
@@ -89,6 +91,13 @@ export function OfficeTeam({
     }
     setSeatSpots(drive.spots);
   }, [team, drive]);
+
+  // Plugs the office into the HQ panel (the office link, P45) while the helpers are drawn.
+  const ready = Boolean(team && drive);
+  useEffect(() => {
+    if (!ready) return;
+    return connectOffice({ selectSeat, onSeatSelected, enterWalkMode, onTalk });
+  }, [ready]);
 
   if (!team || !drive) return null;
   return (

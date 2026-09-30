@@ -117,7 +117,7 @@ test("the Night button turns the office to night, and Day turns it back", async 
   expect(errors).toEqual([]);
 });
 
-test("Team rows open to show the steps, and Show in office stays hidden until the merge", async ({
+test("Team rows open to show the steps, and opening one shows that helper in the office", async ({
   page,
 }) => {
   const errors = collectErrors(page);
@@ -133,7 +133,11 @@ test("Team rows open to show the steps, and Show in office stays hidden until th
   const now = row.locator('[aria-current="step"]');
   await expect(now).toContainText("(now)");
   await expect(now).toContainText("SAP Station");
-  await expect(page.getByTestId("show-in-office-cm-10")).toHaveCount(0);
+  // Opening the row selected the helper in the office, through the office link.
+  await expect(page.getByTestId("office-tag-cm-10")).toHaveAttribute("data-selected", "true");
+  const events = await page.evaluate(() => window.__HQ_SEATS__?.events);
+  expect(events).toEqual([{ seatId: "cm-10", source: "api" }]);
+  await expect(page.getByTestId("show-in-office-cm-10")).toBeVisible();
   await toggle.press("Enter");
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
   expect(errors).toEqual([]);
@@ -274,12 +278,11 @@ test("the office panel shows live items, and decisions are only a demo", async (
   await expect(tab).toHaveAttribute("aria-selected", "true");
   await expect(page.getByTestId("decision-card")).toBeFocused();
 
-  // Walk around shows a note for now, and Esc closes it.
+  // The Walk around pill starts Walk around, and Esc leaves it.
   await page.getByTestId("walk-pill").click();
-  await expect(page.getByTestId("walk-note")).toBeVisible();
+  await expect(page.getByTestId("walk-help")).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(page.getByTestId("walk-note")).toHaveCount(0);
-  await expect(page.getByTestId("walk-pill")).toBeFocused();
+  await expect(page.getByTestId("walk-help")).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
@@ -361,6 +364,10 @@ test("clicking a helper selects them, tells onSeatSelected, and Esc clears it", 
   await expect(tag).toHaveAttribute("data-selected", "true");
   const events = await page.evaluate(() => window.__HQ_SEATS__?.events);
   expect(events).toEqual([{ seatId: "cm-03", source: "click" }]);
+  // The panel opens their card: the Team tab, with their row open.
+  await expect(page.getByRole("tab", { name: "Team" })).toHaveAttribute("aria-selected", "true");
+  const row = page.locator('[data-seat="cm-03"] > button');
+  await expect(row).toHaveAttribute("aria-expanded", "true");
 
   await page.keyboard.press("Escape");
   await expect(tag).toHaveAttribute("data-selected", "false");
@@ -396,6 +403,11 @@ test("Walk around: G starts it, keys move you, Talk shows near a helper, E talks
   const walk = page.getByTestId("walk-help");
   await expect(walk).toHaveCount(0);
 
+  // The first Needs you card has focus on load, and keys there belong to the panel. G works
+  // once the office has focus.
+  await page.keyboard.press("g");
+  await expect(walk).toHaveCount(0);
+  await page.locator("body").click({ position: { x: 20, y: 400 } });
   await page.keyboard.press("g");
   await expect(walk).toBeVisible();
   await expect(page.getByTestId("walk-you")).toBeVisible();
@@ -420,7 +432,13 @@ test("Walk around: G starts it, keys move you, Talk shows near a helper, E talks
   await expect(page.getByTestId("walk-live")).toHaveText("Near CM 02 helper. Press E to talk.");
   await page.keyboard.press("e");
   expect(await page.evaluate(() => window.__HQ_SEATS__?.walk.talks)).toEqual(["cm-02"]);
-  await expect(hint).toContainText("Card coming soon");
+  // E opens their card in the panel, and the keys still walk.
+  await expect(page.getByRole("tab", { name: "Team" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator('[data-seat="cm-02"] > button')).toHaveAttribute(
+    "aria-expanded",
+    "true",
+  );
+  expect(await page.evaluate(() => document.activeElement?.tagName)).toBe("CANVAS");
 
   // Esc goes back to the Overview.
   await page.keyboard.press("Escape");

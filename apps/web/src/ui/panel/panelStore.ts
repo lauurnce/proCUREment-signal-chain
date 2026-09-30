@@ -33,12 +33,16 @@ type PanelState = {
   /** The last message for the polite live region. */
   announce: string;
   focusRequest: FocusRequest | null;
+  /** A helper to open in the Team tab (a click on them in the office, or E in Walk around). */
+  helper: { seatId: string; request: number } | null;
 };
 
 type PanelActions = {
   /** Fresh state for a page. Screenshots can open a tab, a filter or the first item directly. */
   start: (initial?: { tab?: TabId; openFirst?: boolean; filter?: QueueFilter }) => void;
   setTab: (tab: TabId) => void;
+  /** Opens the Team tab with this helper's row open and in view. */
+  showHelper: (seatId: string) => void;
   /** The HUD button and the skip link: open Needs you and put focus on the card. */
   showNeedsYou: () => void;
   setFilter: (filter: QueueFilter) => void;
@@ -75,6 +79,7 @@ const fresh = (): PanelState => ({
   preview: null,
   announce: "",
   focusRequest: null,
+  helper: null,
 });
 
 export const usePanelStore = create<PanelStore>()((set, get) => ({
@@ -92,6 +97,12 @@ export const usePanelStore = create<PanelStore>()((set, get) => ({
     });
   },
   setTab: (tab) => set({ tab }),
+  showHelper: (seatId) =>
+    set((s) => ({
+      tab: "team",
+      detailOpen: false,
+      helper: { seatId, request: (s.helper?.request ?? 0) + 1 },
+    })),
   showNeedsYou: () => set({ tab: "needs", detailOpen: false, focusRequest: { target: "card" } }),
   setFilter: (filter) => set({ filter }),
   focusCard: (focusedId, request = null) => set({ focusedId, focusRequest: request }),
