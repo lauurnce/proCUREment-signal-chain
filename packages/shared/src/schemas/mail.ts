@@ -75,6 +75,8 @@ export const MailOverview = z.object({
     hasRecipient: z.boolean(),
     /** When the last digest went out (or was saved), or null. */
     lastAt: IsoDateTime.nullable(),
+    /** True when "Send digest now" really sends (Outlook in send mode). Otherwise it makes a draft. */
+    sends: z.boolean(),
   }),
   inbox: z.object({
     tag: z.string(),

@@ -226,6 +226,15 @@ export class GraphClient {
     ].map((r) => r.emailAddress.address);
   }
 
+  /** PATCH /me/messages/{id}: exactly these recipients, with Cc and Bcc cleared. */
+  async setRecipients(id: string, to: string[]): Promise<void> {
+    await this.#call("PATCH", `/me/messages/${encodeURIComponent(id)}`, {
+      toRecipients: to.map((address) => ({ emailAddress: { address } })),
+      ccRecipients: [],
+      bccRecipients: [],
+    });
+  }
+
   /** POST /me/messages/{id}/send. Outlook answers 202 Accepted. */
   async send(id: string): Promise<void> {
     await this.#call("POST", `/me/messages/${encodeURIComponent(id)}/send`);

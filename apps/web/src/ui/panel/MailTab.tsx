@@ -5,10 +5,12 @@ import {
   type MailStatus,
   mailtoUrl,
   type QueueItem,
+  SIGN_IN_PROBLEMS,
 } from "@hq/shared";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useStore } from "../../state/store";
 import { typeStyle } from "../../theme/style";
+import { clockTime } from "./time";
 
 const BUTTON =
   "inline-flex items-center rounded-button border border-hairline bg-white px-2.5 py-1 no-underline hover:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50";
@@ -22,26 +24,39 @@ const DRIVER: Record<MailStatus["driver"], string> = {
   graph: "Outlook: drafts go to your Outlook Drafts folder",
   "power-automate": "Power Automate bridge",
 };
+/** One wording for a dry run, wherever it shows. */
+const DRY_RUN = "Dry run. Nothing was made. The log shows what would have happened.";
 const MODE: Record<MailStatus["mode"], string> = {
-  "dry-run": "Dry run. Nothing is created, the log shows what would happen.",
+  "dry-run": DRY_RUN,
   drafts: "Drafts only. Nothing is sent.",
   send: "Drafts, and Send now for addresses on your allowed list.",
 };
 
-const clockOf = (iso: string) => iso.slice(11, 16);
+/** "2:05 PM" and "13 Oct, 2:05 PM" in Manila time, the app's format (adi-theme skill). */
+const clockOf = (iso: string) => clockTime(new Date(iso));
 const dayAndTime = (iso: string) =>
-  `${new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).format(new Date(iso.slice(0, 10)))}, ${clockOf(iso)}`;
+  `${new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Manila", day: "numeric", month: "short" }).format(new Date(iso))}, ${clockOf(iso)}`;
+/** DIGEST_TIME "17:30" as "5:30 PM". */
+const digestClock = (hhmm: string) => {
+  const [h = 0, m = 0] = hhmm.split(":").map(Number);
+  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
+};
 /** The vault can be edited by hand, so only Outlook's own web addresses become a link. */
 const OUTLOOK_LINK = /^https:\/\/outlook\.(live|office|office365)\.com\//;
 
-/** A sign-in problem sent back by /auth/callback, read once and taken out of the address bar. */
+/**
+ * A sign-in problem sent back by /auth/callback as a short code, read once and taken out of the
+ * address bar. Only the app's own fixed messages show, never text from the link.
+ */
 function takeMailProblem(): string | null {
   const url = new URL(window.location.href);
-  const problem = url.searchParams.get("mailProblem");
-  if (!problem) return null;
+  const code = url.searchParams.get("mailProblem");
+  if (!code) return null;
   url.searchParams.delete("mailProblem");
   window.history.replaceState(null, "", url);
-  return problem;
+  return Object.hasOwn(SIGN_IN_PROBLEMS, code)
+    ? SIGN_IN_PROBLEMS[code as keyof typeof SIGN_IN_PROBLEMS]
+    : null;
 }
 
 async function post<T>(path: string, body: object): Promise<T> {
@@ -87,7 +102,9 @@ function useMailOverview(
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3 border-t border-hairline py-2">
-      <dt style={typeStyle("tagName")}>{label}</dt>
+      <dt className="shrink-0 whitespace-nowrap" style={typeStyle("tagName")}>
+        {label}
+      </dt>
       <dd className="m-0 text-right" style={typeStyle("small", "ink")}>
         {value}
       </dd>
@@ -98,35 +115,54 @@ function Row({ label, value }: { label: string; value: string }) {
 type Check = { ok: true; to: string[]; redirectedFrom?: string[] } | { ok: false; error: string };
 
 /**
- * Send now, with a confirm step that lists the real recipients, read again from Outlook by the
- * server. The server checks every rule again when you confirm.
+ * A send with a confirm step that lists the real recipients, as the server checked them (for an
+ * item, read again from Outlook). The server checks every rule again when you confirm. Used by
+ * Send now on a draft and by Send digest now.
  */
-function SendNow({ item, paused }: { item: QueueItem; paused: boolean }) {
+function ConfirmSend({
+  label,
+  title,
+  checkPath,
+  sendPath,
+  paused,
+  onSent,
+  testId,
+}: {
+  label: string;
+  title: string;
+  checkPath: string;
+  sendPath: string;
+  paused: boolean;
+  onSent?: (result: unknown) => void;
+  testId?: string;
+}) {
   const [check, setCheck] = useState<Check | null>(null);
   const [busy, setBusy] = useState(false);
   const [said, setSaid] = useState("");
   const confirmRef = useRef<HTMLButtonElement>(null);
-  const id = encodeURIComponent(item.id);
+  const titleId = useId();
 
   const open = () => {
     setSaid("");
     setBusy(true);
-    fetch(`/api/mail/items/${id}/send-check`)
-      .then((r) => r.json() as Promise<Check>)
+    post<Check>(checkPath, {})
       .then((c) => {
         setCheck(c);
         if (c.ok) requestAnimationFrame(() => confirmRef.current?.focus());
       })
-      .catch(() => setCheck({ ok: false, error: "Could not reach the local server." }))
+      .catch((e: unknown) =>
+        setCheck({ ok: false, error: e instanceof Error ? e.message : String(e) }),
+      )
       .finally(() => setBusy(false));
   };
   const confirm = () => {
     if (!check?.ok) return;
     setBusy(true);
-    post(`/api/mail/items/${id}/send`, { recipients: check.to })
-      .then(() => {
+    post(sendPath, { recipients: check.to })
+      .then((result) => {
         setCheck(null);
         setSaid("Sent.");
+        onSent?.(result);
       })
       .catch((e: unknown) => {
         setCheck(null);
@@ -137,15 +173,16 @@ function SendNow({ item, paused }: { item: QueueItem; paused: boolean }) {
 
   return (
     <>
-      {!check && (
+      {!check?.ok && (
         <button
           type="button"
           disabled={paused || busy}
           onClick={open}
-          className={PRIMARY}
-          style={primaryText}
+          className={BUTTON}
+          style={buttonText}
+          data-testid={testId}
         >
-          Send now
+          {label}
         </button>
       )}
       {check && !check.ok && (
@@ -156,12 +193,12 @@ function SendNow({ item, paused }: { item: QueueItem; paused: boolean }) {
       {check?.ok && (
         <div
           role="alertdialog"
-          aria-labelledby={`send-${item.id}`}
+          aria-labelledby={titleId}
           className="flex basis-full flex-col gap-1.5 rounded-button border border-accent p-2"
           data-testid="send-confirm"
         >
-          <span id={`send-${item.id}`} style={typeStyle("tagName")}>
-            Send this email now to:
+          <span id={titleId} style={typeStyle("tagName")}>
+            {title}
           </span>
           <ul className="m-0 pl-4" style={typeStyle("small", "ink")}>
             {check.to.map((to) => (
@@ -245,7 +282,7 @@ function DraftRow({
           (mail.driver === "graph"
             ? "Draft ready in your Outlook Drafts. Nothing was sent."
             : "Draft ready. Nothing was sent.")}
-        {mail.state === "dry-run" && "Dry run, no draft was made."}
+        {mail.state === "dry-run" && DRY_RUN}
         {mail.state === "sent" && `Sent at ${clockOf(mail.sentAt ?? "")}.`}
         {mail.state === "failed" && `Not made: ${mail.problem ?? "something went wrong."}`}
       </span>
@@ -262,7 +299,15 @@ function DraftRow({
               Open draft in Outlook
             </a>
           )}
-          {sendReady && <SendNow item={item} paused={paused} />}
+          {sendReady && (
+            <ConfirmSend
+              label="Send now"
+              title="Send this email now to:"
+              checkPath={`/api/mail/items/${encodeURIComponent(item.id)}/send-check`}
+              sendPath={`/api/mail/items/${encodeURIComponent(item.id)}/send`}
+              paused={paused}
+            />
+          )}
         </div>
       )}
       {email && mail.state !== "failed" && mail.driver !== "graph" && (
@@ -335,11 +380,9 @@ export function MailTab({ queue, paused }: { queue: QueueItem[]; paused: boolean
         setOverview(r.mail);
         setDigestSaid(
           r.mail.status.driver === "graph"
-            ? r.mail.status.mode === "send"
-              ? "Digest sent."
-              : "The digest is a draft in your Outlook Drafts."
+            ? "The digest is a draft in your Outlook Drafts."
             : r.mail.status.mode === "dry-run"
-              ? "Dry run: nothing was made. The log says what would happen."
+              ? DRY_RUN
               : "The digest is saved as an .eml file in vault/outbox/.",
         );
       })
@@ -467,10 +510,12 @@ export function MailTab({ queue, paused }: { queue: QueueItem[]; paused: boolean
           <dl className="m-0">
             <Row
               label="Daily digest"
-              value={`${overview.digest.time} ${overview.digest.timezone}, ${
+              value={`${digestClock(overview.digest.time)}${
+                overview.digest.timezone === "Asia/Manila" ? "" : ` ${overview.digest.timezone}`
+              }, as a draft. ${
                 overview.digest.lastAt
-                  ? `last on ${dayAndTime(overview.digest.lastAt)}`
-                  : "not sent yet"
+                  ? `Last made ${dayAndTime(overview.digest.lastAt)}.`
+                  : "Not made yet."
               }`}
             />
             <Row
@@ -486,17 +531,30 @@ export function MailTab({ queue, paused }: { queue: QueueItem[]; paused: boolean
               }
             />
           </dl>
-          <div className="flex items-center gap-2 border-t border-hairline py-2">
-            <button
-              type="button"
-              disabled={paused || digestBusy}
-              onClick={sendDigest}
-              className={BUTTON}
-              style={buttonText}
-              data-testid="send-digest"
-            >
-              Send digest now
-            </button>
+          <div className="flex flex-wrap items-center gap-2 border-t border-hairline py-2">
+            {overview.digest.sends ? (
+              // Outlook in send mode: a real send, so it asks first and lists the recipients.
+              <ConfirmSend
+                label="Send digest now"
+                title="Send today's digest now to:"
+                checkPath="/api/mail/digest/check"
+                sendPath="/api/mail/digest"
+                paused={paused}
+                testId="send-digest"
+                onSent={(r) => setOverview((r as { mail: MailOverview }).mail)}
+              />
+            ) : (
+              <button
+                type="button"
+                disabled={paused || digestBusy}
+                onClick={sendDigest}
+                className={BUTTON}
+                style={buttonText}
+                data-testid="send-digest"
+              >
+                Make digest now
+              </button>
+            )}
           </div>
           <span aria-live="polite" style={typeStyle("small", "ink")} data-testid="digest-said">
             {digestSaid}

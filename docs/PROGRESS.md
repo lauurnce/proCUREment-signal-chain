@@ -1,6 +1,6 @@
 # Progress
 
-Now: Phase 7 in `p7-outlook`. P7.1 to P7.4 built. Waiting for Lawrence to try the real Outlook sign-in, a draft, a send, an [HQ] email and the digest on his Mac. Next: P7.5, the security and privacy review, then the Phase 7 checkpoint. Carried from the P6.3 playtest to Phase 8: a Demo Day pill with the sim clock in the header, daylight that follows the sim clock, one meaning for "waiting" across tags, stats and Board, the r3f-perf overlay covering the panel in dev, a day that ends at 18:00, and varied send-back notes.
+Now: Phase 7 built in `p7-outlook` (P7.1 to P7.5), checkpoint done, waiting for Lawrence's OK and his real Outlook test on the Mac, then merge to `main`. Next: Phase 8 (polish and v0.1.0). Carried to Phase 8: from the P6.3 playtest, a Demo Day pill with the sim clock, daylight from the sim clock, one meaning for "waiting", the r3f-perf overlay in dev, a day that ends at 18:00, varied send-back notes; from the P7.5 brand review, Lawrence to decide the digest naming each helper's work, the Send now button style, and the redirect banner colors.
 
 ## Phases
 - [x] 0. Kickoff and alignment (main checkout)
@@ -10,7 +10,7 @@ Now: Phase 7 in `p7-outlook`. P7.1 to P7.4 built. Waiting for Lawrence to try th
 - [x] 4. The team, characters and movement (`p4-team`, parallel with 5)
 - [x] 5. The HQ panel (`p5-panel`, parallel with 4)
 - [x] 6. Live data and Demo Day (`p6-live`)
-- [ ] 7. Outlook (`p7-outlook`)
+- [x] 7. Outlook (`p7-outlook`)
 - [ ] 8. Polish and v0.1.0 (`p8-polish`)
 
 ## Open questions
@@ -21,6 +21,7 @@ Now: Phase 7 in `p7-outlook`. P7.1 to P7.4 built. Waiting for Lawrence to try th
 - Frame rate in Walk around mode on the M4 Pro: the cloud session measured only software rendering (see P4.3). Open `/?walk=1` with r3f-perf to check it on real hardware.
 
 ## Log
+- 13 Oct 2026, P7.5 (cloud session): security review (1 high, 2 medium, 9 low) and brand review (2 musts, 18 shoulds and coulds), all fixed except 3 brand points left for Lawrence. The scheduled digest is now only a draft, nothing is sent without a click (D-127). Security fixes (D-128) and copy fixes (D-129). 88 server tests, 194 web tests, 47 shared tests, 26 browser tests pass. New shots: office-mail at 3 sizes.
 - 13 Oct 2026, P7.4 (cloud session): inbox to task, Outlook only, bodies opened only for [HQ] emails, keyword rules in `data/inbox-rules.json`, and the helper walks to the Mail Dock (D-125). The daily digest at DIGEST_TIME or with Send digest now, as a file, a draft or a send by mode (D-126). Built with Graph mocked: 85 server tests, 194 web tests, 47 shared tests, 26 browser tests pass.
 - 13 Oct 2026, P7.3 (cloud session): Outlook sign-in with MSAL and PKCE, the Keychain cache with a .secrets/ fallback (D-122), real drafts through Graph with the demo redirect built in, and Send now with a confirm box and every safety rule on the server (D-123). Browser tests stay on the outbox (D-124). Built with Graph and MSAL mocked: 78 server tests, 194 web tests, 47 shared tests, 26 browser tests pass. Not yet tried against a real mailbox.
 - 13 Oct 2026, P7.2 (cloud session): the outbox driver, the default with no setup. Approving an email item saves an .eml draft in vault/outbox/ and records it on the item (D-121). New 5th tab, Mail: status, drafts with Open in Outlook, Copy email and Download .eml, and the settings from .env. 50 server tests, 194 web tests, 47 shared tests, 26 browser tests pass.

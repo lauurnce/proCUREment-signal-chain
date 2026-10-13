@@ -573,6 +573,10 @@ test("approving an item saves it to the vault, end to end", async ({ page, reque
     health.vaultPath !== "vault-e2e",
     "Runs only on the throwaway test vault. Stop pnpm dev, then run the tests again.",
   );
+  // Approving makes a draft, so this test runs only on the outbox: never a real mailbox, even
+  // with a dev server you started yourself with Outlook connected (D-124).
+  const mail = (await (await request.get("/api/mail")).json()) as { status: { driver: string } };
+  test.skip(mail.status.driver !== "outbox", "Runs only with the outbox. Stop pnpm dev first.");
   const errors = collectErrors(page);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/?shots=1");
@@ -616,7 +620,7 @@ test("approving an item saves it to the vault, end to end", async ({ page, reque
   const href = await draft.getByTestId("download-eml").getAttribute("href");
   expect((await request.get(href ?? "")).headers()["content-disposition"]).toContain("q-0001.eml");
 
-  // P7.4: Send digest now saves the digest as an HTML .eml (the tests always use the outbox).
+  // P7.4: Make digest now saves the digest as an HTML .eml.
   await page.getByTestId("send-digest").click();
   await expect(page.getByTestId("digest-said")).toHaveText(
     "The digest is saved as an .eml file in vault/outbox/.",

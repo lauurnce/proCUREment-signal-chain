@@ -134,6 +134,13 @@ describe("inbox to task", () => {
         body: "<p>They missed the date &amp; need a nudge.</p>",
       },
       {
+        id: "m4",
+        subject: "[HQ] A stranger guessed the tag",
+        from: "stranger@elsewhere.example",
+        at: "2026-10-13T05:45:00Z",
+        body: "<p>Make a task please</p>",
+      },
+      {
         id: "m1",
         subject: "[HQ] Old one from last week",
         from: "me@test.example",
@@ -144,9 +151,9 @@ describe("inbox to task", () => {
     const lines = await mail.checkInbox(NOW);
     expect(lines).toHaveLength(1);
     expect(lines[0]).toMatch(
-      /mail: \[HQ\] email "Please chase PO-451208 with Luzon Precision" became t-\d{4} for ops-\d\d/,
+      /mail: \[HQ\] email "Please chase PO-451208 with Luzon Precision" became t-\d{4} for the Ops \d\d helper/,
     );
-    // The untagged email's body is never opened. The old one is skipped.
+    // The untagged email's body is never opened. The stranger's and the old one are skipped.
     expect(box.bodiesRead).toEqual(["m2"]);
 
     await store.reload();
@@ -208,7 +215,7 @@ describe("the daily digest", () => {
     expect(digest.subject).toBe("SignalChain HQ daily digest, 13 Oct 2026");
     for (const title of [
       "What needs you",
-      "What the team finished",
+      "What the helpers finished",
       "Handoffs (CM to Ops)",
       "Tomorrow",
     ]) {
@@ -219,15 +226,19 @@ describe("the daily digest", () => {
       "Award &lt;RFQ-26-014&gt; to Luzon &amp; co (from the CM 03 helper)",
     );
     expect(digest.html).not.toContain("<RFQ-26-014>");
-    expect(digest.html).toContain("09:12 cm-03 endorsed 14 PRs");
+    // Log lines lose their time and name helpers, never seats (D-046).
+    expect(digest.html).toContain("The CM 03 helper endorsed 14 PRs to the ops-01 helper");
+    expect(digest.html).not.toMatch(/09:12|>cm-03/);
+    expect(digest.html).toContain('<table role="presentation" width="600"');
+    expect(digest.html).not.toContain("font:");
     expect(digest.html).toContain(MAIL_FOOTER);
     expect(digest.html).not.toMatch(/<img|logo/i);
     expect(digest.text.endsWith(MAIL_FOOTER)).toBe(true);
   });
 
-  it("drafts mode makes an Outlook draft, redirected, and the clock sends it once a day", async () => {
+  it("the clock only makes a draft, even in send mode, and only once a day", async () => {
     const { mail, box } = await setup({
-      MAIL_MODE: "drafts",
+      MAIL_MODE: "send",
       DIGEST_TO: "boss@elsewhere.example",
       MAIL_ALLOWED_RECIPIENTS: "me@test.example",
       MAIL_REDIRECT_TO: "me@test.example",
@@ -242,18 +253,25 @@ describe("the daily digest", () => {
     expect(box.drafts[0]?.body.content).toContain(
       "Demo redirect. Originally to: boss@elsewhere.example",
     );
+    // Nothing is sent without a click (D-127).
+    expect(box.sent).toEqual([]);
     const again = await mail.tick(new Date(NOW.getTime() + 60_000));
     expect(again.lines).toEqual([]);
     expect(box.drafts).toHaveLength(1);
   });
 
-  it("send mode sends through the guard and records it, and a blocked send says why", async () => {
+  it("Send digest now sends only the confirmed recipients, and a blocked send says why", async () => {
     const { mail, box } = await setup({
       MAIL_MODE: "send",
       DIGEST_TO: "me@test.example",
       MAIL_ALLOWED_RECIPIENTS: "me@test.example",
     });
-    const sent = await mail.sendDigest(NOW);
+    expect(await mail.digestCheck(NOW)).toEqual({ ok: true, to: ["me@test.example"] });
+    expect(await mail.makeDigest(NOW)).toEqual({
+      error: "The recipients changed since you checked. Please look at the list again.",
+    });
+    expect(box.sent).toEqual([]);
+    const sent = await mail.makeDigest(NOW, { confirmed: ["me@test.example"] });
     expect(sent).toMatchObject({
       line: expect.stringContaining("sent the daily digest (graph) to me@test.example"),
     });
@@ -268,8 +286,12 @@ describe("the daily digest", () => {
       DIGEST_TO: "boss@elsewhere.example",
       MAIL_ALLOWED_RECIPIENTS: "me@test.example",
     });
-    expect(await blocked.mail.sendDigest(NOW)).toEqual({
+    expect(await blocked.mail.digestCheck(NOW)).toEqual({
+      ok: false,
       error: expect.stringMatching(/not on your allowed list: boss@elsewhere\.example/),
+    });
+    expect(await blocked.mail.makeDigest(NOW, { confirmed: ["boss@elsewhere.example"] })).toEqual({
+      error: expect.stringMatching(/not on your allowed list/),
     });
     expect(blocked.box.sent).toEqual([]);
   });
@@ -284,7 +306,7 @@ describe("the daily digest", () => {
       config: loadMailConfig({ DIGEST_TO: "me@test.example" }),
       store,
     });
-    expect(await mail.sendDigest(NOW)).toEqual({
+    expect(await mail.makeDigest(NOW)).toEqual({
       line: expect.stringContaining("daily digest saved as outbox/digest-2026-10-13.eml"),
     });
     const eml = await readVault("outbox/digest-2026-10-13.eml");

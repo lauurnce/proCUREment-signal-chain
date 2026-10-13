@@ -113,7 +113,13 @@ describe("Outlook drafts and Send now", () => {
   let vaultDir: string;
   let app: FastifyInstance;
   let store: VaultStore;
-  let outlook: { recipients: string[]; drafts: unknown[]; sent: string[]; gone: boolean };
+  let outlook: {
+    recipients: string[];
+    drafts: unknown[];
+    sent: string[];
+    gone: boolean;
+    patched: { ccRecipients: unknown[]; bccRecipients: unknown[] }[];
+  };
 
   async function setup(env: NodeJS.ProcessEnv) {
     temp = await mkdtemp(join(tmpdir(), "hq-outlook-"));
@@ -121,7 +127,7 @@ describe("Outlook drafts and Send now", () => {
     await cp(join(repoRoot, "vault.sample"), vaultDir, { recursive: true });
     store = new VaultStore({ vaultDir, dataDir: join(repoRoot, "data") });
     await store.reload();
-    outlook = { recipients: [], drafts: [], sent: [], gone: false };
+    outlook = { recipients: [], drafts: [], sent: [], gone: false, patched: [] };
     // A fake Outlook mailbox behind the real Graph client.
     const fetch = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
       const path = String(url).replace("https://graph.microsoft.com/v1.0", "");
@@ -142,6 +148,14 @@ describe("Outlook drafts and Send now", () => {
           id: "AAMk1",
           toRecipients: outlook.recipients.map((address) => ({ emailAddress: { address } })),
         });
+      }
+      if (path === "/me/messages/AAMk1" && init?.method === "PATCH") {
+        const body = JSON.parse(String(init.body));
+        outlook.patched.push(body);
+        outlook.recipients = body.toRecipients.map(
+          (r: { emailAddress: { address: string } }) => r.emailAddress.address,
+        );
+        return Response.json({ id: "AAMk1" });
       }
       if (path === "/me/messages/AAMk1/send") {
         outlook.sent.push("AAMk1");
@@ -187,7 +201,13 @@ describe("Outlook drafts and Send now", () => {
       payload: { action: "approve" },
       headers,
     });
-  const check = () => app.inject({ url: "/api/mail/items/q-0001/send-check", headers });
+  const check = () =>
+    app.inject({
+      method: "POST",
+      url: "/api/mail/items/q-0001/send-check",
+      payload: {},
+      headers,
+    });
   const send = (recipients: string[]) =>
     app.inject({
       method: "POST",
@@ -228,7 +248,9 @@ describe("Outlook drafts and Send now", () => {
 
     expect((await check()).json()).toEqual({
       ok: false,
-      error: "Sending is off. MAIL_MODE is drafts, so the app only makes drafts.",
+      error: expect.stringMatching(
+        /^Sending is off\. MAIL_MODE is drafts, so the app only makes drafts\./,
+      ),
     });
     expect((await send(["me@test.example"])).statusCode).toBe(409);
     expect(outlook.sent).toEqual([]);
@@ -251,13 +273,17 @@ describe("Outlook drafts and Send now", () => {
     outlook.recipients = ["me@test.example", "boss@elsewhere.example"];
     const changed = await send(["me@test.example"]);
     expect(changed.statusCode).toBe(409);
-    expect(changed.json().error).toMatch(/not on your allowed list: boss@elsewhere\.example/);
+    expect(changed.json().error).toMatch(
+      /demo redirect is on, so this draft may only go to me@test\.example/,
+    );
     outlook.recipients = ["me@test.example"];
 
     const sent = await send(["me@test.example"]);
     expect(sent.statusCode).toBe(200);
     expect(sent.json().item.mail).toMatchObject({ state: "sent" });
     expect(outlook.sent).toEqual(["AAMk1"]);
+    // Right before sending, the draft was set to exactly the confirmed list, Cc and Bcc empty.
+    expect(outlook.patched[0]).toMatchObject({ ccRecipients: [], bccRecipients: [] });
     expect(await allToday()).toContain(
       "mail: sent q-0001 (graph) to me@test.example (redirected from orders@luzonprecision.example)",
     );
@@ -324,7 +350,25 @@ describe("Outlook drafts and Send now", () => {
       url: "/auth/callback?state=nope&code=abc",
       headers: { host: "localhost:5173" },
     });
-    expect(bad.headers.location).toMatch(/mailProblem=This%20sign-in%20link%20is%20old/);
+    // Only a short code goes in the address bar, never free text.
+    expect(bad.headers.location).toBe("http://localhost:5173/?tab=mail&mailProblem=expired");
+    const crossSite = await app.inject({
+      url: "/auth/login",
+      headers: { host: "localhost:5173", "sec-fetch-site": "cross-site" },
+    });
+    expect(crossSite.statusCode).toBe(403);
+  });
+
+  it("a decision from another website is refused, since it can make a real draft", async () => {
+    await setup({});
+    const evil = await app.inject({
+      method: "POST",
+      url: "/api/queue/q-0001/decision",
+      payload: { action: "approve" },
+      headers: { ...headers, origin: "https://evil.example" },
+    });
+    expect(evil.statusCode).toBe(403);
+    expect(outlook.drafts).toEqual([]);
   });
 
   it("Sign out needs the page's own origin", async () => {

@@ -34,6 +34,14 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await app.register(cors, {
     origin: [`http://127.0.0.1:${deps.webPort}`, `http://localhost:${deps.webPort}`],
   });
+  // An unexpected error never shows file paths or library messages on the page.
+  app.setErrorHandler((error, request, reply) => {
+    const status = (error as { statusCode?: number }).statusCode ?? 500;
+    if (status < 500) return reply.code(status).send({ error: "That request is not valid." });
+    request.log.error(error);
+    console.error("Request failed", request.method, request.url, error);
+    return reply.code(500).send({ error: "Something went wrong. Try again." });
+  });
   registerHealthRoutes(app, {
     store: deps.store,
     version: pkg.version,

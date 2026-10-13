@@ -4,6 +4,7 @@ import {
   InteractionRequiredAuthError,
   PublicClientApplication,
 } from "@azure/msal-node";
+import { SIGN_IN_PROBLEMS, type SignInProblem } from "@hq/shared";
 import { createTokenCache } from "./cache";
 
 /** The four delegated permissions (OUTLOOK_SETUP step 4). Nothing more. */
@@ -21,12 +22,24 @@ export interface MsalLike {
   signOut: PublicClientApplication["signOut"];
 }
 
-/** Plain-English sign-in problems. The routes and the Mail tab show the message as it is. */
-export class SignInError extends Error {}
+/**
+ * Plain-English sign-in problems. A sign-in step carries a short code, so the page can show the
+ * fixed message for it after the redirect back.
+ */
+export class SignInError extends Error {
+  readonly code: SignInProblem | null;
+  constructor(message: string, code: SignInProblem | null = null) {
+    super(message);
+    this.code = code;
+  }
+}
+const problem = (code: SignInProblem) => new SignInError(SIGN_IN_PROBLEMS[code], code);
 
 export const SIGN_IN_AGAIN = "Please sign in to Outlook again.";
 export const NOT_CONNECTED =
-  "Outlook is not connected. Open the Mail tab and click Connect Outlook.";
+  "Outlook is not connected. Click Connect Outlook at the top of the Mail tab, then Make the draft again.";
+/** At most this many sign-ins can be in progress, so a flood of Connect clicks stays small. */
+const MAX_PENDING = 5;
 
 /**
  * The Outlook sign-in with MSAL Node: authorization code flow with PKCE (a one-time secret made
@@ -84,6 +97,11 @@ export class OutlookAuth {
   /** Step 1 of Connect Outlook: the Microsoft sign-in page to send the browser to. */
   async loginUrl(redirectUri: string, now = Date.now()): Promise<string> {
     for (const [key, p] of this.#pending) if (p.until < now) this.#pending.delete(key);
+    while (this.#pending.size >= MAX_PENDING) {
+      const oldest = this.#pending.keys().next().value;
+      if (oldest === undefined) break;
+      this.#pending.delete(oldest);
+    }
     const { verifier, challenge } = await this.#crypto.generatePkceCodes();
     const state = this.#crypto.createNewGuid();
     this.#pending.set(state, { verifier, redirectUri, until: now + PENDING_MS });
@@ -101,19 +119,9 @@ export class OutlookAuth {
   async callback(query: Record<string, string | undefined>, now = Date.now()): Promise<void> {
     const pending = query.state ? this.#pending.get(query.state) : undefined;
     if (query.state) this.#pending.delete(query.state);
-    if (!pending || pending.until < now) {
-      throw new SignInError(
-        "This sign-in link is old or was already used. Click Connect Outlook again.",
-      );
-    }
-    if (query.error) {
-      throw new SignInError(
-        query.error === "access_denied"
-          ? "You did not accept the permissions, so Outlook is not connected."
-          : "Microsoft did not finish the sign-in. Click Connect Outlook to try again.",
-      );
-    }
-    if (!query.code) throw new SignInError("Microsoft did not send a sign-in code. Try again.");
+    if (!pending || pending.until < now) throw problem("expired");
+    if (query.error) throw problem(query.error === "access_denied" ? "declined" : "unfinished");
+    if (!query.code) throw problem("unfinished");
     try {
       const result = await this.#msal.acquireTokenByCode({
         code: query.code,
@@ -124,7 +132,7 @@ export class OutlookAuth {
       this.#account = result.account;
       this.#problem = null;
     } catch {
-      throw new SignInError("The sign-in did not finish. Click Connect Outlook to try again.");
+      throw problem("unfinished");
     }
   }
 

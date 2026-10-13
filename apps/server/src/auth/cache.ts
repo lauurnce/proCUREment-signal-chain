@@ -2,7 +2,8 @@ import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { ICachePlugin, TokenCacheContext } from "@azure/msal-node";
 
-export const CACHE_WARNING = "Your sign-in is saved in a file in .secrets/, not the Keychain.";
+export const CACHE_WARNING =
+  "Your Outlook sign-in is kept in a private file (.secrets/) because the Mac Keychain was not available. This is fine for a test account.";
 
 export interface TokenCache {
   plugin: ICachePlugin;

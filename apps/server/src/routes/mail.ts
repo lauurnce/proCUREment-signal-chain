@@ -1,11 +1,12 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { composeEmail, Id } from "@hq/shared";
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { composeEmail, Id, type SignInProblem } from "@hq/shared";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { SignInError } from "../auth/outlook";
 import { buildEml } from "../mail/eml";
 import type { MailService } from "../mail/service";
+import { fromPage as originCheck } from "../security/origin";
 import type { SseHub } from "../sse/hub";
 import type { VaultStore } from "../vault/store";
 
@@ -17,15 +18,7 @@ export function registerMailRoutes(
   app: FastifyInstance,
   deps: { store: VaultStore; hub: SseHub; mail: MailService; webPort: number },
 ): void {
-  const origins = new Set([`http://127.0.0.1:${deps.webPort}`, `http://localhost:${deps.webPort}`]);
-  const fromPage = (request: FastifyRequest, reply: FastifyReply) => {
-    const origin = request.headers.origin;
-    if (origin && !origins.has(origin)) {
-      reply.code(403).send({ error: "This request did not come from the SignalChain HQ page." });
-      return false;
-    }
-    return true;
-  };
+  const fromPage = originCheck(deps.webPort);
   const itemId = (request: FastifyRequest) => Id.safeParse((request.params as { id?: string }).id);
 
   const publish = async (line: string) => {
@@ -67,8 +60,10 @@ export function registerMailRoutes(
     return { item: state.queue.find((q) => q.id === id.data) ?? null, line: result.line };
   });
 
-  // Send now, step 1: the real recipients from Outlook, or why sending is blocked.
-  app.get("/api/mail/items/:id/send-check", async (request, reply) => {
+  // Send now, step 1: the real recipients from Outlook, or why sending is blocked. A POST,
+  // because it asks Outlook and can mark a deleted draft.
+  app.post("/api/mail/items/:id/send-check", async (request, reply) => {
+    if (!fromPage(request, reply)) return reply;
     const id = itemId(request);
     if (!id.success) return reply.code(400).send({ error: "That item id is not valid." });
     const check = await deps.mail.sendCheck(id.data);
@@ -95,10 +90,20 @@ export function registerMailRoutes(
     return { item: state.queue.find((q) => q.id === id.data) ?? null, line: result.line };
   });
 
-  // Send digest now: the same rules as any send.
+  // Send digest now, step 1 (send mode only): who it goes to, for the confirm box.
+  app.post("/api/mail/digest/check", async (request, reply) => {
+    if (!fromPage(request, reply)) return reply;
+    return deps.mail.digestCheck();
+  });
+
+  // Make or send the digest now. Sending needs the recipients you confirmed.
+  const DigestBody = z.object({ recipients: z.array(z.string()).min(1).max(50).optional() });
   app.post("/api/mail/digest", async (request, reply) => {
     if (!fromPage(request, reply)) return reply;
-    const result = await deps.mail.sendDigest();
+    const body = DigestBody.safeParse(request.body ?? {});
+    if (!body.success)
+      return reply.code(400).send({ error: "Check the recipients first, then confirm." });
+    const result = await deps.mail.makeDigest(new Date(), { confirmed: body.data.recipients });
     if ("error" in result) return reply.code(409).send(result);
     await publish(result.line);
     return { line: result.line, mail: await deps.mail.overview() };
@@ -113,16 +118,22 @@ export function registerMailRoutes(
   // Connect Outlook. The redirect URI always uses localhost: Microsoft matches the registered
   // http://localhost/auth/callback for any port (OUTLOOK_SETUP step 3).
   const redirectUri = `http://localhost:${deps.webPort}/auth/callback`;
-  const backToMail = (problem?: string) =>
-    `http://localhost:${deps.webPort}/?tab=mail${problem ? `&mailProblem=${encodeURIComponent(problem)}` : ""}`;
+  const backToMail = (problem?: SignInProblem) =>
+    `http://localhost:${deps.webPort}/?tab=mail${problem ? `&mailProblem=${problem}` : ""}`;
 
-  app.get("/auth/login", async (_request, reply) => {
+  app.get("/auth/login", async (request, reply) => {
+    // Only a click in the app starts a sign-in, not a link or image on another website.
+    if (request.headers["sec-fetch-site"] === "cross-site") {
+      return reply.code(403).send({ error: "Start the sign-in from the Mail tab." });
+    }
     const auth = deps.mail.auth;
-    if (!auth)
-      return reply.redirect(backToMail("MS_CLIENT_ID is not set, so Outlook cannot connect."));
-    if (deps.store.demo)
-      return reply.redirect(backToMail("Turn off Demo Day before you connect Outlook."));
-    return reply.redirect(await auth.loginUrl(redirectUri));
+    if (!auth) return reply.redirect(backToMail("no-client-id"));
+    if (deps.store.demo) return reply.redirect(backToMail("demo"));
+    try {
+      return reply.redirect(await auth.loginUrl(redirectUri));
+    } catch {
+      return reply.redirect(backToMail("offline"));
+    }
   });
 
   app.get("/auth/callback", async (request, reply) => {
@@ -132,8 +143,9 @@ export function registerMailRoutes(
       await auth.callback(request.query as Record<string, string | undefined>);
       return reply.redirect(backToMail());
     } catch (error) {
-      const message = error instanceof SignInError ? error.message : "The sign-in did not finish.";
-      return reply.redirect(backToMail(message));
+      return reply.redirect(
+        backToMail(error instanceof SignInError && error.code ? error.code : "unfinished"),
+      );
     }
   });
 }

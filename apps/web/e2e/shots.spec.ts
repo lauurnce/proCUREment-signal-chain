@@ -56,6 +56,8 @@ const pages: Target[] = [
   { name: "office-team", path: "/?shots=1&tab=team", fullPage: false, expand: "cm-10" },
   { name: "office-board", path: "/?shots=1&tab=board", fullPage: false },
   { name: "office-tab", path: "/?shots=1&tab=office", fullPage: false, only: PANEL_SIZES },
+  // P7: the Mail tab (outbox, as the tests always use).
+  { name: "office-mail", path: "/?shots=1&tab=mail", fullPage: false, only: PANEL_SIZES },
   {
     name: "office-narrow",
     path: "/?shots=1",

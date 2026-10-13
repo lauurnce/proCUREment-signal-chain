@@ -55,6 +55,18 @@ export function loadMailConfig(env: NodeJS.ProcessEnv = process.env): MailConfig
   if (redirect && !Email.safeParse(redirect).success) {
     problems.push("MAIL_REDIRECT_TO is not a valid address, so the redirect is off.");
   }
+  const digestTo = env.DIGEST_TO?.trim().toLowerCase() || null;
+  if (digestTo && !Email.safeParse(digestTo).success) {
+    problems.push("DIGEST_TO is not a valid address, so the digest has no one to go to.");
+  }
+  const zone = env.HQ_TIMEZONE?.trim() || "Asia/Manila";
+  let timezone = zone;
+  try {
+    new Intl.DateTimeFormat("en", { timeZone: zone });
+  } catch {
+    timezone = "Asia/Manila";
+    problems.push(`HQ_TIMEZONE "${zone}" is not known, so Asia/Manila is used.`);
+  }
   const max = Number(env.MAIL_MAX_SENDS_PER_HOUR || 20);
   const time = env.DIGEST_TIME?.trim() || "17:30";
 
@@ -64,9 +76,9 @@ export function loadMailConfig(env: NodeJS.ProcessEnv = process.env): MailConfig
     allowed: allowed.filter((a) => Email.safeParse(a).success),
     redirectTo: redirect && Email.safeParse(redirect).success ? redirect : null,
     maxPerHour: Number.isInteger(max) && max >= 0 ? max : 20,
-    digestTo: env.DIGEST_TO?.trim() || null,
+    digestTo: digestTo && Email.safeParse(digestTo).success ? digestTo : null,
     digestTime: /^([01]\d|2[0-3]):[0-5]\d$/.test(time) ? time : "17:30",
-    timezone: env.HQ_TIMEZONE?.trim() || "Asia/Manila",
+    timezone,
     inboxTag: env.HQ_INBOX_TAG?.trim() || "[HQ]",
     inboxPollSeconds: Math.max(30, Number(env.HQ_INBOX_POLL_SECONDS) || 120),
     msClientId: env.MS_CLIENT_ID?.trim() || null,

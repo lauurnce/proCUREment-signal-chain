@@ -1,6 +1,7 @@
 import { DecisionRequest, Id, InstructionRequest } from "@hq/shared";
 import type { FastifyInstance } from "fastify";
 import type { MailService } from "../mail/service";
+import { fromPage as originCheck } from "../security/origin";
 import type { SseHub } from "../sse/hub";
 import { applyDecision, DecisionError, saveInstruction } from "../vault/decide";
 import type { VaultStore } from "../vault/store";
@@ -11,8 +12,10 @@ import type { VaultStore } from "../vault/store";
  */
 export function registerQueueRoutes(
   app: FastifyInstance,
-  deps: { store: VaultStore; hub: SseHub; mail?: MailService },
+  deps: { store: VaultStore; hub: SseHub; webPort: number; mail?: MailService },
 ): void {
+  // A decision can now make a real Outlook draft, so it must come from the page itself.
+  const fromPage = originCheck(deps.webPort);
   /** In Demo Day, decisions happen at the simulated time, so the log stays in order. */
   const now = () => (deps.store.demo ? new Date(deps.store.demo.clock) : new Date());
   const afterWrite = async (...lines: string[]) => {
@@ -23,6 +26,7 @@ export function registerQueueRoutes(
   };
 
   app.post("/api/queue/:id/decision", async (request, reply) => {
+    if (!fromPage(request, reply)) return reply;
     const id = Id.safeParse((request.params as { id?: string }).id);
     const body = DecisionRequest.safeParse(request.body);
     if (!id.success || !body.success) {
@@ -55,6 +59,7 @@ export function registerQueueRoutes(
   });
 
   app.post("/api/instructions", async (request, reply) => {
+    if (!fromPage(request, reply)) return reply;
     const body = InstructionRequest.safeParse(request.body);
     if (!body.success) {
       return reply

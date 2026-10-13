@@ -24,8 +24,11 @@ import { type InboxRules, nextTaskId, pickOwner, routeEmail, taskTitle } from ".
 import { type Ledger, readLedger, writeLedger } from "./ledger";
 
 const PA_NOT_SET_UP =
-  "The Power Automate bridge is not set up. It needs ADI IT approval first, so no draft was made.";
+  "The Power Automate bridge is not set up. It needs IT approval first, so no draft was made.";
 const GONE = "The draft is not in Outlook any more. Make the draft again.";
+const DIGEST_TO_MISSING =
+  "DIGEST_TO is not set, so the digest has no one to go to. Set DIGEST_TO in .env and restart pnpm dev.";
+const DIGEST_FONT = "'Quattrocento Sans', Arial, Helvetica, sans-serif";
 
 const HOUR = 3_600_000;
 /** How long a helper stays at the Mail Dock for an [HQ] email. */
@@ -33,6 +36,9 @@ const VISIT_MS = 5 * 60_000;
 const MAIL_DOCK = "mail-dock";
 const dayIn = (at: Date, timeZone: string) =>
   new Intl.DateTimeFormat("en-CA", { timeZone }).format(at);
+/** "2:05 PM", the app's time format (adi-theme skill). */
+const clock12 = (at: Date, timeZone: string) =>
+  new Intl.DateTimeFormat("en-US", { timeZone, hour: "numeric", minute: "2-digit" }).format(at);
 const timeIn = (at: Date, timeZone: string) =>
   new Intl.DateTimeFormat("en-GB", { timeZone, hour: "2-digit", minute: "2-digit" }).format(at);
 const longDayIn = (at: Date, timeZone: string) =>
@@ -84,6 +90,14 @@ export class MailService {
 
   readonly #rules: InboxRules;
   #lastInboxPoll = 0;
+  /** One send at a time, so two quick clicks cannot both pass the hourly limit. */
+  #queue: Promise<unknown> = Promise.resolve();
+
+  #exclusive<T>(work: () => Promise<T>): Promise<T> {
+    const run = this.#queue.then(work, work);
+    this.#queue = run.catch(() => undefined);
+    return run;
+  }
 
   get auth(): OutlookAuth | null {
     return this.#auth;
@@ -124,7 +138,8 @@ export class MailService {
       allowlistCount: c.allowed.length,
       maxPerHour: c.maxPerHour,
       problem: problems.length ? problems.join(" ") : null,
-      cacheWarning: driver === "graph" ? (auth?.cacheWarning ?? null) : null,
+      // Only once you are signed in: before that, nothing is kept anywhere.
+      cacheWarning: connected ? (auth?.cacheWarning ?? null) : null,
     };
   }
 
@@ -140,6 +155,7 @@ export class MailService {
         timezone: c.timezone,
         hasRecipient: Boolean(c.digestTo),
         lastAt: ledger.digest.lastAt,
+        sends: this.digestSends(),
       },
       inbox: {
         tag: c.inboxTag,
@@ -297,10 +313,18 @@ export class MailService {
    * Step 2: sends the draft, only if every rule still passes and the recipients are the ones
    * you confirmed. Logs the send and records it in the ledger.
    */
-  async send(
+  send(
     id: string,
     confirmed: string[],
     now = new Date(),
+  ): Promise<{ line: string } | { error: string }> {
+    return this.#exclusive(() => this.#send(id, confirmed, now));
+  }
+
+  async #send(
+    id: string,
+    confirmed: string[],
+    now: Date,
   ): Promise<{ line: string } | { error: string }> {
     const check = await this.sendCheck(id, now);
     if (!check.ok) return { error: check.error };
@@ -312,7 +336,12 @@ export class MailService {
     if (!item?.file || !mail?.draftId) return { error: `${id} has no Outlook draft to send.` };
     const draftId = mail.draftId;
     try {
-      await this.#withGraph((g) => g.send(draftId));
+      // Set the recipients to exactly the confirmed list right before sending, so an edit made
+      // in Outlook after the check cannot add anyone.
+      await this.#withGraph(async (g) => {
+        await g.setRecipients(draftId, check.to);
+        await g.send(draftId);
+      });
     } catch (error) {
       if (error instanceof GraphNotFoundError) {
         await this.#markFailed(item.file, GONE);
@@ -370,7 +399,8 @@ export class MailService {
 
   /**
    * The clock, every 30 s from main.ts: helpers walk back from the Mail Dock, the inbox is
-   * checked every HQ_INBOX_POLL_SECONDS, and the digest goes out once a day at DIGEST_TIME.
+   * checked every HQ_INBOX_POLL_SECONDS, and the digest is made once a day at DIGEST_TIME. The
+   * scheduled digest is only ever a draft or a file: nothing is sent without a click (D-127).
    * Nothing runs in Demo Day. Returns the new log lines, and whether any vault file changed.
    */
   async tick(now = new Date()): Promise<{ lines: string[]; changed: boolean }> {
@@ -388,7 +418,7 @@ export class MailService {
     // An Outlook that is not connected waits: the digest goes once you connect, the same day.
     const waiting = this.driver() === "graph" && !this.#auth?.connected;
     if (due && !waiting) {
-      const result = await this.sendDigest(now);
+      const result = await this.makeDigest(now, { scheduled: true });
       if ("line" in result) lines.push(result.line);
       else {
         const fresh = await readLedger(this.#store.vaultDir);
@@ -424,8 +454,12 @@ export class MailService {
     // The first check only looks back one day, so old tagged emails do not flood the Board.
     const since = Date.parse(ledger.inbox.lastCheck ?? "") || now.getTime() - 24 * HOUR;
     const messages = await this.#withGraph((g) => g.listInbox());
+    // Only you, or an address on your allowed list, can make a task: a stranger who guesses the
+    // tag cannot fill the Board.
+    const trusted = new Set([...c.allowed, (this.#auth?.account ?? "").toLowerCase()]);
     const fresh = messages
       .filter((m) => m.subject.trim().toLowerCase().startsWith(tag))
+      .filter((m) => trusted.has(m.from.trim().toLowerCase()))
       .filter((m) => !seen.has(m.id) && Date.parse(m.receivedAt) >= since - 5 * 60_000)
       .reverse();
 
@@ -452,7 +486,7 @@ export class MailService {
         links: [],
         body: [
           "## From your inbox",
-          `Received ${timeIn(new Date(message.receivedAt), c.timezone)}, from ${message.from || "an unknown sender"}.`,
+          `Received ${clock12(new Date(message.receivedAt), c.timezone)}, from ${message.from || "an unknown sender"}.`,
           "",
           ...(excerpt ? excerpt.split("\n").map((l) => `> ${l}`) : ["> (No text in the email.)"]),
           "",
@@ -468,7 +502,7 @@ export class MailService {
         await logLine(
           vaultDir,
           now,
-          `mail: ${c.inboxTag} email "${title}" became ${id} for ${owner.id}`,
+          `mail: ${c.inboxTag} email "${title}" became ${id} for the ${owner.displayName} helper`,
         ),
       );
     }
@@ -533,12 +567,61 @@ export class MailService {
     return over.length;
   }
 
+  /** Where the digest goes, after the demo redirect. Null when DIGEST_TO is not set. */
+  #digestRecipients(): { to: string[]; redirectedFrom?: string[] } | null {
+    const c = this.#config;
+    if (!c.digestTo) return null;
+    const original = [c.digestTo.toLowerCase()];
+    if (c.redirectTo && c.redirectTo !== original[0]) {
+      return { to: [c.redirectTo], redirectedFrom: original };
+    }
+    return { to: original };
+  }
+
+  /** True when "Send digest now" really sends: Outlook connected and MAIL_MODE=send. */
+  digestSends(): boolean {
+    return (
+      this.driver() === "graph" && Boolean(this.#auth?.connected) && this.#config.mode === "send"
+    );
+  }
+
+  /** Send digest now, step 1: who it goes to, or why it cannot be sent (the confirm box). */
+  async digestCheck(now = new Date()): Promise<SendCheckResult> {
+    if (!this.digestSends()) {
+      return { ok: false, error: "Sending is off, so the digest is made as a draft or a file." };
+    }
+    const recipients = this.#digestRecipients();
+    if (!recipients) return { ok: false, error: DIGEST_TO_MISSING };
+    const check = checkSend({
+      ...(await this.#guardInput(now)),
+      recipients: recipients.to,
+      text: "",
+    });
+    if (!check.ok) return check;
+    return {
+      ok: true,
+      to: check.to,
+      ...(recipients.redirectedFrom ? { redirectedFrom: recipients.redirectedFrom } : {}),
+    };
+  }
+
   /**
-   * The daily digest (skill, section 6), at DIGEST_TIME or with "Send digest now". The outbox
-   * saves outbox/digest-<date>.eml. Outlook in drafts mode makes a draft, in send mode it sends,
-   * after the same checks as any send. Demo Day never sends it.
+   * The daily digest (skill, section 6). The scheduled one at DIGEST_TIME, and "Make digest now",
+   * are only ever a draft or a file: the outbox saves outbox/digest-<date>.eml, Outlook makes a
+   * draft (D-127). "Send digest now" sends only with Outlook in send mode, after you confirm the
+   * recipients, through the same guard as any send. Demo Day never touches it.
    */
-  async sendDigest(now = new Date()): Promise<{ line: string } | { error: string }> {
+  makeDigest(
+    now = new Date(),
+    options: { scheduled?: boolean; confirmed?: string[] } = {},
+  ): Promise<{ line: string } | { error: string }> {
+    return this.#exclusive(() => this.#makeDigest(now, options));
+  }
+
+  async #makeDigest(
+    now: Date,
+    options: { scheduled?: boolean; confirmed?: string[] },
+  ): Promise<{ line: string } | { error: string }> {
     if (this.#store.demo) return { error: "Demo Day never creates real drafts or sends email." };
     const c = this.#config;
     const vaultDir = this.#store.vaultDir;
@@ -551,8 +634,9 @@ export class MailService {
       longDate: longDayIn(now, c.timezone),
     });
     const driver = this.driver();
-    const ledger = await readLedger(vaultDir);
+    const send = !options.scheduled && this.digestSends();
     let text: string;
+    let sent: SentEntry | null = null;
     try {
       if (c.mode === "dry-run") {
         text = `mail: dry run of the daily digest (${driver}), nothing created`;
@@ -568,44 +652,51 @@ export class MailService {
         );
         text = `mail: daily digest saved as ${out}`;
       } else {
-        if (!c.digestTo)
-          throw new MailError("DIGEST_TO is not set, so the digest has no one to go to.");
-        const original = [c.digestTo.toLowerCase()];
-        const redirected = Boolean(c.redirectTo && c.redirectTo !== original[0]);
-        const to = redirected && c.redirectTo ? [c.redirectTo] : original;
-        const banner = `<p style="margin:0;padding:8px 24px;background:#FFF4E5;font:400 13px/19px Arial,sans-serif;color:#1A1A1A;">${redirectBanner(original)}</p>`;
+        const recipients = this.#digestRecipients();
+        if (!recipients) throw new MailError(DIGEST_TO_MISSING);
+        const { to, redirectedFrom } = recipients;
+        const banner = redirectedFrom
+          ? `<p style="margin:0;padding:8px 24px;background:#FFF4E5;font-family:${DIGEST_FONT};font-size:13px;line-height:19px;color:#1A1A1A;">${redirectBanner(redirectedFrom)}</p>`
+          : "";
         const email = {
           to,
           cc: [],
           subject: digest.subject,
-          text: redirected ? `${redirectBanner(original)}\n\n${digest.text}` : digest.text,
-          html: redirected
-            ? digest.html.replace(/<body[^>]*>/, (b) => `${b}${banner}`)
-            : digest.html,
+          text: redirectedFrom
+            ? `${redirectBanner(redirectedFrom)}\n\n${digest.text}`
+            : digest.text,
+          html: digest.html.replace(/<body[^>]*>/, (b) => `${b}${banner}`),
         };
-        if (c.mode === "drafts") {
+        if (!send) {
           await this.#withGraph((g) => g.createDraft(email));
           text = `mail: the daily digest is a draft in your Outlook Drafts, to ${to.join(", ")}`;
         } else {
-          const check = checkSend({ ...(await this.#guardInput(now)), recipients: to, text: "" });
+          const check = await this.digestCheck(now);
           if (!check.ok) throw new MailError(check.error);
-          await this.#withGraph((g) => g.sendMail(email));
-          ledger.sends.push({
+          if (!options.confirmed || !sameRecipients(check.to, options.confirmed)) {
+            throw new MailError(
+              "The recipients changed since you checked. Please look at the list again.",
+            );
+          }
+          await this.#withGraph((g) => g.sendMail({ ...email, to: check.to }));
+          sent = {
             at: manilaIso(now),
             itemId: "digest",
             subject: digest.subject,
-            to,
+            to: check.to,
             driver: "graph",
-            ...(redirected ? { redirectedFrom: original } : {}),
-          });
-          text = `mail: sent the daily digest (graph) to ${to.join(", ")}${redirected ? ` (redirected from ${original.join(", ")})` : ""}`;
+            ...(redirectedFrom ? { redirectedFrom } : {}),
+          };
+          text = `mail: sent the daily digest (graph) to ${check.to.join(", ")}${redirectedFrom ? ` (redirected from ${redirectedFrom.join(", ")})` : ""}`;
         }
       }
     } catch (error) {
       return { error: plain(error, "The digest could not be made. Try again.") };
     }
+    const ledger = await readLedger(vaultDir);
     await writeLedger(vaultDir, {
       ...ledger,
+      sends: sent ? [...ledger.sends, sent] : ledger.sends,
       digest: { lastDate: date, lastAt: manilaIso(now) },
     });
     return { line: await logLine(vaultDir, now, text) };

@@ -38,8 +38,21 @@ describe("the send guard", () => {
     ],
     [
       "a Bcc added in Outlook",
-      { recipients: ["me@test.example", "boss@elsewhere.example"] },
+      { redirectTo: null, recipients: ["me@test.example", "boss@elsewhere.example"] },
       /not on your allowed list: boss@elsewhere\.example/,
+    ],
+    [
+      "another allowed address while the redirect is on",
+      {
+        allowed: ["me@test.example", "team@test.example"],
+        recipients: ["me@test.example", "team@test.example"],
+      },
+      /demo redirect is on, so this draft may only go to me@test\.example/,
+    ],
+    [
+      "a draft made before the redirect was turned on",
+      { recipients: ["orders@luzonprecision.example"] },
+      /may only go to me@test\.example/,
     ],
     ["no recipients", { recipients: [] }, /no recipients/],
     [
@@ -50,7 +63,7 @@ describe("the send guard", () => {
     [
       "a placeholder",
       { text: "Dear [Supplier Name],\nThanks." },
-      /placeholder like \[Supplier Name\]\. Send it back/,
+      /placeholder like \[Supplier Name\]\. Fill it in in the Outlook draft/,
     ],
   ])("blocks %s, in plain English", (_name, change, message) => {
     const result = checkSend({ ...ok, ...change });

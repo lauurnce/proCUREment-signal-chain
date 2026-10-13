@@ -6,7 +6,7 @@ export function AboutNote({ onDark = false }: { onDark?: boolean }) {
   return (
     <p
       data-testid="about-note"
-      className={`m-0 font-sans text-[13px] leading-[18px] transition-colors duration-[1200ms] ${onDark ? "text-blue-light" : "text-ink-muted"}`}
+      className={`m-0 whitespace-nowrap font-sans text-[13px] leading-[18px] transition-colors duration-[1200ms] ${onDark ? "text-blue-light" : "text-ink-muted"}`}
     >
       Unofficial prototype · Fictional data
     </p>

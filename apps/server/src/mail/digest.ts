@@ -37,8 +37,23 @@ const helperOf = (state: AppState, seatId: string) =>
   `${state.seats.find((s) => s.id === seatId)?.displayName ?? seatId} helper`;
 
 /**
+ * A log line for the email: no time stamp, and every seat id becomes its helper, so a line never
+ * reads like a record of what a person did when (D-046, D-116).
+ */
+const asHelpers = (state: AppState, line: string) =>
+  line
+    .replace(/^\d\d:\d\d\s+/, "")
+    .replace(/\b(?:mgr|lead|cm|ops)-\d+\b/g, (id) => `the ${helperOf(state, id)}`)
+    .replace(/^the /, "The ")
+    .replace(/^you /, "You ");
+
+/** Inline text styles, written out one by one: Outlook for Windows drops the `font` shorthand. */
+const text = (size: number, line: number, weight: number, color: string) =>
+  `font-family:${FONT};font-size:${size}px;line-height:${line}px;font-weight:${weight};color:${color};`;
+
+/**
  * The daily digest from today's log and the vault (skill, section 6): What needs you, What the
- * team finished, Handoffs (CM to Ops), and Tomorrow. Clean HTML with inline styles, no images and
+ * helpers finished, Handoffs (CM to Ops), and Tomorrow. Clean HTML with inline styles, no images and
  * no logo, plus a plain-text copy. Every value is escaped.
  */
 export function buildDigest(input: {
@@ -67,16 +82,16 @@ export function buildDigest(input: {
       empty: "Nothing is waiting for you.",
     },
     {
-      title: "What the team finished",
+      title: "What the helpers finished",
       lines: [
         ...doneToday.map((t) => `${t.title} (${helperOf(state, t.owner)})`),
-        ...lines.filter((l) => /^\d\d:\d\d you /.test(l)),
+        ...lines.filter((l) => /^\d\d:\d\d you /.test(l)).map((l) => asHelpers(state, l)),
       ],
       empty: "Nothing finished yet today.",
     },
     {
       title: "Handoffs (CM to Ops)",
-      lines: lines.filter((l) => l.includes("Endorsement Bridge")),
+      lines: lines.filter((l) => l.includes("Endorsement Bridge")).map((l) => asHelpers(state, l)),
       empty: "No handoffs today.",
     },
     {
@@ -87,7 +102,7 @@ export function buildDigest(input: {
   ];
 
   const subject = `SignalChain HQ daily digest, ${input.longDate}`;
-  const text = [
+  const plain = [
     subject,
     "",
     ...sections.flatMap((s) => [
@@ -100,25 +115,32 @@ export function buildDigest(input: {
   ].join("\n");
 
   const section = (s: Section) => `
-    <h2 style="margin:24px 0 8px;font:700 16px/22px ${FONT};color:${C.navy};">${escapeHtml(s.title)}</h2>
-    ${
-      s.lines.length
-        ? `<ul style="margin:0;padding:0 0 0 20px;font:400 14px/21px ${FONT};color:${C.ink};">${s.lines
-            .map((l) => `<li style="margin:0 0 4px;">${escapeHtml(l)}</li>`)
-            .join("")}</ul>`
-        : `<p style="margin:0;font:400 14px/21px ${FONT};color:${C.inkMuted};">${escapeHtml(s.empty)}</p>`
-    }`;
+          <h2 style="margin:24px 0 8px;${text(16, 22, 700, C.navy)}">${escapeHtml(s.title)}</h2>
+          ${
+            s.lines.length
+              ? `<ul style="margin:0;padding:0 0 0 20px;${text(14, 21, 400, C.ink)}">${s.lines
+                  .map((l) => `<li style="margin:0 0 4px;">${escapeHtml(l)}</li>`)
+                  .join("")}</ul>`
+              : `<p style="margin:0;${text(14, 21, 400, C.inkMuted)}">${escapeHtml(s.empty)}</p>`
+          }`;
 
+  // A 600 px table on a panel-colored table: the layout every mail app keeps, Outlook included.
   const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>${escapeHtml(subject)}</title></head>
-<body style="margin:0;padding:0;background:${C.panel};">
-  <div style="max-width:600px;margin:0 auto;padding:24px;background:#FFFFFF;border-top:4px solid ${C.accent};">
-    <h1 style="margin:0;font:700 22px/28px ${FONT};color:${C.navy};">SignalChain HQ daily digest</h1>
-    <p style="margin:4px 0 0;font:400 14px/21px ${FONT};color:${C.inkMuted};">${escapeHtml(input.longDate)}</p>
-    ${sections.map(section).join("")}
-    <p style="margin:32px 0 0;padding-top:12px;border-top:1px solid ${C.hairline};font:400 12px/18px ${FONT};color:${C.inkMuted};">${escapeHtml(MAIL_FOOTER)}</p>
-  </div>
+<body style="margin:0;padding:0;" bgcolor="${C.panel}">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${C.panel}">
+    <tr><td align="center" style="padding:24px 8px;">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFFFFF" style="width:600px;max-width:100%;border-top:4px solid ${C.accent};">
+        <tr><td style="padding:24px;">
+          <h1 style="margin:0;${text(22, 28, 700, C.navy)}">SignalChain HQ daily digest</h1>
+          <p style="margin:4px 0 0;${text(14, 21, 400, C.inkMuted)}">${escapeHtml(input.longDate)}</p>
+          ${sections.map(section).join("")}
+          <p style="margin:32px 0 0;padding-top:12px;border-top:1px solid ${C.hairline};${text(12, 18, 400, C.inkMuted)}">${escapeHtml(MAIL_FOOTER)}</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
 </body></html>
 `;
-  return { subject, html, text };
+  return { subject, html, text: plain };
 }

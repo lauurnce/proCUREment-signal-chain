@@ -181,7 +181,7 @@ describe("approving an email item", () => {
     await setup({ MAIL_PROVIDER: "power-automate" });
     const item = (await approve("q-0001")).json().item;
     expect(item.mail).toMatchObject({ driver: "power-automate", state: "failed" });
-    expect(item.mail.problem).toMatch(/needs ADI IT approval/);
+    expect(item.mail.problem).toMatch(/needs IT approval/);
     const overview = (await app.inject({ url: "/api/mail", headers })).json();
     expect(overview.status.problem).toMatch(/Power Automate bridge is not set up/);
   });

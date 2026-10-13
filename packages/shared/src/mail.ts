@@ -3,6 +3,21 @@ import type { QueueItem } from "./schemas/queue-item";
 /** Every email ends with this line (outlook-integration skill, safety rule 8). */
 export const MAIL_FOOTER = "Sent from SignalChain HQ, an unofficial prototype. Fictional data.";
 
+/**
+ * Sign-in problems, by the short code /auth/callback puts in the address bar. The page shows only
+ * these fixed messages, so a crafted link cannot put its own text in the app.
+ */
+export const SIGN_IN_PROBLEMS = {
+  expired: "This sign-in link is old or was already used. Click Connect Outlook again.",
+  declined: "You did not accept the permissions, so Outlook is not connected.",
+  unfinished: "The sign-in did not finish. Click Connect Outlook to try again.",
+  "no-client-id":
+    "MS_CLIENT_ID is not set, so Outlook cannot connect. Set it in .env and restart pnpm dev.",
+  demo: "Turn off Demo Day before you connect Outlook.",
+  offline: "Could not reach Microsoft. Check your connection, then click Connect Outlook again.",
+} as const;
+export type SignInProblem = keyof typeof SIGN_IN_PROBLEMS;
+
 /** Keep a whole mailto link under this many characters, so every mail app opens it. */
 export const MAILTO_LIMIT = 2_000;
 
