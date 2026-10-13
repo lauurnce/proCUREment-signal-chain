@@ -26,6 +26,18 @@ export const Stats = z.object({
 });
 export type Stats = z.infer<typeof Stats>;
 
+/** Demo Day: a simulated day on its own copy of the vault (vault-demo/). */
+export const DemoSpeed = z.union([z.literal(1), z.literal(5), z.literal(20)]);
+export type DemoSpeed = z.infer<typeof DemoSpeed>;
+export const DemoStatus = z.object({
+  running: z.boolean(),
+  speed: DemoSpeed,
+  seed: z.number().int(),
+  /** The simulated time, Manila. */
+  clock: IsoDateTime,
+});
+export type DemoStatus = z.infer<typeof DemoStatus>;
+
 /** Everything the UI needs, from GET /api/state and the first SSE event. */
 export const AppState = z.object({
   generatedAt: IsoDateTime,
@@ -38,6 +50,10 @@ export const AppState = z.object({
   stats: Stats,
   /** Plain-English problems, like a vault file that could not be read. */
   warnings: z.array(z.string()),
+  /** The Obsidian vault name for "Open in Obsidian" links (OBSIDIAN_VAULT_NAME), or null. */
+  obsidianVault: z.string().nullable().default(null),
+  /** Demo Day while it runs, else null (the live vault). */
+  demo: DemoStatus.nullable().default(null),
 });
 export type AppState = z.infer<typeof AppState>;
 

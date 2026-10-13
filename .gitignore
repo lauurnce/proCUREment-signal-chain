@@ -28,6 +28,7 @@ CLAUDE.local.md
 # not code folders that are also named "vault" (like packages/shared/src/vault/).
 /vault/
 /vault-demo/
+/vault-e2e/
 /vault-backups/
 data/roster.local.json
 docs/references/private/

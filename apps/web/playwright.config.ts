@@ -30,6 +30,9 @@ export default defineConfig({
     // Run dev.mjs directly, not through pnpm: pnpm puts scripts in their own process group,
     // so stopping "pnpm dev" could leave the web and API servers running.
     command: "node scripts/dev.mjs",
+    // A throwaway vault, fresh from vault.sample every run, so the tests that save decisions
+    // never touch your real vault. A dev server you already run is reused as it is.
+    env: { HQ_VAULT: "vault-e2e", HQ_VAULT_FRESH: "1" },
     cwd: repoRoot,
     url: `${baseURL}/api/health`,
     reuseExistingServer: true,

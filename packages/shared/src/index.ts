@@ -5,6 +5,7 @@ export * from "./schemas/common";
 export * from "./schemas/events";
 export * from "./schemas/layout";
 export * from "./schemas/queue-item";
+export * from "./schemas/requests";
 export * from "./schemas/seat";
 export * from "./schemas/task";
 export * from "./schemas/workflow";

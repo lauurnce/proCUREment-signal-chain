@@ -1,8 +1,9 @@
-import type { AppState } from "@hq/shared";
+import type { AppState, DecisionRequest } from "@hq/shared";
 import { AnimatePresence, MotionConfig, motion as m } from "motion/react";
 import { type KeyboardEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import type { ConnectionStatus } from "../../state/store";
+import type { PendingWrite } from "../../state/vaultWrites";
 import { bezier } from "../../theme/style";
 import { motion as tokens } from "../../theme/tokens";
 import type { Decision } from "../DecisionButton";
@@ -46,6 +47,11 @@ type Props = {
   note?: string;
   /** "Try again" in the offline banner. */
   onRetry?: () => void;
+  /**
+   * Saves a decision or an instruction once its undo window closes (the office). Without it,
+   * nothing is saved (the Lab).
+   */
+  onSave?: (write: PendingWrite) => Promise<void>;
   /** Narrow screens only: hides the panel so the office shows. */
   onShowOffice?: () => void;
 };
@@ -69,6 +75,7 @@ export function Panel({
   note = LAB_NOTE,
   onRetry,
   onShowOffice,
+  onSave,
 }: Props) {
   const { seats, queue, workflows, tasks, authorityRules } = data;
   const s = usePanelStore(
@@ -178,6 +185,19 @@ export function Panel({
     act.focusCard(next.id, { target: s.detailOpen ? "detail" : "card", id: next.id });
   }
 
+  /** Saves the waiting write now: its undo bar is about to make way for a new one. */
+  function commit(undo = usePanelStore.getState().undo) {
+    const write = undo?.write;
+    if (!write || !onSave) return;
+    onSave(write).catch((error: unknown) => {
+      const why = error instanceof Error ? error.message : "It was not saved.";
+      act.restore(
+        undo.itemId,
+        undo.itemId ? `Not saved. ${why} The item is back in Needs you.` : `Not saved. ${why}`,
+      );
+    });
+  }
+
   function decide(action: Decision) {
     if (!focused) return;
     if (paused) {
@@ -198,15 +218,33 @@ export function Panel({
       clockTime(now),
     );
     const next = items[index + 1] ?? items[index - 1] ?? null;
-    act.decide(focused.id, action, message, next?.id ?? null);
+    commit();
+    const write: PendingWrite | undefined = onSave
+      ? { kind: "decision", id: focused.id, request: { action } as DecisionRequest }
+      : undefined;
+    act.decide(focused.id, action, message, next?.id ?? null, write);
   }
 
   function send() {
     const audience = audienceList.find((a) => a.id === s.audienceId);
     if (paused || !audience || !s.text.trim()) return;
+    commit();
+    const text = s.text.trim();
     act.send(
-      `This would go to ${audience.label}: "${s.text.trim()}"`,
+      onSave ? `For ${audience.label}: "${text}"` : `This would go to ${audience.label}: "${text}"`,
       `Instruction sent to ${audience.label}, ${clockTime(now)}.`,
+      onSave
+        ? {
+            kind: "instruction",
+            request: {
+              audienceId: audience.id,
+              audienceLabel: audience.label,
+              seats: audience.seats,
+              about: s.about,
+              text,
+            },
+          }
+        : undefined,
     );
   }
 
@@ -352,6 +390,7 @@ export function Panel({
                     onNext={() => move(1)}
                     onDecide={decide}
                     paused={paused}
+                    obsidianVault={data.obsidianVault}
                   />
                 ) : (
                   <NeedsYouTab
@@ -393,7 +432,10 @@ export function Panel({
                 message={s.undo.message}
                 note={note}
                 onUndo={act.undoLast}
-                onExpire={act.expireUndo}
+                onExpire={() => {
+                  commit();
+                  act.expireUndo();
+                }}
               />
             )}
           </AnimatePresence>

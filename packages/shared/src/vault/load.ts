@@ -123,7 +123,7 @@ export async function loadVault(options: LoadOptions): Promise<AppState> {
     const item = take(
       await readMarkdown(join(vaultDir, "queue", name), `queue/${name}`, QueueItem, true),
     );
-    if (item) queue.push(item);
+    if (item) queue.push({ ...item, file: `queue/${name}` });
   }
 
   const tasks: Task[] = [];
@@ -181,5 +181,7 @@ export async function loadVault(options: LoadOptions): Promise<AppState> {
     authorityRules: rules?.rules ?? [],
     stats: countStats(seats, { queue, tasks }),
     warnings,
+    obsidianVault: null,
+    demo: null,
   };
 }

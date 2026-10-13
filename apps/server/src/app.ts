@@ -3,8 +3,11 @@ import Fastify, { type FastifyInstance } from "fastify";
 import pkg from "../package.json" with { type: "json" };
 import { registerEventRoutes } from "./routes/events";
 import { registerHealthRoutes } from "./routes/health";
+import { registerQueueRoutes } from "./routes/queue";
+import { registerSimRoutes } from "./routes/sim";
 import { registerStateRoutes } from "./routes/state";
 import { registerHostCheck } from "./security/host";
+import type { DemoRunner } from "./sim/runner";
 import type { SseHub } from "./sse/hub";
 import type { VaultStore } from "./vault/store";
 
@@ -16,6 +19,8 @@ export interface AppDeps {
   worktree: string | null;
   vaultPath: string;
   logger?: boolean;
+  /** Demo Day. Without it, the /api/sim routes are not there. */
+  demo?: DemoRunner;
 }
 
 /** Builds the Fastify app without listening, so tests can call app.inject(). */
@@ -32,8 +37,13 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     worktree: deps.worktree,
   });
   registerStateRoutes(app, deps.store);
+  registerQueueRoutes(app, deps);
+  if (deps.demo) registerSimRoutes(app, deps.demo);
   registerEventRoutes(app, deps);
   // Open event streams would keep app.close() waiting, so end them first.
-  app.addHook("preClose", async () => deps.hub.close());
+  app.addHook("preClose", async () => {
+    await deps.demo?.stop(false);
+    deps.hub.close();
+  });
   return app;
 }
