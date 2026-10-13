@@ -11,6 +11,8 @@
     "vault:reset": "tsx src/vault/reset-cli.ts"
   },
   "dependencies": {
+    "@azure/msal-node": "7.0.1",
+    "@azure/msal-node-extensions": "5.5.2",
     "@fastify/cors": "11.3.0",
     "@hq/shared": "workspace:*",
     "chokidar": "5.0.0",

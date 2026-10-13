@@ -66,6 +66,8 @@ describe("goals from the live status", () => {
     expect(stepZone(extract, workflows)).toBe("sap-station");
     const review = { ...extract, currentStep: "review" };
     expect(stepZone(review, workflows)).toBeNull();
+    // An [HQ] email sends the helper to the Mail Dock, whatever its step (P7.4).
+    expect(stepZone({ ...review, visiting: "mail-dock" }, workflows)).toBe("mail-dock");
   });
 
   it("maps each status to a goal", () => {

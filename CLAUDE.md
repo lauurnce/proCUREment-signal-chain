@@ -28,6 +28,7 @@ A cozy, game-like isometric virtual office for a procurement team. Every desk ho
 
 Data and privacy
 - The GitHub repo is privately held and stays private. Never make it public, never add collaborators, never fork or mirror it anywhere public. Reason: the docs describe ADI's internal workflows and program.
+- The approved way to share is the public showcase: `lauurnce/signalchain-hq-showcase`, local folder `~/projects/signalchain-hq-showcase`. It is a separate repo, not a mirror. To refresh it: copy the tracked files with `git archive`, leave out `CLAUDE.md`, `docs/`, `.claude/` and `.worktreeinclude`, make the domain generic (no ADI, no program or kickoff sources, no Conga, DocuSign or ME57, sample rule limits of 10 percent and 50K), scan every file, run `pnpm check` and `pnpm shots` on separate ports, then show Lawrence the commit before pushing.
 - Fictional data only in git: suppliers, PO numbers, emails, people. Use the fictional suppliers listed in the `procurement-domain` skill.
 - No real names or emails of ADI staff in committed files. Seats use placeholders like "CM 03". Real names, if Lawrence ever wants them, live only in `data/roster.local.json` (gitignored).
 - The office shows what AI helpers are doing, never what a real person is doing. No time tracking, activity monitoring, productivity scores, or "who is online" for real people. Reason: trust. Some team members already worry that AI will replace them.
@@ -121,6 +122,6 @@ Works in the browser, `pnpm check` passes, screenshots taken and reviewed if the
 
 ## Current status
 
-The project is paused. When you come back, start with `docs/HANDOFF.md`, or type `/resume`.
+The project is closed (13 Oct 2026). If it starts again, begin with `docs/HANDOFF.md`, or type `/resume`.
 
 @docs/PROGRESS.md

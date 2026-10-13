@@ -43,8 +43,12 @@ const OWN_DESK = "own-desk";
 
 const between = (r: () => number, [lo, hi]: [number, number]) => lo + r() * (hi - lo);
 
-/** The zone of a seat's current workflow step, or null when it is done at the desk. */
+/**
+ * The zone of a seat's current workflow step, or null when it is done at the desk. A visit
+ * outside a workflow (an [HQ] email at the Mail Dock) comes first.
+ */
 export function stepZone(seat: Seat, workflows: Workflow[]): string | null {
+  if (seat.visiting && seat.visiting !== OWN_DESK) return seat.visiting;
   if (!seat.currentWorkflow || !seat.currentStep) return null;
   const step = workflows
     .find((w) => w.id === seat.currentWorkflow)

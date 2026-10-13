@@ -1,16 +1,17 @@
 import { type KeyboardEvent, useRef } from "react";
 import { typeStyle } from "../../theme/style";
 
-export type TabId = "needs" | "team" | "board" | "office";
+export type TabId = "needs" | "team" | "board" | "office" | "mail";
 
 export const TABS: { id: TabId; label: string }[] = [
   { id: "needs", label: "Needs you" },
   { id: "team", label: "Team" },
   { id: "board", label: "Board" },
   { id: "office", label: "Office" },
+  { id: "mail", label: "Mail" },
 ];
 
-/** The four tabs. Arrows, Home and End move between them when a tab has focus. */
+/** The five tabs. Arrows, Home and End move between them when a tab has focus. */
 export function PanelTabs({
   current,
   needsCount,

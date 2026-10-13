@@ -32,7 +32,7 @@ const longDay = (at: Date) =>
     year: "numeric",
   }).format(at);
 /** ISO time with the Manila offset, like the rest of the vault ("2026-09-25T09:30:00+08:00"). */
-function manilaIso(at: Date): string {
+export function manilaIso(at: Date): string {
   const local = new Date(at.getTime() + 8 * 3_600_000).toISOString().slice(0, 19);
   return `${local}+08:00`;
 }

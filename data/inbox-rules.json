@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "note": "Which helper gets an email tagged [HQ] (P7.4). The first rule whose keyword is in the subject or the body wins. Matching ignores case. With no match, the email goes to the default. The task goes to the least busy helper of that track.",
+  "rules": [
+    {
+      "track": "CM",
+      "workflow": "cm-rfq-process",
+      "keywords": [
+        "rfq",
+        "quote",
+        "quotation",
+        "sourcing",
+        "price"
+      ]
+    },
+    {
+      "track": "CM",
+      "workflow": "cm-contract-generation-conga",
+      "keywords": [
+        "contract",
+        "sow",
+        "statement of work",
+        "conga",
+        "docusign"
+      ]
+    },
+    {
+      "track": "OPS",
+      "workflow": "ops-po-amendments",
+      "keywords": [
+        "amend",
+        "amendment",
+        "change order",
+        "quantity",
+        "invoice"
+      ]
+    }
+  ],
+  "default": {
+    "track": "OPS",
+    "workflow": "ops-pr-to-po-stock-item"
+  }
+}

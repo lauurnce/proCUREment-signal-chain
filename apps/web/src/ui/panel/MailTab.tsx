@@ -1,0 +1,596 @@
+import {
+  composeEmail,
+  emailAsText,
+  type MailOverview,
+  type MailStatus,
+  mailtoUrl,
+  type QueueItem,
+  SIGN_IN_PROBLEMS,
+} from "@hq/shared";
+import { useEffect, useId, useRef, useState } from "react";
+import { useStore } from "../../state/store";
+import { typeStyle } from "../../theme/style";
+import { clockTime } from "./time";
+
+const BUTTON =
+  "inline-flex items-center rounded-button border border-hairline bg-white px-2.5 py-1 no-underline hover:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50";
+const PRIMARY =
+  "inline-flex items-center rounded-button border border-accent bg-accent px-2.5 py-1 no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50";
+const buttonText = { ...typeStyle("small", "navy"), fontWeight: 700 };
+const primaryText = { ...typeStyle("small", "white"), fontWeight: 700 };
+
+const DRIVER: Record<MailStatus["driver"], string> = {
+  outbox: "Outbox: drafts are saved as .eml files in your vault",
+  graph: "Outlook: drafts go to your Outlook Drafts folder",
+  "power-automate": "Power Automate bridge",
+};
+/** One wording for a dry run, wherever it shows. */
+const DRY_RUN = "Dry run. Nothing was made. The log shows what would have happened.";
+const MODE: Record<MailStatus["mode"], string> = {
+  "dry-run": DRY_RUN,
+  drafts: "Drafts only. Nothing is sent.",
+  send: "Drafts, and Send now for addresses on your allowed list.",
+};
+
+/** "2:05 PM" and "13 Oct, 2:05 PM" in Manila time, the app's format (adi-theme skill). */
+const clockOf = (iso: string) => clockTime(new Date(iso));
+const dayAndTime = (iso: string) =>
+  `${new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Manila", day: "numeric", month: "short" }).format(new Date(iso))}, ${clockOf(iso)}`;
+/** DIGEST_TIME "17:30" as "5:30 PM". */
+const digestClock = (hhmm: string) => {
+  const [h = 0, m = 0] = hhmm.split(":").map(Number);
+  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
+};
+/** The vault can be edited by hand, so only Outlook's own web addresses become a link. */
+const OUTLOOK_LINK = /^https:\/\/outlook\.(live|office|office365)\.com\//;
+
+/**
+ * A sign-in problem sent back by /auth/callback as a short code, read once and taken out of the
+ * address bar. Only the app's own fixed messages show, never text from the link.
+ */
+function takeMailProblem(): string | null {
+  const url = new URL(window.location.href);
+  const code = url.searchParams.get("mailProblem");
+  if (!code) return null;
+  url.searchParams.delete("mailProblem");
+  window.history.replaceState(null, "", url);
+  return Object.hasOwn(SIGN_IN_PROBLEMS, code)
+    ? SIGN_IN_PROBLEMS[code as keyof typeof SIGN_IN_PROBLEMS]
+    : null;
+}
+
+async function post<T>(path: string, body: object): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(path, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new Error("Could not reach the local server.");
+  }
+  const json = (await response.json().catch(() => null)) as (T & { error?: string }) | null;
+  if (!response.ok) throw new Error(json?.error ?? "The server could not do that.");
+  return json as T;
+}
+
+/**
+ * GET /api/mail. Again when Demo Day starts or stops (it changes the driver), when a draft or a
+ * send changes, and after Sign out.
+ */
+function useMailOverview(
+  queue: QueueItem[],
+): [MailOverview | null, (o: MailOverview | null) => void] {
+  const demoOn = useStore((s) => Boolean(s.data?.demo));
+  const mailKey = queue.map((q) => (q.mail ? `${q.id}:${q.mail.state}` : "")).join(",");
+  const [overview, setOverview] = useState<MailOverview | null>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: demoOn and mailKey are the triggers
+  useEffect(() => {
+    let live = true;
+    fetch("/api/mail")
+      .then((r) => (r.ok ? (r.json() as Promise<MailOverview>) : null))
+      .then((o) => live && setOverview(o))
+      .catch(() => live && setOverview(null));
+    return () => {
+      live = false;
+    };
+  }, [demoOn, mailKey]);
+  return [overview, setOverview];
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 border-t border-hairline py-2">
+      <dt className="shrink-0 whitespace-nowrap" style={typeStyle("tagName")}>
+        {label}
+      </dt>
+      <dd className="m-0 text-right" style={typeStyle("small", "ink")}>
+        {value}
+      </dd>
+    </div>
+  );
+}
+
+type Check = { ok: true; to: string[]; redirectedFrom?: string[] } | { ok: false; error: string };
+
+/**
+ * A send with a confirm step that lists the real recipients, as the server checked them (for an
+ * item, read again from Outlook). The server checks every rule again when you confirm. Used by
+ * Send now on a draft and by Send digest now.
+ */
+function ConfirmSend({
+  label,
+  title,
+  checkPath,
+  sendPath,
+  paused,
+  onSent,
+  testId,
+}: {
+  label: string;
+  title: string;
+  checkPath: string;
+  sendPath: string;
+  paused: boolean;
+  onSent?: (result: unknown) => void;
+  testId?: string;
+}) {
+  const [check, setCheck] = useState<Check | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [said, setSaid] = useState("");
+  const confirmRef = useRef<HTMLButtonElement>(null);
+  const titleId = useId();
+
+  const open = () => {
+    setSaid("");
+    setBusy(true);
+    post<Check>(checkPath, {})
+      .then((c) => {
+        setCheck(c);
+        if (c.ok) requestAnimationFrame(() => confirmRef.current?.focus());
+      })
+      .catch((e: unknown) =>
+        setCheck({ ok: false, error: e instanceof Error ? e.message : String(e) }),
+      )
+      .finally(() => setBusy(false));
+  };
+  const confirm = () => {
+    if (!check?.ok) return;
+    setBusy(true);
+    post(sendPath, { recipients: check.to })
+      .then((result) => {
+        setCheck(null);
+        setSaid("Sent.");
+        onSent?.(result);
+      })
+      .catch((e: unknown) => {
+        setCheck(null);
+        setSaid(e instanceof Error ? e.message : String(e));
+      })
+      .finally(() => setBusy(false));
+  };
+
+  return (
+    <>
+      {!check?.ok && (
+        <button
+          type="button"
+          disabled={paused || busy}
+          onClick={open}
+          className={BUTTON}
+          style={buttonText}
+          data-testid={testId}
+        >
+          {label}
+        </button>
+      )}
+      {check && !check.ok && (
+        <span role="alert" className="basis-full" style={typeStyle("small", "ink")}>
+          {check.error}
+        </span>
+      )}
+      {check?.ok && (
+        <div
+          role="alertdialog"
+          aria-labelledby={titleId}
+          className="flex basis-full flex-col gap-1.5 rounded-button border border-accent p-2"
+          data-testid="send-confirm"
+        >
+          <span id={titleId} style={typeStyle("tagName")}>
+            {title}
+          </span>
+          <ul className="m-0 pl-4" style={typeStyle("small", "ink")}>
+            {check.to.map((to) => (
+              <li key={to}>{to}</li>
+            ))}
+          </ul>
+          {check.redirectedFrom && (
+            <span style={typeStyle("small")}>
+              Demo redirect. Originally to: {check.redirectedFrom.join(", ")}.
+            </span>
+          )}
+          <div className="flex gap-1.5">
+            <button
+              ref={confirmRef}
+              type="button"
+              disabled={busy}
+              onClick={confirm}
+              className={PRIMARY}
+              style={primaryText}
+            >
+              Send
+            </button>
+            <button
+              type="button"
+              onClick={() => setCheck(null)}
+              className={BUTTON}
+              style={buttonText}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+      <span aria-live="polite" className="basis-full" style={typeStyle("small", "ink")}>
+        {said}
+      </span>
+    </>
+  );
+}
+
+/** One approved email: who it goes to, and the ways to send it. */
+function DraftRow({
+  item,
+  paused,
+  sendReady,
+}: {
+  item: QueueItem;
+  paused: boolean;
+  sendReady: boolean;
+}) {
+  const [said, setSaid] = useState("");
+  const email = composeEmail(item);
+  const mail = item.mail;
+  if (!mail) return null;
+  const mailto = email && mail.driver !== "graph" ? mailtoUrl(email) : null;
+
+  const copy = () => {
+    if (!email) return;
+    navigator.clipboard
+      .writeText(emailAsText(email))
+      .then(() => setSaid("Email copied. Paste it into a new email in Outlook."))
+      .catch(() => setSaid("Could not copy. Use Download .eml instead."));
+  };
+  const redraft = () => {
+    setSaid("");
+    post(`/api/mail/items/${encodeURIComponent(item.id)}/draft`, {}).catch((e: unknown) =>
+      setSaid(e instanceof Error ? e.message : String(e)),
+    );
+  };
+
+  return (
+    <li className="flex flex-col gap-1.5 border-t border-hairline py-3" data-testid="mail-draft">
+      <span style={typeStyle("tagName")}>{email?.subject ?? item.title}</span>
+      <span style={typeStyle("small")}>
+        To {mail.to.join(", ") || "nobody yet"}
+        {mail.redirectedFrom
+          ? ` (demo redirect, originally ${mail.redirectedFrom.join(", ")})`
+          : ""}
+        .{" "}
+        {mail.state === "draft" &&
+          (mail.driver === "graph"
+            ? "Draft ready in your Outlook Drafts. Nothing was sent."
+            : "Draft ready. Nothing was sent.")}
+        {mail.state === "dry-run" && DRY_RUN}
+        {mail.state === "sent" && `Sent at ${clockOf(mail.sentAt ?? "")}.`}
+        {mail.state === "failed" && `Not made: ${mail.problem ?? "something went wrong."}`}
+      </span>
+      {email && mail.state === "draft" && mail.driver === "graph" && (
+        <div className="flex flex-wrap gap-1.5">
+          {mail.webLink && OUTLOOK_LINK.test(mail.webLink) && (
+            <a
+              href={mail.webLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={BUTTON}
+              style={buttonText}
+            >
+              Open draft in Outlook
+            </a>
+          )}
+          {sendReady && (
+            <ConfirmSend
+              label="Send now"
+              title="Send this email now to:"
+              checkPath={`/api/mail/items/${encodeURIComponent(item.id)}/send-check`}
+              sendPath={`/api/mail/items/${encodeURIComponent(item.id)}/send`}
+              paused={paused}
+            />
+          )}
+        </div>
+      )}
+      {email && mail.state !== "failed" && mail.driver !== "graph" && (
+        <div className="flex flex-wrap gap-1.5">
+          {mailto && (
+            <a href={mailto.url} className={BUTTON} style={buttonText}>
+              Open in Outlook
+            </a>
+          )}
+          <button type="button" onClick={copy} className={BUTTON} style={buttonText}>
+            Copy email
+          </button>
+          <a
+            href={`/api/mail/items/${encodeURIComponent(item.id)}/eml`}
+            download={`${item.id}.eml`}
+            data-testid="download-eml"
+            className={BUTTON}
+            style={buttonText}
+          >
+            Download .eml
+          </a>
+        </div>
+      )}
+      {mailto && !mailto.withBody && mail.state !== "failed" && (
+        <span style={typeStyle("small")}>
+          This email is too long for Open in Outlook, so only the subject goes in. Use Copy email
+          for the text.
+        </span>
+      )}
+      {mail.state === "failed" && (
+        <button
+          type="button"
+          disabled={paused}
+          onClick={redraft}
+          className={`${BUTTON} self-start`}
+          style={buttonText}
+        >
+          Make the draft again
+        </button>
+      )}
+      <span aria-live="polite" style={typeStyle("small", "ink")}>
+        {said}
+      </span>
+    </li>
+  );
+}
+
+/**
+ * The Mail tab (D-117): how email leaves the app, the Outlook sign-in, the drafts your approvals
+ * made, the sent log, and the mail settings from .env (read-only). Approve makes a draft.
+ * Sending is always a separate, human step.
+ */
+export function MailTab({ queue, paused }: { queue: QueueItem[]; paused: boolean }) {
+  const [overview, setOverview] = useMailOverview(queue);
+  const [signInProblem] = useState(takeMailProblem);
+  const [said, setSaid] = useState("");
+  const status = overview?.status;
+  const drafts = queue
+    .filter((q) => q.mail)
+    .sort((a, b) => (b.mail?.createdAt ?? "").localeCompare(a.mail?.createdAt ?? ""));
+  const canConnect = status?.configured === "graph" && status.driver === "graph";
+
+  const [digestSaid, setDigestSaid] = useState("");
+  const [digestBusy, setDigestBusy] = useState(false);
+  const sendDigest = () => {
+    setDigestSaid("");
+    setDigestBusy(true);
+    post<{ line: string; mail: MailOverview }>("/api/mail/digest", {})
+      .then((r) => {
+        setOverview(r.mail);
+        setDigestSaid(
+          r.mail.status.driver === "graph"
+            ? "The digest is a draft in your Outlook Drafts."
+            : r.mail.status.mode === "dry-run"
+              ? DRY_RUN
+              : "The digest is saved as an .eml file in vault/outbox/.",
+        );
+      })
+      .catch((e: unknown) => setDigestSaid(e instanceof Error ? e.message : String(e)))
+      .finally(() => setDigestBusy(false));
+  };
+
+  const signOut = () => {
+    setSaid("");
+    post<MailOverview>("/api/mail/signout", {})
+      .then((o) => {
+        setOverview(o);
+        setSaid("Signed out of Outlook.");
+      })
+      .catch((e: unknown) => setSaid(e instanceof Error ? e.message : String(e)));
+  };
+
+  return (
+    <div className="flex flex-col gap-5 px-4 py-4">
+      <section className="flex flex-col" aria-labelledby="mail-status">
+        <h3 id="mail-status" className="m-0 pb-1" style={typeStyle("label", "navy")}>
+          Status
+        </h3>
+        {status ? (
+          <dl className="m-0">
+            <Row label="How email leaves" value={DRIVER[status.driver]} />
+            <Row label="Mode" value={MODE[status.mode]} />
+            <Row label="Outlook account" value={status.account ?? "Not connected"} />
+          </dl>
+        ) : (
+          <p className="m-0" style={typeStyle("small")}>
+            Loading mail settings...
+          </p>
+        )}
+        {canConnect && (
+          <div className="flex items-center gap-2 border-t border-hairline py-2">
+            {status?.connected ? (
+              <button
+                type="button"
+                onClick={signOut}
+                disabled={paused}
+                className={BUTTON}
+                style={buttonText}
+              >
+                Sign out
+              </button>
+            ) : (
+              <a
+                href="/auth/login"
+                className={PRIMARY}
+                style={primaryText}
+                data-testid="connect-outlook"
+              >
+                Connect Outlook
+              </a>
+            )}
+          </div>
+        )}
+        {[signInProblem, status?.problem, status?.cacheWarning, said]
+          .filter((m): m is string => Boolean(m))
+          .map((message) => (
+            <p
+              key={message}
+              className="m-0 pt-1"
+              role="note"
+              data-testid="mail-problem"
+              style={typeStyle("small", "ink")}
+            >
+              {message}
+            </p>
+          ))}
+      </section>
+
+      <section className="flex flex-col" aria-labelledby="mail-drafts">
+        <h3 id="mail-drafts" className="m-0 pb-1" style={typeStyle("label", "navy")}>
+          Drafts
+        </h3>
+        {drafts.length === 0 ? (
+          <p className="m-0" style={typeStyle("small")}>
+            No drafts yet. Approve an email in Needs you, and its draft shows here.
+          </p>
+        ) : (
+          <ul className="m-0 list-none p-0">
+            {drafts.map((item) => (
+              <DraftRow
+                key={item.id}
+                item={item}
+                paused={paused}
+                sendReady={Boolean(status?.sendReady)}
+              />
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="flex flex-col" aria-labelledby="mail-sent">
+        <h3 id="mail-sent" className="m-0 pb-1" style={typeStyle("label", "navy")}>
+          Sent
+        </h3>
+        {overview?.sent.length ? (
+          <ul className="m-0 list-none p-0" data-testid="mail-sent">
+            {overview.sent.map((s) => (
+              <li
+                key={`${s.itemId}-${s.at}`}
+                className="border-t border-hairline py-2"
+                style={typeStyle("small", "ink")}
+              >
+                {clockOf(s.at)}, {s.subject}, to {s.to.join(", ")}
+                {s.redirectedFrom ? ` (redirected from ${s.redirectedFrom.join(", ")})` : ""}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="m-0" style={typeStyle("small")}>
+            Nothing sent from the app yet.
+          </p>
+        )}
+      </section>
+
+      {overview && status && (
+        <section className="flex flex-col" aria-labelledby="mail-daily">
+          <h3 id="mail-daily" className="m-0 pb-1" style={typeStyle("label", "navy")}>
+            Daily digest and inbox
+          </h3>
+          <dl className="m-0">
+            <Row
+              label="Daily digest"
+              value={`${digestClock(overview.digest.time)}${
+                overview.digest.timezone === "Asia/Manila" ? "" : ` ${overview.digest.timezone}`
+              }, as a draft. ${
+                overview.digest.lastAt
+                  ? `Last made ${dayAndTime(overview.digest.lastAt)}.`
+                  : "Not made yet."
+              }`}
+            />
+            <Row
+              label={`${overview.inbox.tag} emails`}
+              value={
+                overview.inbox.active
+                  ? `Become Board tasks. Checked every ${Math.round(overview.inbox.pollSeconds / 60) || 1} min${
+                      overview.inbox.lastCheck
+                        ? `, last at ${clockOf(overview.inbox.lastCheck)}`
+                        : ""
+                    }.`
+                  : "Become Board tasks once Outlook is connected."
+              }
+            />
+          </dl>
+          <div className="flex flex-wrap items-center gap-2 border-t border-hairline py-2">
+            {overview.digest.sends ? (
+              // Outlook in send mode: a real send, so it asks first and lists the recipients.
+              <ConfirmSend
+                label="Send digest now"
+                title="Send today's digest now to:"
+                checkPath="/api/mail/digest/check"
+                sendPath="/api/mail/digest"
+                paused={paused}
+                testId="send-digest"
+                onSent={(r) => setOverview((r as { mail: MailOverview }).mail)}
+              />
+            ) : (
+              <button
+                type="button"
+                disabled={paused || digestBusy}
+                onClick={sendDigest}
+                className={BUTTON}
+                style={buttonText}
+                data-testid="send-digest"
+              >
+                Make digest now
+              </button>
+            )}
+          </div>
+          <span aria-live="polite" style={typeStyle("small", "ink")} data-testid="digest-said">
+            {digestSaid}
+          </span>
+        </section>
+      )}
+
+      {overview && status && (
+        <section className="flex flex-col" aria-labelledby="mail-settings">
+          <h3 id="mail-settings" className="m-0 pb-1" style={typeStyle("label", "navy")}>
+            Settings
+          </h3>
+          <dl className="m-0">
+            <Row
+              label="Allowed recipients"
+              value={
+                status.allowlistCount === 1 ? "1 address" : `${status.allowlistCount} addresses`
+              }
+            />
+            <Row label="Demo redirect" value={status.redirectTo ?? "Off"} />
+            <Row label="Send limit" value={`${status.maxPerHour} per hour`} />
+            <Row
+              label="Digest goes to"
+              value={
+                overview.digest.hasRecipient
+                  ? "DIGEST_TO is set"
+                  : "No one yet: DIGEST_TO is not set"
+              }
+            />
+            <Row label="Inbox tag" value={overview.inbox.tag} />
+          </dl>
+          <p className="m-0 pt-1" style={typeStyle("small")}>
+            To change these, edit .env and restart pnpm dev.
+          </p>
+        </section>
+      )}
+    </div>
+  );
+}

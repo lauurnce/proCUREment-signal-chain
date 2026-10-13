@@ -9,7 +9,7 @@
 
 **A cozy isometric office where AI helpers do procurement work, and you decide what goes out.**
 
-`Unofficial prototype` · `Fictional data` · `Private repo` · `Local-first`
+`Unofficial prototype` · `Fictional data` · `Private repo` · `Local-first` · `Closed, Oct 2026`
 
 [What it is](#what-it-is) · [Tour the office](#tour-the-office) · [Features](#features) · [How a decision flows](#how-a-decision-flows) · [Run it](#run-it) · [Progress](#progress)
 
@@ -17,6 +17,9 @@
 
 > [!TIP]
 > The office at the top is a real recording of the running app. Switch GitHub to dark mode and the same office shows at night.
+
+> [!NOTE]
+> **This project is closed (13 Oct 2026).** Phases 0 to 7 are built. Phase 8 (polish and v0.1.0) was not started. To start again, read [docs/HANDOFF.md](docs/HANDOFF.md). A public, generic version for sharing lives at [lauurnce/signalchain-hq-showcase](https://github.com/lauurnce/signalchain-hq-showcase). It has no ADI details, no docs, and no history. This repo stays private.
 
 ---
 
@@ -104,12 +107,13 @@ Your glass office sits at the back, next to the Leads' review board. The dashboa
 
 <img src="docs/readme/hq-panel.webp" width="320" align="right" alt="The HQ panel with the Needs you tab open. The first card asks to OK a firmer follow-up with a fictional supplier, with Approve, Hold, Send back and Instruct buttons.">
 
-The panel on the right has four tabs:
+The panel on the right has five tabs:
 
 - **Needs you**: items sorted by urgency, then escalations, then rule items, then email drafts. Each one says **why it came to you**.
 - **Team**: every helper, its workflow steps, and which step is now. Click a row and the camera flies to that helper.
 - **Board**: Waiting on a decision, Doing, To do, and Done today.
-- **Office**: camera views, day and night, props, and sound.
+- **Office**: camera views, day and night, props, sound, and Demo Day.
+- **Mail**: mail status, drafts (Open in Outlook, Copy email, Download .eml), and the mail settings.
 
 For each item you choose:
 
@@ -120,7 +124,7 @@ For each item you choose:
 | <kbd>S</kbd> | Send back | It goes back to the helper to redo. |
 | <kbd>I</kbd> | Instruct | You type what the helper should do next. |
 
-Every decision has a **5 second undo**.
+Every decision has a **5 second undo**. When the undo bar closes, the decision is saved to the vault and the helper goes back to work.
 
 <br clear="right">
 </details>
@@ -161,13 +165,24 @@ Some decisions are not yours alone. When the rule routes an item, the card says 
 </details>
 
 <details>
-<summary><b>✉️ Outlook, drafts first</b> (Phase 7)</summary>
+<summary><b>🎬 Demo Day</b></summary>
 
 <br>
 
-- Approve creates a **draft**. Sending is a separate click.
-- Sending needs `MAIL_MODE=send`, and every recipient must be on the allow list. Every send is logged.
-- A personal test account only. No ADI accounts or tenants.
+A switch in the Office tab runs a simulated working day on a separate `vault-demo/` folder, with speeds and a seed. A simulator moves work through the six workflows, hands PRs across the Endorsement Bridge, and applies the authority rule. A held item never turns into an approval, and the helper reminds you after an hour.
+</details>
+
+<details>
+<summary><b>✉️ Outlook, drafts first</b></summary>
+
+<br>
+
+- Approve creates a **draft**. Sending is a separate click, with a confirm box.
+- With no setup, drafts are saved as `.eml` files in `vault/outbox/`. With Outlook signed in (MSAL, token in the Keychain), they become real Outlook drafts through Microsoft Graph.
+- Sending needs `MAIL_MODE=send`, and every recipient must be on the allow list. The server checks every rule, and every send is logged.
+- Emails tagged `[HQ]` in your inbox can become tasks, and the helper walks to the Mail Dock.
+- A daily digest at `DIGEST_TIME`, or with "Send digest now". The scheduled digest is only a draft.
+- A personal test account only. No ADI accounts or tenants. Built and tested with Graph mocked. Not yet tried against a real mailbox.
 </details>
 
 <details>
@@ -208,7 +223,7 @@ flowchart LR
     V[("📁 vault/<br/>markdown + JSON")] -- file watch --> S["⚙️ Fastify server<br/>127.0.0.1"]
     S -- "GET /api/state" --> W["🖥️ Web app<br/>React Three Fiber"]
     S -- "live stream (SSE)" --> W
-    S -. "Phase 7" .-> O["✉️ Microsoft Graph<br/>Outlook drafts"]
+    S -- "drafts" --> O["✉️ Microsoft Graph<br/>Outlook drafts"]
 ```
 
 - **vault**: plain files on your Mac that hold the team, tasks, and office layout. Save a file and the office updates live, with no reload.
@@ -288,9 +303,11 @@ More in [docs/TECH_STACK.md](docs/TECH_STACK.md).
 - [x] 3. The office world
 - [x] 4. The team, characters and movement
 - [x] 5. The HQ panel
-- [ ] 6. Live data and Demo Day
-- [ ] 7. Outlook
-- [ ] 8. Polish and v0.1.0
+- [x] 6. Live data and Demo Day
+- [x] 7. Outlook
+- [ ] 8. Polish and v0.1.0 (not started, project closed)
+
+Left open at closing: the real Outlook test on a Mac, 3 brand points from the Phase 7 review, the Phase 8 list in [docs/PROGRESS.md](docs/PROGRESS.md), and the open questions there (authority rule thresholds, Lead groups).
 
 Full log: [docs/PROGRESS.md](docs/PROGRESS.md). Every choice: [docs/DECISIONS.md](docs/DECISIONS.md).
 

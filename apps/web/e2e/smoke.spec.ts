@@ -573,6 +573,10 @@ test("approving an item saves it to the vault, end to end", async ({ page, reque
     health.vaultPath !== "vault-e2e",
     "Runs only on the throwaway test vault. Stop pnpm dev, then run the tests again.",
   );
+  // Approving makes a draft, so this test runs only on the outbox: never a real mailbox, even
+  // with a dev server you started yourself with Outlook connected (D-124).
+  const mail = (await (await request.get("/api/mail")).json()) as { status: { driver: string } };
+  test.skip(mail.status.driver !== "outbox", "Runs only with the outbox. Stop pnpm dev first.");
   const errors = collectErrors(page);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/?shots=1");
@@ -601,5 +605,27 @@ test("approving an item saves it to the vault, end to end", async ({ page, reque
   expect(readFileSync(join(vault, "log", `${day}.md`), "utf8")).toContain(
     "you approved q-0001 from ops-03",
   );
+
+  // P7.2: the approved email became an .eml draft in vault/outbox/, shown in the Mail tab.
+  const eml = readFileSync(join(vault, "outbox", "q-0001.eml"), "utf8");
+  expect(eml).toContain("X-Unsent: 1");
+  await page.getByRole("tab", { name: "Mail" }).click();
+  const draft = page.getByTestId("mail-draft");
+  await expect(draft).toContainText("Draft ready. Nothing was sent.");
+  await expect(draft.getByRole("link", { name: "Open in Outlook" })).toHaveAttribute(
+    "href",
+    /^mailto:orders@luzonprecision\.example\?subject=/,
+  );
+  await expect(draft.getByRole("button", { name: "Copy email" })).toBeVisible();
+  const href = await draft.getByTestId("download-eml").getAttribute("href");
+  expect((await request.get(href ?? "")).headers()["content-disposition"]).toContain("q-0001.eml");
+
+  // P7.4: Make digest now saves the digest as an HTML .eml.
+  await page.getByTestId("send-digest").click();
+  await expect(page.getByTestId("digest-said")).toHaveText(
+    "The digest is saved as an .eml file in vault/outbox/.",
+  );
+  const digest = readdirSync(join(vault, "outbox")).find((f) => f.startsWith("digest-"));
+  expect(readFileSync(join(vault, "outbox", digest ?? ""), "utf8")).toContain("text/html");
   expect(errors).toEqual([]);
 });

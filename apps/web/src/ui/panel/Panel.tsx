@@ -16,6 +16,7 @@ import { reference, suggestion } from "./itemView";
 import { KeyHelp } from "./KeyHelp";
 import { isField, panelAction } from "./keys";
 import { useLinkState } from "./linkState";
+import { MailTab } from "./MailTab";
 import { NeedsYouTab } from "./NeedsYouTab";
 import { OfficeTab } from "./OfficeTab";
 import { OfflineBanner } from "./OfflineBanner";
@@ -211,12 +212,16 @@ export function Panel({
       openInstruction();
       return;
     }
-    const message = decisionMessage(
+    const draftNote =
+      onSave && action === "approve" && focused.kind === "email-draft"
+        ? " Its draft will be in the Mail tab."
+        : "";
+    const message = `${decisionMessage(
       action,
       helperName(seats, focused.from),
       decidingAs(seats, focused),
       clockTime(now),
-    );
+    )}${draftNote}`;
     const next = items[index + 1] ?? items[index - 1] ?? null;
     commit();
     const write: PendingWrite | undefined = onSave
@@ -423,6 +428,7 @@ export function Panel({
                 />
               )}
               {s.tab === "office" && <OfficeTab />}
+              {s.tab === "mail" && <MailTab queue={data.queue} paused={paused} />}
             </m.div>
           </div>
           <AnimatePresence>

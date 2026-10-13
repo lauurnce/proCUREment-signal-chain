@@ -6,7 +6,7 @@ To pick up again, open Claude Code in the repo and type `/resume`.
 ## 1. Where things stand, in 5 lines
 
 1. Phases 0 to 6 are done and merged into `main`.
-2. Phase 7 (Outlook) is built, reviewed and pushed on branch `worktree-p7-outlook`, but **not merged into `main`**. It waits for a real Outlook test on the Mac.
+2. Phase 7 (Outlook) is built and reviewed, and Lawrence merged it into `main` when he closed the project on 13 Oct 2026. The real Outlook test on the Mac was not done yet, so do it first if the project starts again.
 3. Phase 8 (polish and the v0.1.0 release) has not started.
 4. All checks pass on `worktree-p7-outlook`: 88 server tests, 194 web tests, 47 shared tests, 26 browser tests, lint and types.
 5. Decisions D-001 to D-129 are in `docs/DECISIONS.md`. Every commit is Lawrence's only (`scripts/verify-sole-contributor.sh` says OK).
@@ -51,7 +51,7 @@ pnpm dev
 
 If something fails, copy the exact message the app shows and give it to Claude.
 
-### Step B. Merge Phase 7 into `main`
+### Step B. Merge Phase 7 into `main` (done on 13 Oct 2026)
 
 ```bash
 git switch main
