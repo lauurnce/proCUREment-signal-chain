@@ -3,6 +3,8 @@ import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildApp } from "./app";
 import { loadConfig } from "./config";
+import { loadMailConfig } from "./mail/config";
+import { MailService } from "./mail/service";
 import { DemoRunner } from "./sim/runner";
 import { SseHub } from "./sse/hub";
 import { eventForChange } from "./vault/events";
@@ -54,6 +56,10 @@ const demo = new DemoRunner({
   liveDir: config.vaultDir,
 });
 
+const mail = new MailService({ config: loadMailConfig(), store });
+for (const problem of mail.status().problem?.split(/(?<=\.) /) ?? [])
+  console.warn(`Mail: ${problem}`);
+
 const app = await buildApp({
   store,
   hub,
@@ -62,6 +68,7 @@ const app = await buildApp({
   worktree: config.worktree,
   vaultPath: relative(config.repoRoot, config.vaultDir),
   demo,
+  mail,
 });
 
 // An edit to office files only sends office.updated, so the office changes without a reload.

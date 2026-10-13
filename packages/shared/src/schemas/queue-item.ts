@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { Id, IsoDateTime, Track } from "./common";
+import { MailRef } from "./mail";
 
 export const QueueKind = z.enum(["email-draft", "summary", "approval", "escalation", "report"]);
 
@@ -46,6 +47,8 @@ export const QueueItem = z.object({
   created: IsoDateTime,
   updated: IsoDateTime,
   email: EmailDraft.optional(),
+  /** The draft made when you approved an email item (Phase 7). */
+  mail: MailRef.optional(),
   decision: Decision.nullable(),
   body: z.string(),
   /** Where the item lives in the vault, like "queue/q-0001-follow-up.md". Set by the loader. */

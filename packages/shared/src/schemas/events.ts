@@ -3,6 +3,7 @@ import { Accessory } from "./accessory";
 import { AuthorityRule } from "./authority-rule";
 import { IsoDateTime } from "./common";
 import { LayoutFile } from "./layout";
+import { MailOverview } from "./mail";
 import { QueueItem } from "./queue-item";
 import { Seat } from "./seat";
 import { Task } from "./task";
@@ -57,13 +58,6 @@ export const AppState = z.object({
 });
 export type AppState = z.infer<typeof AppState>;
 
-export const MailStatus = z.object({
-  provider: z.enum(["outbox", "graph", "power-automate"]),
-  mode: z.enum(["dry-run", "drafts", "send"]),
-  signedIn: z.boolean(),
-});
-export type MailStatus = z.infer<typeof MailStatus>;
-
 export const ServerEvent = z.discriminatedUnion("type", [
   z.object({ type: z.literal("state.snapshot"), state: AppState }),
   z.object({ type: z.literal("seat.updated"), seat: Seat }),
@@ -71,7 +65,7 @@ export const ServerEvent = z.discriminatedUnion("type", [
   z.object({ type: z.literal("task.upserted"), task: Task }),
   z.object({ type: z.literal("office.updated"), office: OfficeState }),
   z.object({ type: z.literal("log.appended"), line: z.string() }),
-  z.object({ type: z.literal("mail.status"), status: MailStatus }),
+  z.object({ type: z.literal("mail.updated"), mail: MailOverview }),
   z.object({ type: z.literal("sim.tick"), clock: IsoDateTime, speed: z.number() }),
   z.object({ type: z.literal("warning"), message: z.string() }),
 ]);

@@ -1,8 +1,10 @@
 import cors from "@fastify/cors";
 import Fastify, { type FastifyInstance } from "fastify";
 import pkg from "../package.json" with { type: "json" };
+import type { MailService } from "./mail/service";
 import { registerEventRoutes } from "./routes/events";
 import { registerHealthRoutes } from "./routes/health";
+import { registerMailRoutes } from "./routes/mail";
 import { registerQueueRoutes } from "./routes/queue";
 import { registerSimRoutes } from "./routes/sim";
 import { registerStateRoutes } from "./routes/state";
@@ -21,6 +23,8 @@ export interface AppDeps {
   logger?: boolean;
   /** Demo Day. Without it, the /api/sim routes are not there. */
   demo?: DemoRunner;
+  /** Mail. Without it, approvals make no drafts and the /api/mail routes are not there. */
+  mail?: MailService;
 }
 
 /** Builds the Fastify app without listening, so tests can call app.inject(). */
@@ -39,6 +43,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerStateRoutes(app, deps.store);
   registerQueueRoutes(app, deps);
   if (deps.demo) registerSimRoutes(app, deps.demo);
+  if (deps.mail) registerMailRoutes(app, { ...deps, mail: deps.mail });
   registerEventRoutes(app, deps);
   // Open event streams would keep app.close() waiting, so end them first.
   app.addHook("preClose", async () => {

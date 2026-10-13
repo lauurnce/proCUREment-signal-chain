@@ -601,5 +601,19 @@ test("approving an item saves it to the vault, end to end", async ({ page, reque
   expect(readFileSync(join(vault, "log", `${day}.md`), "utf8")).toContain(
     "you approved q-0001 from ops-03",
   );
+
+  // P7.2: the approved email became an .eml draft in vault/outbox/, shown in the Mail tab.
+  const eml = readFileSync(join(vault, "outbox", "q-0001.eml"), "utf8");
+  expect(eml).toContain("X-Unsent: 1");
+  await page.getByRole("tab", { name: "Mail" }).click();
+  const draft = page.getByTestId("mail-draft");
+  await expect(draft).toContainText("Draft ready. Nothing was sent.");
+  await expect(draft.getByRole("link", { name: "Open in Outlook" })).toHaveAttribute(
+    "href",
+    /^mailto:orders@luzonprecision\.example\?subject=/,
+  );
+  await expect(draft.getByRole("button", { name: "Copy email" })).toBeVisible();
+  const href = await draft.getByTestId("download-eml").getAttribute("href");
+  expect((await request.get(href ?? "")).headers()["content-disposition"]).toContain("q-0001.eml");
   expect(errors).toEqual([]);
 });

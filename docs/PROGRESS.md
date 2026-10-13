@@ -1,6 +1,6 @@
 # Progress
 
-Now: Phase 7 in `p7-outlook`. P7.1 plan done (`docs/design/PHASE7_PLAN.md`). Next: P7.2, the outbox driver. Carried from the P6.3 playtest to Phase 8: a Demo Day pill with the sim clock in the header, daylight that follows the sim clock, one meaning for "waiting" across tags, stats and Board, the r3f-perf overlay covering the panel in dev, a day that ends at 18:00, and varied send-back notes.
+Now: Phase 7 in `p7-outlook`. P7.1 plan and P7.2 outbox done. Next: P7.3, the Outlook sign-in and Graph drafts (built here with Graph mocked, then tried on the Mac). Carried from the P6.3 playtest to Phase 8: a Demo Day pill with the sim clock in the header, daylight that follows the sim clock, one meaning for "waiting" across tags, stats and Board, the r3f-perf overlay covering the panel in dev, a day that ends at 18:00, and varied send-back notes.
 
 ## Phases
 - [x] 0. Kickoff and alignment (main checkout)
@@ -21,6 +21,7 @@ Now: Phase 7 in `p7-outlook`. P7.1 plan done (`docs/design/PHASE7_PLAN.md`). Nex
 - Frame rate in Walk around mode on the M4 Pro: the cloud session measured only software rendering (see P4.3). Open `/?walk=1` with r3f-perf to check it on real hardware.
 
 ## Log
+- 13 Oct 2026, P7.2 (cloud session): the outbox driver, the default with no setup. Approving an email item saves an .eml draft in vault/outbox/ and records it on the item (D-121). New 5th tab, Mail: status, drafts with Open in Outlook, Copy email and Download .eml, and the settings from .env. 50 server tests, 194 web tests, 47 shared tests, 26 browser tests pass.
 - 13 Oct 2026, P7.1 (cloud session): the integration-engineer planned Phase 7 (`docs/design/PHASE7_PLAN.md`): one mail interface with outbox, graph and a power-automate stub, MSAL sign-in with the Keychain, one server guard for every safety rule, and a Mail tab. Lawrence chose a 5th tab (D-117), P7.3 built here with Graph mocked (D-118), one draft per approval (D-119). D-120 records the flow and the Demo Day rule.
 - 13 Oct 2026, P6.3 (cloud session): the qa-playtester played Demo Day for 10 simulated hours at 20x as a busy Sr. Manager (`docs/qa/2026-10-13-demo-day-playtest.md`): 9 items for you, the longest wait 40 sim minutes, 0 console errors. Fixed the top 3: a hold never turns into an approval, the helper reminds you after an hour (D-114); decisions use the sim clock in Demo Day (D-115); simulated decisions name a kind of decider, never a seat (D-116). 41 server tests, 194 web tests, 43 shared tests, 26 browser tests pass.
 - 13 Oct 2026, P6.2 (cloud session): Demo Day on vault-demo/ with a switch, speeds and a seed in the Office tab (D-112), a seeded simulator for the six workflows with the bridge handoff and the authority rule (D-113). The procurement-sme reviewed a sample day (realism 4 of 5) and its 6 fixes are in. 39 server tests and 26 browser tests pass.

@@ -1,5 +1,6 @@
 import { DecisionRequest, Id, InstructionRequest } from "@hq/shared";
 import type { FastifyInstance } from "fastify";
+import type { MailService } from "../mail/service";
 import type { SseHub } from "../sse/hub";
 import { applyDecision, DecisionError, saveInstruction } from "../vault/decide";
 import type { VaultStore } from "../vault/store";
@@ -10,14 +11,14 @@ import type { VaultStore } from "../vault/store";
  */
 export function registerQueueRoutes(
   app: FastifyInstance,
-  deps: { store: VaultStore; hub: SseHub },
+  deps: { store: VaultStore; hub: SseHub; mail?: MailService },
 ): void {
   /** In Demo Day, decisions happen at the simulated time, so the log stays in order. */
   const now = () => (deps.store.demo ? new Date(deps.store.demo.clock) : new Date());
-  const afterWrite = async (line: string) => {
+  const afterWrite = async (...lines: string[]) => {
     const state = await deps.store.reload();
     deps.hub.broadcast({ type: "state.snapshot", state });
-    deps.hub.broadcast({ type: "log.appended", line });
+    for (const line of lines) deps.hub.broadcast({ type: "log.appended", line });
     return state;
   };
 
@@ -30,14 +31,21 @@ export function registerQueueRoutes(
       });
     }
     try {
+      const at = now();
       const { line } = await applyDecision(
         deps.store.vaultDir,
         deps.store.state,
         id.data,
         body.data,
-        now(),
+        at,
       );
-      const state = await afterWrite(line);
+      // An approved email item gets its draft now, after the decision is saved (D-120).
+      let mailLine: string | null = null;
+      if (body.data.action === "approve" && deps.mail) {
+        await deps.store.reload();
+        mailLine = await deps.mail.afterApprove(id.data, at);
+      }
+      const state = await afterWrite(line, ...(mailLine ? [mailLine] : []));
       return { item: state.queue.find((q) => q.id === id.data) ?? null, line };
     } catch (error) {
       if (error instanceof DecisionError)
