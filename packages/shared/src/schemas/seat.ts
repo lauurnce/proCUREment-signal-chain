@@ -67,6 +67,8 @@ export const SeatProfile = z.object({
   workingOn: z.string().optional(),
   currentWorkflow: Id.nullable().optional(),
   currentStep: Id.nullable().optional(),
+  /** A zone the helper visits for work outside a workflow step, like an [HQ] email at the Mail Dock. */
+  visiting: Id.optional(),
   updated: IsoDateTime,
 });
 export type SeatProfile = z.infer<typeof SeatProfile>;
@@ -77,5 +79,6 @@ export const Seat = RosterSeat.extend({
   workingOn: z.string().optional(),
   currentWorkflow: Id.nullable().optional(),
   currentStep: Id.nullable().optional(),
+  visiting: Id.optional(),
 });
 export type Seat = z.infer<typeof Seat>;

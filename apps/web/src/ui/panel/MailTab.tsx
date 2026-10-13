@@ -29,6 +29,8 @@ const MODE: Record<MailStatus["mode"], string> = {
 };
 
 const clockOf = (iso: string) => iso.slice(11, 16);
+const dayAndTime = (iso: string) =>
+  `${new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).format(new Date(iso.slice(0, 10)))}, ${clockOf(iso)}`;
 /** The vault can be edited by hand, so only Outlook's own web addresses become a link. */
 const OUTLOOK_LINK = /^https:\/\/outlook\.(live|office|office365)\.com\//;
 
@@ -323,6 +325,28 @@ export function MailTab({ queue, paused }: { queue: QueueItem[]; paused: boolean
     .sort((a, b) => (b.mail?.createdAt ?? "").localeCompare(a.mail?.createdAt ?? ""));
   const canConnect = status?.configured === "graph" && status.driver === "graph";
 
+  const [digestSaid, setDigestSaid] = useState("");
+  const [digestBusy, setDigestBusy] = useState(false);
+  const sendDigest = () => {
+    setDigestSaid("");
+    setDigestBusy(true);
+    post<{ line: string; mail: MailOverview }>("/api/mail/digest", {})
+      .then((r) => {
+        setOverview(r.mail);
+        setDigestSaid(
+          r.mail.status.driver === "graph"
+            ? r.mail.status.mode === "send"
+              ? "Digest sent."
+              : "The digest is a draft in your Outlook Drafts."
+            : r.mail.status.mode === "dry-run"
+              ? "Dry run: nothing was made. The log says what would happen."
+              : "The digest is saved as an .eml file in vault/outbox/.",
+        );
+      })
+      .catch((e: unknown) => setDigestSaid(e instanceof Error ? e.message : String(e)))
+      .finally(() => setDigestBusy(false));
+  };
+
   const signOut = () => {
     setSaid("");
     post<MailOverview>("/api/mail/signout", {})
@@ -436,6 +460,51 @@ export function MailTab({ queue, paused }: { queue: QueueItem[]; paused: boolean
       </section>
 
       {overview && status && (
+        <section className="flex flex-col" aria-labelledby="mail-daily">
+          <h3 id="mail-daily" className="m-0 pb-1" style={typeStyle("label", "navy")}>
+            Daily digest and inbox
+          </h3>
+          <dl className="m-0">
+            <Row
+              label="Daily digest"
+              value={`${overview.digest.time} ${overview.digest.timezone}, ${
+                overview.digest.lastAt
+                  ? `last on ${dayAndTime(overview.digest.lastAt)}`
+                  : "not sent yet"
+              }`}
+            />
+            <Row
+              label={`${overview.inbox.tag} emails`}
+              value={
+                overview.inbox.active
+                  ? `Become Board tasks. Checked every ${Math.round(overview.inbox.pollSeconds / 60) || 1} min${
+                      overview.inbox.lastCheck
+                        ? `, last at ${clockOf(overview.inbox.lastCheck)}`
+                        : ""
+                    }.`
+                  : "Become Board tasks once Outlook is connected."
+              }
+            />
+          </dl>
+          <div className="flex items-center gap-2 border-t border-hairline py-2">
+            <button
+              type="button"
+              disabled={paused || digestBusy}
+              onClick={sendDigest}
+              className={BUTTON}
+              style={buttonText}
+              data-testid="send-digest"
+            >
+              Send digest now
+            </button>
+          </div>
+          <span aria-live="polite" style={typeStyle("small", "ink")} data-testid="digest-said">
+            {digestSaid}
+          </span>
+        </section>
+      )}
+
+      {overview && status && (
         <section className="flex flex-col" aria-labelledby="mail-settings">
           <h3 id="mail-settings" className="m-0 pb-1" style={typeStyle("label", "navy")}>
             Settings
@@ -450,10 +519,14 @@ export function MailTab({ queue, paused }: { queue: QueueItem[]; paused: boolean
             <Row label="Demo redirect" value={status.redirectTo ?? "Off"} />
             <Row label="Send limit" value={`${status.maxPerHour} per hour`} />
             <Row
-              label="Daily digest"
-              value={`${overview.digest.time}, ${overview.digest.timezone}${overview.digest.hasRecipient ? "" : ", no recipient set"}`}
+              label="Digest goes to"
+              value={
+                overview.digest.hasRecipient
+                  ? "DIGEST_TO is set"
+                  : "No one yet: DIGEST_TO is not set"
+              }
             />
-            <Row label="Inbox tag" value={overview.inboxTag} />
+            <Row label="Inbox tag" value={overview.inbox.tag} />
           </dl>
           <p className="m-0 pt-1" style={typeStyle("small")}>
             To change these, edit .env and restart pnpm dev.

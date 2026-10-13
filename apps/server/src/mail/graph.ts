@@ -30,11 +30,69 @@ const Message = z.object({
   ccRecipients: z.array(Recipient).optional(),
   bccRecipients: z.array(Recipient).optional(),
 });
+const InboxList = z.object({
+  value: z.array(
+    z.object({
+      id: z.string().min(1),
+      subject: z.string().nullable().optional(),
+      from: z
+        .object({ emailAddress: z.object({ address: z.string() }) })
+        .nullable()
+        .optional(),
+      receivedDateTime: z.string(),
+    }),
+  ),
+});
+const Body = z.object({ body: z.object({ contentType: z.string(), content: z.string() }) });
 const Me = z.object({
   displayName: z.string().nullable().optional(),
   mail: z.string().nullable().optional(),
   userPrincipalName: z.string().optional(),
 });
+
+export interface OutgoingEmail {
+  to: string[];
+  cc: string[];
+  subject: string;
+  text: string;
+  html?: string;
+}
+
+export interface InboxMessage {
+  id: string;
+  subject: string;
+  from: string;
+  receivedAt: string;
+}
+
+function graphMessage(input: OutgoingEmail) {
+  const toList = (list: string[]) => list.map((address) => ({ emailAddress: { address } }));
+  return {
+    subject: input.subject,
+    body: input.html
+      ? { contentType: "HTML", content: input.html }
+      : { contentType: "Text", content: input.text },
+    toRecipients: toList(input.to),
+    ccRecipients: toList(input.cc),
+  };
+}
+
+/** Rough HTML to text for a task note: drops tags, styles and scripts, keeps line breaks. */
+export function htmlToText(html: string): string {
+  return html
+    .replace(/<(style|script)[\s\S]*?<\/\1>/gi, "")
+    .replace(/<br\s*\/?>|<\/(p|div|li|tr|h\d)>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
 
 /** Only Outlook's own web addresses become "Open draft in Outlook" links. */
 export function safeWebLink(link: string | undefined): string | undefined {
@@ -111,21 +169,47 @@ export class GraphClient {
     return me.mail || me.userPrincipalName || me.displayName || "your Outlook account";
   }
 
-  /** POST /me/messages: a draft in your Drafts folder. */
-  async createDraft(input: {
-    to: string[];
-    cc: string[];
-    subject: string;
-    text: string;
-  }): Promise<{ id: string; webLink?: string }> {
-    const toList = (list: string[]) => list.map((address) => ({ emailAddress: { address } }));
-    const message = await this.#json(Message, "POST", "/me/messages", {
-      subject: input.subject,
-      body: { contentType: "Text", content: input.text },
-      toRecipients: toList(input.to),
-      ccRecipients: toList(input.cc),
-    });
+  /** POST /me/messages: a draft in your Drafts folder. With `html`, the body is HTML (the digest). */
+  async createDraft(input: OutgoingEmail): Promise<{ id: string; webLink?: string }> {
+    const message = await this.#json(Message, "POST", "/me/messages", graphMessage(input));
     return { id: message.id, webLink: safeWebLink(message.webLink) };
+  }
+
+  /** POST /me/sendMail: sends a new email at once, kept in Sent Items. Only the digest uses it. */
+  async sendMail(input: OutgoingEmail): Promise<void> {
+    await this.#call("POST", "/me/sendMail", {
+      message: graphMessage(input),
+      saveToSentItems: true,
+    });
+  }
+
+  /**
+   * The newest inbox emails, with only id, subject, sender and time (skill, rule 7). No bodies.
+   */
+  async listInbox(): Promise<InboxMessage[]> {
+    const list = await this.#json(
+      InboxList,
+      "GET",
+      "/me/mailFolders/inbox/messages?$top=25&$select=id,subject,from,receivedDateTime&$orderby=receivedDateTime%20desc",
+    );
+    return list.value.map((m) => ({
+      id: m.id,
+      subject: m.subject ?? "",
+      from: m.from?.emailAddress.address ?? "",
+      receivedAt: m.receivedDateTime,
+    }));
+  }
+
+  /** The body of one email, as plain text. Called only for emails tagged for the HQ. */
+  async body(id: string): Promise<string> {
+    const message = await this.#json(
+      Body,
+      "GET",
+      `/me/messages/${encodeURIComponent(id)}?$select=body`,
+    );
+    return message.body.contentType.toLowerCase() === "html"
+      ? htmlToText(message.body.content)
+      : message.body.content;
   }
 
   /** Every recipient the draft has now (To, Cc and Bcc), read again from Outlook. */

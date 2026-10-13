@@ -615,5 +615,13 @@ test("approving an item saves it to the vault, end to end", async ({ page, reque
   await expect(draft.getByRole("button", { name: "Copy email" })).toBeVisible();
   const href = await draft.getByTestId("download-eml").getAttribute("href");
   expect((await request.get(href ?? "")).headers()["content-disposition"]).toContain("q-0001.eml");
+
+  // P7.4: Send digest now saves the digest as an HTML .eml (the tests always use the outbox).
+  await page.getByTestId("send-digest").click();
+  await expect(page.getByTestId("digest-said")).toHaveText(
+    "The digest is saved as an .eml file in vault/outbox/.",
+  );
+  const digest = readdirSync(join(vault, "outbox")).find((f) => f.startsWith("digest-"));
+  expect(readFileSync(join(vault, "outbox", digest ?? ""), "utf8")).toContain("text/html");
   expect(errors).toEqual([]);
 });

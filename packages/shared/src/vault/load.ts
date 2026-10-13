@@ -143,6 +143,7 @@ export async function loadVault(options: LoadOptions): Promise<AppState> {
       workingOn: profile?.workingOn,
       currentWorkflow: profile?.currentWorkflow,
       currentStep: profile?.currentStep,
+      ...(profile?.visiting ? { visiting: profile.visiting } : {}),
     };
   });
 

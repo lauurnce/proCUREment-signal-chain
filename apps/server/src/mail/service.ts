@@ -7,27 +7,41 @@ import {
   type MailOverview,
   type MailRef,
   type MailStatus,
-  SentEntry,
+  type SentEntry,
+  type Task,
 } from "@hq/shared";
 import { toMarkdown } from "@hq/shared/vault";
-import { z } from "zod";
 import { NOT_CONNECTED, type OutlookAuth, SignInError } from "../auth/outlook";
 import { logLine, manilaIso } from "../vault/decide";
 import type { VaultStore } from "../vault/store";
 import { readRecord, writeAtomic } from "../vault/write";
 import type { MailConfig } from "./config";
+import { buildDigest } from "./digest";
 import { buildEml, MailError } from "./eml";
 import { GraphAuthError, type GraphClient, GraphNotFoundError } from "./graph";
 import { checkSend, redirectBanner, type SendCheck, sameRecipients } from "./guard";
+import { type InboxRules, nextTaskId, pickOwner, routeEmail, taskTitle } from "./inbox";
+import { type Ledger, readLedger, writeLedger } from "./ledger";
 
 const PA_NOT_SET_UP =
   "The Power Automate bridge is not set up. It needs ADI IT approval first, so no draft was made.";
 const GONE = "The draft is not in Outlook any more. Make the draft again.";
 
-/** Sends, the hourly count and later the digest, in the vault's hidden .state/ folder. */
-const LEDGER = ".state/mail.json";
-const Ledger = z.object({ sends: z.array(SentEntry) });
 const HOUR = 3_600_000;
+/** How long a helper stays at the Mail Dock for an [HQ] email. */
+const VISIT_MS = 5 * 60_000;
+const MAIL_DOCK = "mail-dock";
+const dayIn = (at: Date, timeZone: string) =>
+  new Intl.DateTimeFormat("en-CA", { timeZone }).format(at);
+const timeIn = (at: Date, timeZone: string) =>
+  new Intl.DateTimeFormat("en-GB", { timeZone, hour: "2-digit", minute: "2-digit" }).format(at);
+const longDayIn = (at: Date, timeZone: string) =>
+  new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(at);
 const clock = (at: Date) =>
   new Intl.DateTimeFormat("en-GB", {
     timeZone: "Asia/Manila",
@@ -55,12 +69,21 @@ export class MailService {
     store: VaultStore;
     auth?: OutlookAuth | null;
     graph?: GraphClient | null;
+    inboxRules?: InboxRules;
   }) {
     this.#config = deps.config;
     this.#store = deps.store;
     this.#auth = deps.auth ?? null;
     this.#graph = deps.graph ?? null;
+    this.#rules = deps.inboxRules ?? {
+      version: 1,
+      rules: [],
+      default: { track: "OPS", workflow: "ops-pr-to-po-stock-item" },
+    };
   }
+
+  readonly #rules: InboxRules;
+  #lastInboxPoll = 0;
 
   get auth(): OutlookAuth | null {
     return this.#auth;
@@ -107,12 +130,23 @@ export class MailService {
 
   async overview(): Promise<MailOverview> {
     const c = this.#config;
-    const sends = (await this.#ledger()).sends;
+    const ledger = await readLedger(this.#store.vaultDir);
+    const status = this.status();
     return {
-      status: this.status(),
-      sent: sends.slice(-20).reverse(),
-      digest: { time: c.digestTime, timezone: c.timezone, hasRecipient: Boolean(c.digestTo) },
-      inboxTag: c.inboxTag,
+      status,
+      sent: ledger.sends.slice(-20).reverse(),
+      digest: {
+        time: c.digestTime,
+        timezone: c.timezone,
+        hasRecipient: Boolean(c.digestTo),
+        lastAt: ledger.digest.lastAt,
+      },
+      inbox: {
+        tag: c.inboxTag,
+        pollSeconds: c.inboxPollSeconds,
+        active: status.driver === "graph" && status.connected,
+        lastCheck: ledger.inbox.lastCheck,
+      },
     };
   }
 
@@ -303,12 +337,8 @@ export class MailService {
       driver: "graph",
       ...(mail.redirectedFrom ? { redirectedFrom: mail.redirectedFrom } : {}),
     };
-    const ledger = await this.#ledger();
-    await writeAtomic(
-      this.#store.vaultDir,
-      LEDGER,
-      `${JSON.stringify({ sends: [...ledger.sends, entry].slice(-200) }, null, 2)}\n`,
-    );
+    const ledger = await readLedger(this.#store.vaultDir);
+    await writeLedger(this.#store.vaultDir, { ...ledger, sends: [...ledger.sends, entry] });
     const line = await logLine(
       this.#store.vaultDir,
       now,
@@ -320,7 +350,7 @@ export class MailService {
   async #guardInput(now: Date) {
     const c = this.#config;
     const hourAgo = now.getTime() - HOUR;
-    const recent = (await this.#ledger()).sends
+    const recent = (await readLedger(this.#store.vaultDir)).sends
       .map((s) => Date.parse(s.at))
       .filter((t) => t > hourAgo)
       .sort((a, b) => a - b);
@@ -338,14 +368,247 @@ export class MailService {
     };
   }
 
-  async #ledger(): Promise<z.infer<typeof Ledger>> {
-    try {
-      const text = await readFile(join(this.#store.vaultDir, LEDGER), "utf8");
-      const parsed = Ledger.safeParse(JSON.parse(text));
-      return parsed.success ? parsed.data : { sends: [] };
-    } catch {
-      return { sends: [] };
+  /**
+   * The clock, every 30 s from main.ts: helpers walk back from the Mail Dock, the inbox is
+   * checked every HQ_INBOX_POLL_SECONDS, and the digest goes out once a day at DIGEST_TIME.
+   * Nothing runs in Demo Day. Returns the new log lines, and whether any vault file changed.
+   */
+  async tick(now = new Date()): Promise<{ lines: string[]; changed: boolean }> {
+    if (this.#store.demo) return { lines: [], changed: false };
+    const lines: string[] = [];
+    const walkedBack = await this.endVisits(now);
+    if (now.getTime() - this.#lastInboxPoll >= this.#config.inboxPollSeconds * 1000) {
+      this.#lastInboxPoll = now.getTime();
+      lines.push(...(await this.checkInbox(now).catch(() => [])));
     }
+    const c = this.#config;
+    const ledger = await readLedger(this.#store.vaultDir);
+    const today = dayIn(now, c.timezone);
+    const due = timeIn(now, c.timezone) >= c.digestTime && ledger.digest.lastDate !== today;
+    // An Outlook that is not connected waits: the digest goes once you connect, the same day.
+    const waiting = this.driver() === "graph" && !this.#auth?.connected;
+    if (due && !waiting) {
+      const result = await this.sendDigest(now);
+      if ("line" in result) lines.push(result.line);
+      else {
+        const fresh = await readLedger(this.#store.vaultDir);
+        await writeLedger(this.#store.vaultDir, {
+          ...fresh,
+          digest: { ...fresh.digest, lastDate: today },
+        });
+        lines.push(
+          await logLine(
+            this.#store.vaultDir,
+            now,
+            `mail: the daily digest did not go out: ${result.error}`,
+          ),
+        );
+      }
+    }
+    return { lines, changed: walkedBack > 0 || lines.length > 0 };
+  }
+
+  /**
+   * Inbox to task (skill, section 5). Lists the newest inbox emails with only id, subject, sender
+   * and time. Only an email whose subject starts with HQ_INBOX_TAG has its body opened. Each new
+   * one becomes a Board task for the least busy helper of its track, and that helper walks to the
+   * Mail Dock. Outlook only, never in Demo Day.
+   */
+  async checkInbox(now = new Date()): Promise<string[]> {
+    if (this.#store.demo || this.driver() !== "graph" || !this.#auth?.connected) return [];
+    const c = this.#config;
+    const vaultDir = this.#store.vaultDir;
+    const ledger = await readLedger(vaultDir);
+    const tag = c.inboxTag.toLowerCase();
+    const seen = new Set(ledger.inbox.seen);
+    // The first check only looks back one day, so old tagged emails do not flood the Board.
+    const since = Date.parse(ledger.inbox.lastCheck ?? "") || now.getTime() - 24 * HOUR;
+    const messages = await this.#withGraph((g) => g.listInbox());
+    const fresh = messages
+      .filter((m) => m.subject.trim().toLowerCase().startsWith(tag))
+      .filter((m) => !seen.has(m.id) && Date.parse(m.receivedAt) >= since - 5 * 60_000)
+      .reverse();
+
+    const lines: string[] = [];
+    const tasks: Task[] = [...this.#store.state.tasks];
+    for (const message of fresh) {
+      seen.add(message.id);
+      const body = await this.#withGraph((g) => g.body(message.id)).catch(() => "");
+      const route = routeEmail(this.#rules, `${message.subject}\n${body}`);
+      const owner = pickOwner(this.#store.state.seats, tasks, route.track);
+      if (!owner) continue;
+      const id = nextTaskId(tasks);
+      const title = taskTitle(message.subject.trim(), c.inboxTag);
+      const created = manilaIso(now);
+      const excerpt = body.trim().slice(0, 800);
+      const task: Task = {
+        id,
+        title,
+        owner: owner.id,
+        workflow: route.workflow,
+        status: "todo",
+        created,
+        due: dayIn(now, c.timezone),
+        links: [],
+        body: [
+          "## From your inbox",
+          `Received ${timeIn(new Date(message.receivedAt), c.timezone)}, from ${message.from || "an unknown sender"}.`,
+          "",
+          ...(excerpt ? excerpt.split("\n").map((l) => `> ${l}`) : ["> (No text in the email.)"]),
+          "",
+          "## Notes",
+          `Made from an email tagged ${c.inboxTag}. The full email stays in Outlook.`,
+        ].join("\n"),
+      };
+      const { body: taskBody, ...data } = task;
+      await writeAtomic(vaultDir, `board/${id}.md`, toMarkdown(data, taskBody));
+      tasks.push(task);
+      await this.#visit(owner.id, now, ledger);
+      lines.push(
+        await logLine(
+          vaultDir,
+          now,
+          `mail: ${c.inboxTag} email "${title}" became ${id} for ${owner.id}`,
+        ),
+      );
+    }
+    await writeLedger(vaultDir, {
+      ...ledger,
+      inbox: { lastCheck: manilaIso(now), seen: [...seen] },
+    });
+    return lines;
+  }
+
+  /** Sends the helper to the Mail Dock for a while (the `visiting` field on its live status). */
+  async #visit(seat: string, now: Date, ledger: Ledger) {
+    const file = `team/${seat}/profile.md`;
+    const record = await readRecord(this.#store.vaultDir, file).catch(() => null);
+    if (!record) return;
+    const status = record.data.status;
+    const previous = typeof record.data.workingOn === "string" ? record.data.workingOn : undefined;
+    await writeAtomic(
+      this.#store.vaultDir,
+      file,
+      toMarkdown(
+        {
+          ...record.data,
+          status: status === "off-duty" || status === "on-break" ? "working" : status,
+          workingOn: `Reading an ${this.#config.inboxTag} email at the Mail Dock`,
+          visiting: MAIL_DOCK,
+          updated: manilaIso(now),
+        },
+        record.body,
+      ),
+    );
+    ledger.visits = [
+      ...ledger.visits.filter((v) => v.seat !== seat),
+      { seat, until: now.getTime() + VISIT_MS, ...(previous ? { workingOn: previous } : {}) },
+    ];
+  }
+
+  /** Helpers whose Mail Dock visit is over walk back to their desks. Returns how many. */
+  async endVisits(now = new Date()): Promise<number> {
+    const vaultDir = this.#store.vaultDir;
+    const ledger = await readLedger(vaultDir);
+    const over = ledger.visits.filter((v) => v.until <= now.getTime());
+    if (over.length === 0) return 0;
+    for (const visit of over) {
+      const file = `team/${visit.seat}/profile.md`;
+      const record = await readRecord(vaultDir, file).catch(() => null);
+      if (!record || record.data.visiting !== MAIL_DOCK) continue;
+      const { visiting: _gone, ...data } = record.data;
+      await writeAtomic(
+        vaultDir,
+        file,
+        toMarkdown(
+          { ...data, workingOn: visit.workingOn ?? data.workingOn, updated: manilaIso(now) },
+          record.body,
+        ),
+      );
+    }
+    await writeLedger(vaultDir, {
+      ...ledger,
+      visits: ledger.visits.filter((v) => v.until > now.getTime()),
+    });
+    return over.length;
+  }
+
+  /**
+   * The daily digest (skill, section 6), at DIGEST_TIME or with "Send digest now". The outbox
+   * saves outbox/digest-<date>.eml. Outlook in drafts mode makes a draft, in send mode it sends,
+   * after the same checks as any send. Demo Day never sends it.
+   */
+  async sendDigest(now = new Date()): Promise<{ line: string } | { error: string }> {
+    if (this.#store.demo) return { error: "Demo Day never creates real drafts or sends email." };
+    const c = this.#config;
+    const vaultDir = this.#store.vaultDir;
+    const date = dayIn(now, c.timezone);
+    const log = await readFile(join(vaultDir, "log", `${date}.md`), "utf8").catch(() => "");
+    const digest = buildDigest({
+      state: this.#store.state,
+      log: log.split("\n").filter((l) => l.startsWith("- ")),
+      date,
+      longDate: longDayIn(now, c.timezone),
+    });
+    const driver = this.driver();
+    const ledger = await readLedger(vaultDir);
+    let text: string;
+    try {
+      if (c.mode === "dry-run") {
+        text = `mail: dry run of the daily digest (${driver}), nothing created`;
+      } else if (driver === "power-automate") {
+        throw new MailError(PA_NOT_SET_UP);
+      } else if (driver === "outbox") {
+        const out = `outbox/digest-${date}.eml`;
+        const to = c.digestTo ? [c.digestTo] : [];
+        await writeAtomic(
+          vaultDir,
+          out,
+          buildEml({ to, cc: [], subject: digest.subject, text: digest.text }, now, digest.html),
+        );
+        text = `mail: daily digest saved as ${out}`;
+      } else {
+        if (!c.digestTo)
+          throw new MailError("DIGEST_TO is not set, so the digest has no one to go to.");
+        const original = [c.digestTo.toLowerCase()];
+        const redirected = Boolean(c.redirectTo && c.redirectTo !== original[0]);
+        const to = redirected && c.redirectTo ? [c.redirectTo] : original;
+        const banner = `<p style="margin:0;padding:8px 24px;background:#FFF4E5;font:400 13px/19px Arial,sans-serif;color:#1A1A1A;">${redirectBanner(original)}</p>`;
+        const email = {
+          to,
+          cc: [],
+          subject: digest.subject,
+          text: redirected ? `${redirectBanner(original)}\n\n${digest.text}` : digest.text,
+          html: redirected
+            ? digest.html.replace(/<body[^>]*>/, (b) => `${b}${banner}`)
+            : digest.html,
+        };
+        if (c.mode === "drafts") {
+          await this.#withGraph((g) => g.createDraft(email));
+          text = `mail: the daily digest is a draft in your Outlook Drafts, to ${to.join(", ")}`;
+        } else {
+          const check = checkSend({ ...(await this.#guardInput(now)), recipients: to, text: "" });
+          if (!check.ok) throw new MailError(check.error);
+          await this.#withGraph((g) => g.sendMail(email));
+          ledger.sends.push({
+            at: manilaIso(now),
+            itemId: "digest",
+            subject: digest.subject,
+            to,
+            driver: "graph",
+            ...(redirected ? { redirectedFrom: original } : {}),
+          });
+          text = `mail: sent the daily digest (graph) to ${to.join(", ")}${redirected ? ` (redirected from ${original.join(", ")})` : ""}`;
+        }
+      }
+    } catch (error) {
+      return { error: plain(error, "The digest could not be made. Try again.") };
+    }
+    await writeLedger(vaultDir, {
+      ...ledger,
+      digest: { lastDate: date, lastAt: manilaIso(now) },
+    });
+    return { line: await logLine(vaultDir, now, text) };
   }
 
   async #markFailed(file: string, problem: string) {

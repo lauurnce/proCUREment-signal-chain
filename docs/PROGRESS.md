@@ -1,6 +1,6 @@
 # Progress
 
-Now: Phase 7 in `p7-outlook`. P7.1 to P7.3 built. Waiting for Lawrence to try the real Outlook sign-in, a draft and a send on his Mac. Next: P7.4, inbox to task and the daily digest. Carried from the P6.3 playtest to Phase 8: a Demo Day pill with the sim clock in the header, daylight that follows the sim clock, one meaning for "waiting" across tags, stats and Board, the r3f-perf overlay covering the panel in dev, a day that ends at 18:00, and varied send-back notes.
+Now: Phase 7 in `p7-outlook`. P7.1 to P7.4 built. Waiting for Lawrence to try the real Outlook sign-in, a draft, a send, an [HQ] email and the digest on his Mac. Next: P7.5, the security and privacy review, then the Phase 7 checkpoint. Carried from the P6.3 playtest to Phase 8: a Demo Day pill with the sim clock in the header, daylight that follows the sim clock, one meaning for "waiting" across tags, stats and Board, the r3f-perf overlay covering the panel in dev, a day that ends at 18:00, and varied send-back notes.
 
 ## Phases
 - [x] 0. Kickoff and alignment (main checkout)
@@ -21,6 +21,7 @@ Now: Phase 7 in `p7-outlook`. P7.1 to P7.3 built. Waiting for Lawrence to try th
 - Frame rate in Walk around mode on the M4 Pro: the cloud session measured only software rendering (see P4.3). Open `/?walk=1` with r3f-perf to check it on real hardware.
 
 ## Log
+- 13 Oct 2026, P7.4 (cloud session): inbox to task, Outlook only, bodies opened only for [HQ] emails, keyword rules in `data/inbox-rules.json`, and the helper walks to the Mail Dock (D-125). The daily digest at DIGEST_TIME or with Send digest now, as a file, a draft or a send by mode (D-126). Built with Graph mocked: 85 server tests, 194 web tests, 47 shared tests, 26 browser tests pass.
 - 13 Oct 2026, P7.3 (cloud session): Outlook sign-in with MSAL and PKCE, the Keychain cache with a .secrets/ fallback (D-122), real drafts through Graph with the demo redirect built in, and Send now with a confirm box and every safety rule on the server (D-123). Browser tests stay on the outbox (D-124). Built with Graph and MSAL mocked: 78 server tests, 194 web tests, 47 shared tests, 26 browser tests pass. Not yet tried against a real mailbox.
 - 13 Oct 2026, P7.2 (cloud session): the outbox driver, the default with no setup. Approving an email item saves an .eml draft in vault/outbox/ and records it on the item (D-121). New 5th tab, Mail: status, drafts with Open in Outlook, Copy email and Download .eml, and the settings from .env. 50 server tests, 194 web tests, 47 shared tests, 26 browser tests pass.
 - 13 Oct 2026, P7.1 (cloud session): the integration-engineer planned Phase 7 (`docs/design/PHASE7_PLAN.md`): one mail interface with outbox, graph and a power-automate stub, MSAL sign-in with the Keychain, one server guard for every safety rule, and a Mail tab. Lawrence chose a 5th tab (D-117), P7.3 built here with Graph mocked (D-118), one draft per approval (D-119). D-120 records the flow and the Demo Day rule.

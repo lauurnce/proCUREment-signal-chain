@@ -69,7 +69,19 @@ export const MailOverview = z.object({
   status: MailStatus,
   /** The last 20 sends, newest first. */
   sent: z.array(SentEntry),
-  digest: z.object({ time: z.string(), timezone: z.string(), hasRecipient: z.boolean() }),
-  inboxTag: z.string(),
+  digest: z.object({
+    time: z.string(),
+    timezone: z.string(),
+    hasRecipient: z.boolean(),
+    /** When the last digest went out (or was saved), or null. */
+    lastAt: IsoDateTime.nullable(),
+  }),
+  inbox: z.object({
+    tag: z.string(),
+    pollSeconds: z.number().int(),
+    /** True when tagged emails become tasks: Outlook connected, and not in Demo Day. */
+    active: z.boolean(),
+    lastCheck: IsoDateTime.nullable(),
+  }),
 });
 export type MailOverview = z.infer<typeof MailOverview>;

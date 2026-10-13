@@ -12,6 +12,8 @@ export interface MailConfig {
   digestTime: string;
   timezone: string;
   inboxTag: string;
+  /** HQ_INBOX_POLL_SECONDS, at least 30. */
+  inboxPollSeconds: number;
   msClientId: string | null;
   /** consumers (personal accounts) or common. Only login.microsoftonline.com is accepted. */
   msAuthority: string;
@@ -66,6 +68,7 @@ export function loadMailConfig(env: NodeJS.ProcessEnv = process.env): MailConfig
     digestTime: /^([01]\d|2[0-3]):[0-5]\d$/.test(time) ? time : "17:30",
     timezone: env.HQ_TIMEZONE?.trim() || "Asia/Manila",
     inboxTag: env.HQ_INBOX_TAG?.trim() || "[HQ]",
+    inboxPollSeconds: Math.max(30, Number(env.HQ_INBOX_POLL_SECONDS) || 120),
     msClientId: env.MS_CLIENT_ID?.trim() || null,
     msAuthority:
       /^https:\/\/login\.microsoftonline\.com\/(consumers|common|organizations|[0-9a-f-]{36})\/?$/.test(

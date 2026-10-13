@@ -95,6 +95,15 @@ export function registerMailRoutes(
     return { item: state.queue.find((q) => q.id === id.data) ?? null, line: result.line };
   });
 
+  // Send digest now: the same rules as any send.
+  app.post("/api/mail/digest", async (request, reply) => {
+    if (!fromPage(request, reply)) return reply;
+    const result = await deps.mail.sendDigest();
+    if ("error" in result) return reply.code(409).send(result);
+    await publish(result.line);
+    return { line: result.line, mail: await deps.mail.overview() };
+  });
+
   app.post("/api/mail/signout", async (request, reply) => {
     if (!fromPage(request, reply)) return reply;
     await deps.mail.auth?.signOut();

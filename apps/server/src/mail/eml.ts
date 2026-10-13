@@ -22,7 +22,7 @@ function encodeSubject(subject: string): string {
  * An unsent draft as an .eml file. `X-Unsent: 1` makes classic Outlook for Windows open it as a
  * new draft you can edit and send. Lines end in CRLF, and the body is base64 in 76-character lines.
  */
-export function buildEml(email: ComposedEmail, at: Date): string {
+export function buildEml(email: ComposedEmail, at: Date, html?: string): string {
   const headers = [
     "X-Unsent: 1",
     `To: ${email.to.map(headerSafe).join(", ")}`,
@@ -30,10 +30,12 @@ export function buildEml(email: ComposedEmail, at: Date): string {
     `Subject: ${encodeSubject(headerSafe(email.subject))}`,
     `Date: ${at.toUTCString().replace("GMT", "+0000")}`,
     "MIME-Version: 1.0",
-    "Content-Type: text/plain; charset=UTF-8",
+    `Content-Type: text/${html ? "html" : "plain"}; charset=UTF-8`,
     "Content-Transfer-Encoding: base64",
   ];
-  const body = Buffer.from(email.text.replace(/\r?\n/g, "\r\n"), "utf8").toString("base64");
+  const body = Buffer.from((html ?? email.text).replace(/\r?\n/g, "\r\n"), "utf8").toString(
+    "base64",
+  );
   const lines = body.match(/.{1,76}/g) ?? [];
   return `${headers.join("\r\n")}\r\n\r\n${lines.join("\r\n")}\r\n`;
 }
