@@ -43,7 +43,7 @@ export function OfficePanel({
         <Panel
           data={data}
           connection={connection}
-          now={NOW ?? new Date()}
+          now={NOW ?? (data.demo ? new Date(data.demo.clock) : new Date())}
           note={OFFICE_NOTE}
           onRetry={retryNow}
           onSave={saveToVault}

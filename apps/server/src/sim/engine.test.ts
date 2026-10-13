@@ -87,6 +87,19 @@ describe("Demo Day engine", () => {
     }
   });
 
+  it("never turns your hold into an approval: the helper reminds you after an hour", () => {
+    const engine = new DemoDayEngine({ seed: 42, date: "2026-10-13", seats, workflows, rules });
+    const early = [...engine.start(), ...engine.advance(17 * 60, new Map())];
+    const mine = items(early).find((i) => i.approver === PLAYER_SEAT);
+    if (!mine) throw new Error("seed 42 should raise an item for you");
+    const held = new Map<string, QueueStatus>([[mine.id, "held"]]);
+    const later = engine.advance(17 * 60 + 59, held);
+    expect(later.some((e) => e.type === "remind")).toBe(false);
+    const after = engine.advance(18 * 60 + 5, held);
+    expect(after).toContainEqual({ type: "remind", id: mine.id });
+    expect(logs(after).join("\n")).toContain(`reminded you about ${mine.id}`);
+  });
+
   it("sends helpers to the zone of each step, and waits on items for you", () => {
     const effects = playDay(42, 11 * 60);
     const atSap = effects.filter((e) => e.type === "seat" && e.currentStep === "extract");

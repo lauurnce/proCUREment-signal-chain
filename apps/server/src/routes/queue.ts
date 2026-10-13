@@ -12,6 +12,8 @@ export function registerQueueRoutes(
   app: FastifyInstance,
   deps: { store: VaultStore; hub: SseHub },
 ): void {
+  /** In Demo Day, decisions happen at the simulated time, so the log stays in order. */
+  const now = () => (deps.store.demo ? new Date(deps.store.demo.clock) : new Date());
   const afterWrite = async (line: string) => {
     const state = await deps.store.reload();
     deps.hub.broadcast({ type: "state.snapshot", state });
@@ -33,6 +35,7 @@ export function registerQueueRoutes(
         deps.store.state,
         id.data,
         body.data,
+        now(),
       );
       const state = await afterWrite(line);
       return { item: state.queue.find((q) => q.id === id.data) ?? null, line };
@@ -50,7 +53,7 @@ export function registerQueueRoutes(
         .code(400)
         .send({ error: "That instruction is not valid. Pick who gets it and write what to do." });
     }
-    const { file, line } = await saveInstruction(deps.store.vaultDir, body.data);
+    const { file, line } = await saveInstruction(deps.store.vaultDir, body.data, now());
     await afterWrite(line);
     return reply.code(201).send({ file, line });
   });

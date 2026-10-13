@@ -1,6 +1,6 @@
 # Progress
 
-Now: Phase 6 in `p6-live`. P6.1 and P6.2 built. Next: P6.3 playtest and the Phase 6 checkpoint.
+Now: Phase 6 done in `p6-live` (P6.1 to P6.3), waiting for Lawrence's OK, then merge to `main`. Next: Phase 7 (Outlook). Carried from the P6.3 playtest to Phase 8: a Demo Day pill with the sim clock in the header, daylight that follows the sim clock, one meaning for "waiting" across tags, stats and Board, the r3f-perf overlay covering the panel in dev, a day that ends at 18:00, and varied send-back notes.
 
 ## Phases
 - [x] 0. Kickoff and alignment (main checkout)
@@ -9,7 +9,7 @@ Now: Phase 6 in `p6-live`. P6.1 and P6.2 built. Next: P6.3 playtest and the Phas
 - [x] 3. The office world (`p3-office`)
 - [x] 4. The team, characters and movement (`p4-team`, parallel with 5)
 - [x] 5. The HQ panel (`p5-panel`, parallel with 4)
-- [ ] 6. Live data and Demo Day (`p6-live`)
+- [x] 6. Live data and Demo Day (`p6-live`)
 - [ ] 7. Outlook (`p7-outlook`)
 - [ ] 8. Polish and v0.1.0 (`p8-polish`)
 
@@ -21,6 +21,7 @@ Now: Phase 6 in `p6-live`. P6.1 and P6.2 built. Next: P6.3 playtest and the Phas
 - Frame rate in Walk around mode on the M4 Pro: the cloud session measured only software rendering (see P4.3). Open `/?walk=1` with r3f-perf to check it on real hardware.
 
 ## Log
+- 13 Oct 2026, P6.3 (cloud session): the qa-playtester played Demo Day for 10 simulated hours at 20x as a busy Sr. Manager (`docs/qa/2026-10-13-demo-day-playtest.md`): 9 items for you, the longest wait 40 sim minutes, 0 console errors. Fixed the top 3: a hold never turns into an approval, the helper reminds you after an hour (D-114); decisions use the sim clock in Demo Day (D-115); simulated decisions name a kind of decider, never a seat (D-116). 41 server tests, 194 web tests, 43 shared tests, 26 browser tests pass.
 - 13 Oct 2026, P6.2 (cloud session): Demo Day on vault-demo/ with a switch, speeds and a seed in the Office tab (D-112), a seeded simulator for the six workflows with the bridge handoff and the authority rule (D-113). The procurement-sme reviewed a sample day (realism 4 of 5) and its 6 fixes are in. 39 server tests and 26 browser tests pass.
 - 13 Oct 2026, P6.1 (cloud session): decisions and instructions save to the vault when the undo bar closes (D-108), new routes for decisions and instructions with atomic writes, the sender back to work and a daily log line (D-109), "Open in Obsidian" (D-110), and a throwaway test vault for the browser tests (D-111). 31 server tests, 194 web tests and 25 browser tests pass, including approve end to end.
 - 30 Sep 2026, P45 council (`docs/design/reviews/2026-09-30-integrated-hq.md`, Clarity 4, Brand 4, Charm 4, Craft 3, Smooth 4, Realism 3). Applied the 5 Musts and every Should, plus the signature glance: "Stop walking" and Esc always end walking, nothing covers anything, a tighter Overview (89 percent of the free width), helpers and a lighter slab edge at night, one waiting wording, breaks as scenery only, a "Back to decision" link, one selected Team row (D-099 to D-107). 194 unit tests and 24 smoke tests pass.

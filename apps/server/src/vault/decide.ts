@@ -112,7 +112,10 @@ export async function applyDecision(
   const line = await logLine(
     vaultDir,
     at,
-    `${by === PLAYER_SEAT ? "you" : by} ${VERB[request.action]} ${id} from ${item.from}${said ? ` (${note})` : ""}`,
+    by === PLAYER_SEAT
+      ? `you ${VERB[request.action]} ${id} from ${item.from}${said ? ` (${note})` : ""}`
+      : // Never a seat as the decider (D-046): the line names a kind of decider, marked simulated.
+        `Demo Day: ${id} from ${item.from} ${VERB[request.action]} by a simulated ${deciderKind(state, by)}`,
   );
   return { line };
 }
@@ -150,16 +153,19 @@ export async function saveInstruction(
 /** Who decided, as a kind of decider, never a seat (D-046). Demo Day decisions say so. */
 function deciderName(state: AppState, by: string): string {
   if (by === PLAYER_SEAT) return "the Sr. Manager";
+  const kind = deciderKind(state, by);
+  return `${/^[aeiou]/i.test(kind) ? "an" : "a"} ${kind} (simulated in Demo Day)`;
+}
+
+function deciderKind(state: AppState, by: string): string {
   const track = state.seats.find((s) => s.id === by)?.track;
-  const kind =
-    track === "CM"
-      ? "a Category Manager"
-      : track === "OPS"
-        ? "an Ops Buyer"
-        : track === "LEAD"
-          ? "a Lead"
-          : "the team";
-  return `${kind} (simulated in Demo Day)`;
+  return track === "CM"
+    ? "Category Manager"
+    : track === "OPS"
+      ? "Ops Buyer"
+      : track === "LEAD"
+        ? "Lead"
+        : "team member";
 }
 
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);

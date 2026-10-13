@@ -1,4 +1,4 @@
-import { cp, mkdtemp, readdir, rm } from "node:fs/promises";
+import { cp, mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import type { FastifyInstance } from "fastify";
@@ -90,6 +90,27 @@ describe("Demo Day runner", () => {
       "q-0004",
     ]);
   });
+
+  it("logs decisions at the simulated time, and a hold comes back as a reminder", async () => {
+    await post("/api/sim/start", { seed: 42, speed: 20 });
+    await runner.fastForward(5 * 3600);
+    const forYou = store.state.queue.find(
+      (q) => q.approver === "mgr-01" && q.status === "needs-you",
+    );
+    if (!forYou) throw new Error("seed 42 should have an item for you by 13:00");
+    const held = await post(`/api/queue/${forYou.id}/decision`, { action: "hold" });
+    // 13:00 in the simulated day, not the real clock.
+    expect(held.json().line).toMatch(new RegExp(`^- 13:00 you held ${forYou.id}`));
+
+    await runner.fastForward(65 * 60);
+    expect(store.state.queue.find((q) => q.id === forYou.id)?.status).toBe("needs-you");
+    // Simulated decisions name a kind of decider, never a seat (D-046).
+    const [today] = await readdir(join(demoDir, "log"));
+    const log = await readFile(join(demoDir, "log", today ?? ""), "utf8");
+    expect(log).toContain(`reminded you about ${forYou.id}`);
+    expect(log).toMatch(/Demo Day: q-\d+ from \S+ (approved|sent back) by a simulated /);
+    expect(log).not.toMatch(/(cm|ops|lead)-\d+ (approved|sent back) q-/);
+  }, 30_000);
 
   it("changes speed, and rejects a speed it does not have", async () => {
     await post("/api/sim/start", { seed: 1, speed: 1 });

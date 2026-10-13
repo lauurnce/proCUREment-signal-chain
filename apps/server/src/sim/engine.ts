@@ -30,7 +30,9 @@ export type Effect =
   | { type: "item"; item: QueueItem; slug: string }
   | { type: "task"; task: Task }
   | { type: "log"; text: string }
-  | { type: "decide"; id: string; by: string; action: "approve" | "send-back"; note?: string };
+  | { type: "decide"; id: string; by: string; action: "approve" | "send-back"; note?: string }
+  /** A held item comes back to Needs you as a reminder. A hold never turns into an approval. */
+  | { type: "remind"; id: string };
 
 type SeatEffect = Extract<Effect, { type: "seat" }>;
 
@@ -66,6 +68,8 @@ const DAY_START = 8 * 60;
 const LAST_START = 17 * 60;
 const BREAKS = [10 * 60, 15 * 60];
 const DIGEST_AT = 16 * 60 + 30;
+/** Sim minutes a held item waits before its helper reminds you. */
+const HOLD_REMINDER = 60;
 
 type CaseData = {
   supplier: Supplier;
@@ -228,8 +232,17 @@ export class DemoDayEngine {
       const status = this.known.get(c.waiting) ?? "needs-you";
       if (status === "needs-you") return;
       if (status === "held") {
-        c.heldUntil ??= m + 45;
+        // The helper waits, then asks again. Only you can move a held item on.
+        c.heldUntil ??= m + HOLD_REMINDER;
         if (m < c.heldUntil) return;
+        c.heldUntil = null;
+        this.known.set(c.waiting, "needs-you");
+        out.push({ type: "remind", id: c.waiting });
+        out.push({
+          type: "log",
+          text: `${id} reminded you about ${c.waiting}, on hold for an hour`,
+        });
+        return;
       }
       const decided = c.waiting;
       c.waiting = null;

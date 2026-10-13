@@ -189,6 +189,22 @@ export class DemoRunner {
           );
           break;
         }
+        case "remind": {
+          // Your hold stays in the item's history. The helper still waits on you (D-114).
+          const item = this.#deps.store.state.queue.find((q) => q.id === effect.id);
+          const record = item?.file ? await readRecord(dir, item.file).catch(() => null) : null;
+          if (!item?.file || record?.data.status !== "held") break;
+          const body = `${record.body.trimEnd()}\n\n## Reminder\nStill on hold after an hour, so it is back in Needs you.\n`;
+          await writeAtomic(
+            dir,
+            item.file,
+            toMarkdown(
+              { ...record.data, status: "needs-you", decision: null, updated: when },
+              body,
+            ),
+          );
+          break;
+        }
       }
     }
   }
