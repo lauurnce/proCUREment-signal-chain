@@ -38,15 +38,21 @@ type SeatEffect = Extract<Effect, { type: "seat" }>;
 const SUPPLIERS = [
   { name: "Luzon Precision Components Corp.", mail: "orders@luzonprecision.example" },
   { name: "MetroPack Industrial Supplies Inc.", mail: "sales@metropack.example" },
-  { name: "Bayanihan Logistics Services", mail: "dispatch@bayanihanlogistics.example" },
   { name: "Batangas Metalcraft Industries", mail: "orders@batangasmetalcraft.example" },
+  { name: "Bayanihan Logistics Services", mail: "dispatch@bayanihanlogistics.example" },
 ] as const;
+type Supplier = (typeof SUPPLIERS)[number];
+/** Parts and packaging makers. Bayanihan is a freight company: shipments only (procurement-sme). */
+const GOODS_SUPPLIERS = SUPPLIERS.slice(0, 3);
+const FREIGHT = SUPPLIERS[3];
+/** Services that fit each maker, for SOWs in Conga. */
 const SERVICES = [
-  "cleanroom maintenance",
-  "forklift preventive maintenance",
-  "ESD floor recoating",
-  "calibration of test equipment",
-];
+  { name: "repair of precision fixtures", supplier: SUPPLIERS[0] },
+  { name: "packaging line maintenance", supplier: SUPPLIERS[1] },
+  { name: "fabrication of rack fixtures", supplier: SUPPLIERS[2] },
+] as const;
+/** At most this many Lead escalations reach the Sr. Manager in a day. */
+const MAX_ESCALATIONS = 2;
 const GOODS = [
   "anti-static packaging",
   "ESD trays",
@@ -62,8 +68,11 @@ const BREAKS = [10 * 60, 15 * 60];
 const DIGEST_AT = 16 * 60 + 30;
 
 type CaseData = {
-  supplier: (typeof SUPPLIERS)[number];
+  supplier: Supplier;
   po: string;
+  invoice: string;
+  /** The reply-by date in a follow-up, like "Thu 15 Oct". */
+  replyBy: string;
   prs: number;
   service: string;
   goods: string;
@@ -114,6 +123,8 @@ export class DemoDayEngine {
   /** Items this engine created and their status as it last knew it. */
   private readonly known = new Map<string, QueueStatus>();
   private nextItem = 1001;
+  private handoffs = 0;
+  private escalations = 0;
   private nextTask = 1001;
   private digestDone = false;
 
@@ -136,8 +147,9 @@ export class DemoDayEngine {
     this.seats = workers.map((seat) => ({
       seat,
       current: null,
-      inbox: [],
-      idleUntil: DAY_START + int(this.rng, 0, 30),
+      inbox: [], // Leads look in after the morning settles, so escalations never open the day.
+      idleUntil:
+        DAY_START + (seat.track === "LEAD" ? int(this.rng, 90, 150) : int(this.rng, 0, 30)),
       breakUntil: 0,
     }));
   }
@@ -249,7 +261,13 @@ export class DemoDayEngine {
       run.idleUntil = this.minute + 60;
       return;
     }
-    const supplier = pick(r, SUPPLIERS);
+    const service = pick(r, SERVICES);
+    const supplier =
+      workflow.id === "cm-contract-generation-conga"
+        ? service.supplier
+        : workflow.id === "lead-review"
+          ? FREIGHT
+          : pick(r, GOODS_SUPPLIERS);
     const roll = r();
     const percent = Math.round((0.5 + r() * 8.5) * 10) / 10;
     const change: Change =
@@ -261,10 +279,12 @@ export class DemoDayEngine {
     const data: CaseData = {
       supplier,
       po: `PO-45${int(r, 1000, 9999)}`,
+      invoice: `INV-${int(r, 80000, 89999)}`,
+      replyBy: replyBy(this.date, 2),
       prs: handoff?.prs ?? int(r, 6, 18),
-      service: pick(r, SERVICES),
+      service: service.name,
       goods: pick(r, GOODS),
-      rfq: `RFQ-${int(r, 2600, 2999)}`,
+      rfq: `RFQ-26-0${int(r, 10, 99)}`,
       change,
       cm: pick(r, this.cms),
       escalate: r() < 0.35,
@@ -335,15 +355,20 @@ export class DemoDayEngine {
         type: "log",
         text: `${id} routed ${what} on ${c.data.po} to ${c.data.cm} (rule: ${rule?.id ?? "safer default"})`,
       });
-      this.raise(run, c, step, c.data.cm, out, rule?.id);
+      this.raise(run, c, step, c.data.cm, out, rule ?? undefined);
       return;
     }
     // A follow-up that names a consequence, and a Lead's escalation, need the Sr. Manager.
-    const toYou =
-      (c.workflow.id === "ops-pr-to-po-stock-item" &&
-        step.id === "acknowledge" &&
-        c.data.escalate) ||
-      (c.workflow.id === "lead-review" && step.id === "unblock");
+    let toYou =
+      c.workflow.id === "ops-pr-to-po-stock-item" && step.id === "acknowledge" && c.data.escalate;
+    if (
+      c.workflow.id === "lead-review" &&
+      step.id === "unblock" &&
+      this.escalations < MAX_ESCALATIONS
+    ) {
+      this.escalations++;
+      toYou = true;
+    }
     this.raise(run, c, step, toYou ? PLAYER_SEAT : id, out);
   }
 
@@ -353,10 +378,15 @@ export class DemoDayEngine {
     step: WorkflowStep,
     approver: string,
     out: Effect[],
-    rule?: string,
+    rule?: AuthorityRule,
   ) {
     const id = `q-${this.nextItem++}`;
-    const content = itemText(c.workflow.id, step.id, c.data, run.seat, approver === PLAYER_SEAT);
+    const content = itemText(c.workflow.id, step.id, c.data, run.seat, approver === PLAYER_SEAT, {
+      rule: rule?.plainEnglish,
+      raised: this.nextItem - 1002,
+      handoffs: this.handoffs,
+      leadEscalates: c.workflow.id === "lead-review" && approver === PLAYER_SEAT,
+    });
     const item: QueueItem = {
       id,
       title: content.title,
@@ -368,7 +398,7 @@ export class DemoDayEngine {
       workflow: c.workflow.id,
       step: step.id,
       supplier: `${c.data.supplier.name} (fictional)`,
-      ...(rule ? { rule } : {}),
+      ...(rule ? { rule: rule.id } : {}),
       created: this.iso(),
       updated: this.iso(),
       ...(content.kind === "email-draft"
@@ -405,6 +435,7 @@ export class DemoDayEngine {
     const opsSeat = pick(this.rng, this.ops);
     const target = this.seats.find((s) => s.seat.id === opsSeat);
     target?.inbox.push({ workflow: "ops-pr-to-po-stock-item", from: run.seat.id, prs: c.data.prs });
+    this.handoffs++;
     out.push({
       type: "log",
       text: `${run.seat.id} endorsed ${c.data.prs} PRs to ${opsSeat} at the Endorsement Bridge`,
@@ -473,8 +504,22 @@ const slugOf = (text: string) =>
     .slice(0, 40)
     .replace(/-$/, "");
 
+/** A date a few days after `date`, like "Thu 15 Oct", for a reply-by line. */
+function replyBy(date: string, days: number): string {
+  const d = new Date(`${date}T12:00:00+08:00`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Manila",
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  })
+    .format(d)
+    .replace(",", "");
+}
+
 function changeText(change: Change): string {
-  if (change.type === "price-change") return `a ${change.percent} percent price change`;
+  if (change.type === "price-change") return `a price change of ${change.percent} percent`;
   if (change.type === "quantity-change") return "a quantity change";
   return "a change to the commercial terms";
 }
@@ -512,6 +557,7 @@ function itemText(
   d: CaseData,
   seat: SimSeat,
   toYou: boolean,
+  extra: { rule?: string; raised: number; handoffs: number; leadEscalates: boolean },
 ): ItemText {
   const s = d.supplier.name;
   const note = "\n\nAll data is fictional (Demo Day).";
@@ -563,13 +609,13 @@ function itemText(
             kind: "email-draft",
             title: `${s} missed a second firm date on ${d.po}: OK a firmer follow-up?`,
             subject: `${d.po}: second missed ship date, recovery plan needed`,
-            body: `## Summary\n${s} (fictional) has missed two committed ship dates for ${d.po}. The helper drafted a firmer follow-up that asks for a recovery plan and names the next step if the date slips again. Because it names a consequence for the supplier, it needs your OK.\n\n## Draft email\nHello ${s} team,\n\nThis is the second committed ship date for ${d.po} that has moved. Please send a recovery plan with a firm date by end of day tomorrow.\n\nThank you.${note}`,
+            body: `## Summary\n${s} (fictional) has missed two committed ship dates for ${d.po}. The helper drafted a firmer follow-up that asks for a recovery plan and names the next step if the date slips again. Because it names a consequence for the supplier, it needs your OK.\n\n## Draft email\nHello ${s} team,\n\nThis is the second committed ship date for ${d.po} that has moved. Please send a recovery plan with a firm date by ${d.replyBy}. If this date moves again, our Category Manager will review this order, including other supply options.\n\nThank you.${note}`,
           }
         : {
             kind: "email-draft",
             title: `Follow-up to ${s}: confirm the ship date for ${d.po}`,
             subject: `${d.po}: please confirm the ship date`,
-            body: `## Summary\n${s} (fictional) has not acknowledged ${d.po}. The helper drafted a polite follow-up that asks for a confirmed ship date.\n\n## Draft email\nHello ${s} team,\n\nCould you confirm the ship date for ${d.po}? A reply by end of day tomorrow helps us plan.\n\nThank you.${note}`,
+            body: `## Summary\n${s} (fictional) has not acknowledged ${d.po}. The helper drafted a polite follow-up that asks for a confirmed ship date.\n\n## Draft email\nHello ${s} team,\n\nCould you confirm the ship date for ${d.po}? A reply by ${d.replyBy} helps us plan.\n\nThank you.${note}`,
           };
     case "ops-erfq-to-po/convert":
       return {
@@ -578,30 +624,41 @@ function itemText(
         body: `## Summary\nThe quotation from ${s} (fictional) is valid, the vendor code is set up in SAP, and the PO details are prepared for review.${note}`,
       };
     case "ops-po-amendments/decide": {
-      const what = changeText(d.change);
+      const rule = extra.rule ? `\n\nRule (to confirm): ${extra.rule}` : "";
+      if (d.change.type === "price-change") {
+        const more = d.change.amount.toLocaleString("en-US");
+        return {
+          kind: "approval",
+          title: `Price change on ${d.po}: ${d.change.percent} percent, ${more} more`,
+          body: `## Summary\nA/P matched ${d.invoice} to ${d.po} from ${s} (fictional). The invoice price is ${d.change.percent} percent (${more}, currency to confirm) above the PO, so the Ops helper routed it here instead of changing it in SAP.${rule}${note}`,
+        };
+      }
       return {
         kind: "approval",
-        title: `${capitalize(what)} on ${d.po}: needs a Category Manager decision`,
-        body: `## Summary\nThe Ops helper found ${what} on ${d.po} from ${s} (fictional). Under the authority rule (to confirm), this needs Category Manager approval, so it was routed here instead of being changed in SAP.${note}`,
+        title: `Change to the commercial terms on ${d.po}`,
+        body: `## Summary\n${s} (fictional) asked to change the commercial terms on ${d.po}. Terms stay the Category Manager's call, so the Ops helper routed it here.${rule}${note}`,
       };
     }
     case "ops-po-amendments/amend":
       return {
         kind: "approval",
         title: `Amendment for ${d.po} ready to post in SAP`,
-        body: `## Summary\nThe amendment summary for ${d.po} is ready. The Ops Buyer posts it in SAP after a last check.${note}`,
+        body:
+          d.change.type === "quantity-change"
+            ? `## Summary\nThe Planner confirmed the new quantity on ${d.po}. The amendment is ready to post in SAP.${note}`
+            : `## Summary\nThe change on ${d.po} is decided. The amendment summary is ready, and the Ops Buyer posts it in SAP after a last check.${note}`,
       };
     case "lead-review/review":
       return {
         kind: "report",
         title: "Review of what changed and what looks risky",
-        body: `## Summary\nThe ${seat.label} helper summarized this morning's changes for its group: two late shipments and one supplier price increase to watch.${note}`,
+        body: `## Summary\nThe ${seat.label} helper summarized the day so far for its group: ${extra.raised} items raised and ${extra.handoffs} PR handoffs over the Endorsement Bridge. It lists what looks risky to watch.${note}`,
       };
     case "lead-review/unblock":
       return {
         kind: "escalation",
         title: `Escalation: ${s} shipment for ${d.po} is late`,
-        body: `## Summary\nThe inbound shipment from ${s} (fictional) for ${d.po} is late and a line is short next week. The ${seat.label} helper drafted the escalation note and two recovery options for you to choose from.${note}`,
+        body: `## Summary\nThe inbound shipment with ${s} (fictional) for ${d.po} is late, and the production line runs short of this part next week. The ${seat.label} helper drafted the escalation note and two recovery options${extra.leadEscalates ? " for you to choose from" : ""}.${note}`,
       };
     default:
       return {

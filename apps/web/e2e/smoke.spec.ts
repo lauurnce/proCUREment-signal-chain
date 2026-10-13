@@ -539,6 +539,33 @@ test("a drag across a helper pans the camera and selects nobody", async ({ page 
   expect(events).toEqual([]);
 });
 
+test("Demo Day runs on its own vault, and turning it off brings your items back", async ({
+  page,
+  request,
+}) => {
+  const health = (await (await request.get("/api/health")).json()) as { vaultPath: string };
+  test.skip(health.vaultPath !== "vault-e2e", "Runs only on the throwaway test vault.");
+  const errors = collectErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/?shots=1&tab=office");
+  await waitForReady(page);
+  const tab = page.getByRole("tab", { name: /Needs you/ });
+  await expect(tab).toContainText("3");
+  const sw = page.getByTestId("demo-switch");
+  await expect(sw).toHaveAttribute("aria-checked", "false");
+  await page.getByTestId("demo-speed-20").click();
+  await sw.click();
+  await expect(sw).toHaveAttribute("aria-checked", "true");
+  // The simulated day starts empty, on vault-demo/.
+  await expect(page.getByText(/Simulated 08:\d\d, seed 42/)).toBeVisible();
+  await expect(tab).not.toContainText("3");
+  await expect(page.getByTestId("demo-speed-20")).toHaveAttribute("aria-pressed", "true");
+  await sw.click();
+  await expect(sw).toHaveAttribute("aria-checked", "false");
+  await expect(tab).toContainText("3");
+  expect(errors).toEqual([]);
+});
+
 // Last in this file: it saves a decision, so later tests in this run would see one item less.
 test("approving an item saves it to the vault, end to end", async ({ page, request }) => {
   const health = (await (await request.get("/api/health")).json()) as { vaultPath: string };

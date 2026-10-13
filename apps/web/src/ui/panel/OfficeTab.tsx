@@ -1,4 +1,5 @@
-import type { Accessory } from "@hq/shared";
+import type { Accessory, DemoSpeed } from "@hq/shared";
+import { useState } from "react";
 import { useStore } from "../../state/store";
 import { typeStyle } from "../../theme/style";
 import { ViewControls } from "../ViewControls";
@@ -81,9 +82,98 @@ function Toggle({
   );
 }
 
+const SPEEDS: DemoSpeed[] = [1, 5, 20];
+const clockOf = (iso: string) => iso.slice(11, 16);
+
+async function simPost(path: string, body: object): Promise<void> {
+  const response = await fetch(`/api/sim/${path}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  }).catch(() => null);
+  if (!response?.ok) throw new Error("The local server did not answer. Is pnpm dev running?");
+}
+
+/**
+ * Demo Day: a seeded, simulated workday on its own copy of the vault (vault-demo/), so your vault
+ * stays clean. Off by default. The same seed replays the same day.
+ */
+function DemoDayControls() {
+  const demo = useStore((s) => s.data?.demo ?? null);
+  const [seed, setSeed] = useState(42);
+  const [speed, setSpeed] = useState<DemoSpeed>(5);
+  const [error, setError] = useState<string | null>(null);
+  const run = (path: string, body: object) => {
+    setError(null);
+    simPost(path, body).catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
+  };
+  const current = demo?.speed ?? speed;
+
+  return (
+    <section className="flex flex-col" aria-labelledby="office-demo">
+      <h3 id="office-demo" className="m-0 pb-1" style={typeStyle("label", "navy")}>
+        Demo Day
+      </h3>
+      <Toggle
+        label="Demo Day"
+        hint={
+          demo
+            ? `Simulated ${clockOf(demo.clock)}, seed ${demo.seed}. Your vault is untouched.`
+            : "Plays a fictional workday on its own copy of the vault."
+        }
+        on={Boolean(demo)}
+        onChange={(on) => (on ? run("start", { seed, speed }) : run("stop", {}))}
+        testId="demo-switch"
+      />
+      <div className="flex items-center justify-between gap-3 border-t border-hairline py-2">
+        <span style={typeStyle("tagName")}>Speed</span>
+        <div className="flex gap-1" role="group" aria-label="Demo Day speed">
+          {SPEEDS.map((x) => (
+            <button
+              key={x}
+              type="button"
+              aria-pressed={current === x}
+              data-testid={`demo-speed-${x}`}
+              onClick={() => {
+                setSpeed(x);
+                if (demo) run("speed", { speed: x });
+              }}
+              className={`rounded-button border px-2.5 py-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+                current === x
+                  ? "border-accent bg-accent"
+                  : "border-hairline bg-white hover:border-accent"
+              }`}
+              style={{ ...typeStyle("small", current === x ? "white" : "navy"), fontWeight: 700 }}
+            >
+              {x}x
+            </button>
+          ))}
+        </div>
+      </div>
+      <label className="flex items-center justify-between gap-3 border-t border-hairline py-2">
+        <span style={typeStyle("tagName")}>Seed</span>
+        <input
+          type="number"
+          min={0}
+          value={demo?.seed ?? seed}
+          disabled={Boolean(demo)}
+          onChange={(e) => setSeed(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
+          className="w-24 rounded-button border border-hairline px-2 py-1 text-right disabled:bg-panel"
+          style={typeStyle("small", "ink")}
+        />
+      </label>
+      {error && (
+        <p role="alert" className="m-0 pt-1" style={typeStyle("small", "ink")}>
+          {error}
+        </p>
+      )}
+    </section>
+  );
+}
+
 /**
  * The Office tab: camera views and light, the props you can switch on and off, sound, the Demo
- * Day placeholder, and what each place in the office is for.
+ * Day controls, and what each place in the office is for.
  */
 export function OfficeTab() {
   const office = useStore((s) => s.data?.office ?? null);
@@ -146,22 +236,7 @@ export function OfficeTab() {
         />
       </section>
 
-      <section className="flex flex-col gap-2" aria-labelledby="office-demo">
-        <h3 id="office-demo" className="m-0" style={typeStyle("label", "navy")}>
-          Demo Day
-        </h3>
-        <p className="m-0" style={typeStyle("small")}>
-          Plays a sample workday at speed, with fictional items arriving. Coming soon.
-        </p>
-        <button
-          type="button"
-          aria-disabled="true"
-          className="self-start rounded-button border border-hairline bg-panel px-3 py-1.5"
-          style={{ ...typeStyle("small", "inkMuted"), fontWeight: 700 }}
-        >
-          Start Demo Day
-        </button>
-      </section>
+      <DemoDayControls />
 
       {GROUPS.map((g) => (
         <section key={g.label} className="flex flex-col">
