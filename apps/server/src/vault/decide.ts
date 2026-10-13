@@ -65,6 +65,8 @@ export async function applyDecision(
   id: string,
   request: DecisionRequest,
   at = new Date(),
+  /** Who decides: you, or in Demo Day the CM, Ops Buyer or Lead the item waits on. */
+  by = PLAYER_SEAT,
 ): Promise<{ line: string }> {
   const item = state.queue.find((q) => q.id === id);
   if (!item?.file) throw new DecisionError(404, `No Needs you item with the id ${id}.`);
@@ -80,10 +82,10 @@ export async function applyDecision(
   const when = manilaIso(at);
 
   const record = await readRecord(vaultDir, item.file);
-  const decision = { action: request.action, by: PLAYER_SEAT, at: when, ...(note ? { note } : {}) };
+  const decision = { action: request.action, by, at: when, ...(note ? { note } : {}) };
   const data = { ...record.data, status: STATUS[request.action], updated: when, decision };
   const said = note ? ` Note: ${note}` : "";
-  const body = `${record.body.trimEnd()}\n\n## Decision\n${longDay(at)}, ${clock(at)}: ${capitalize(VERB[request.action])} by the Sr. Manager.${said}\n`;
+  const body = `${record.body.trimEnd()}\n\n## Decision\n${longDay(at)}, ${clock(at)}: ${capitalize(VERB[request.action])} by ${deciderName(state, by)}.${said}\n`;
   await writeAtomic(vaultDir, item.file, toMarkdown(data, body));
 
   // The sender goes back to work, unless it still waits on you for another item. A hold keeps
@@ -110,7 +112,7 @@ export async function applyDecision(
   const line = await logLine(
     vaultDir,
     at,
-    `you ${VERB[request.action]} ${id} from ${item.from}${said ? ` (${note})` : ""}`,
+    `${by === PLAYER_SEAT ? "you" : by} ${VERB[request.action]} ${id} from ${item.from}${said ? ` (${note})` : ""}`,
   );
   return { line };
 }
@@ -143,6 +145,21 @@ export async function saveInstruction(
     `you instructed ${request.audienceLabel}${request.about ? ` about ${request.about}` : ""}`,
   );
   return { file, line };
+}
+
+/** Who decided, as a kind of decider, never a seat (D-046). Demo Day decisions say so. */
+function deciderName(state: AppState, by: string): string {
+  if (by === PLAYER_SEAT) return "the Sr. Manager";
+  const track = state.seats.find((s) => s.id === by)?.track;
+  const kind =
+    track === "CM"
+      ? "a Category Manager"
+      : track === "OPS"
+        ? "an Ops Buyer"
+        : track === "LEAD"
+          ? "a Lead"
+          : "the team";
+  return `${kind} (simulated in Demo Day)`;
 }
 
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);

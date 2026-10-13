@@ -18,6 +18,8 @@ export interface Config {
   sampleDir: string;
   dataDir: string;
   backupsDir: string;
+  /** Demo Day's own vault, fresh at every start (gitignored). */
+  demoDir: string;
   /** OBSIDIAN_VAULT_NAME, for "Open in Obsidian" links. Null when it is not set. */
   obsidianVault: string | null;
 }
@@ -43,6 +45,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     sampleDir: join(repoRoot, "vault.sample"),
     dataDir: join(repoRoot, "data"),
     backupsDir: join(repoRoot, "vault-backups"),
+    demoDir: join(repoRoot, "vault-demo"),
     obsidianVault: env.OBSIDIAN_VAULT_NAME?.trim() || null,
   };
 }

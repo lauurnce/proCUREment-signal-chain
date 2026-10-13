@@ -182,5 +182,6 @@ export async function loadVault(options: LoadOptions): Promise<AppState> {
     stats: countStats(seats, { queue, tasks }),
     warnings,
     obsidianVault: null,
+    demo: null,
   };
 }

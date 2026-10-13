@@ -1,4 +1,4 @@
-import type { AppState } from "@hq/shared";
+import type { AppState, DemoStatus } from "@hq/shared";
 import { loadVault } from "@hq/shared/vault";
 
 type Listener = (state: AppState) => void;
@@ -17,6 +17,14 @@ export class VaultStore {
     return this.#options.vaultDir;
   }
 
+  /** Demo Day status to add to every state, or null. Set by the Demo Day runner. */
+  demo: DemoStatus | null = null;
+
+  /** Reads another vault folder from now on (Demo Day uses vault-demo/). Call reload() next. */
+  switchTo(vaultDir: string): void {
+    this.#options.vaultDir = vaultDir;
+  }
+
   get state(): AppState {
     if (!this.#state) throw new Error("Vault store used before the first load");
     return this.#state;
@@ -26,6 +34,7 @@ export class VaultStore {
     const { vaultDir, dataDir, obsidianVault = null } = this.#options;
     const next = await loadVault({ vaultDir, dataDir, includeLocalRoster: true });
     next.obsidianVault = obsidianVault;
+    next.demo = this.demo;
     // A broken layout.json during a live edit keeps the last good floor plan (D-050).
     const lastGood = this.#state?.office.layout ?? null;
     if (next.office.layout === null && lastGood) {

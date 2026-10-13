@@ -3,6 +3,7 @@ import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildApp } from "./app";
 import { loadConfig } from "./config";
+import { DemoRunner } from "./sim/runner";
 import { SseHub } from "./sse/hub";
 import { eventForChange } from "./vault/events";
 import { seedVault } from "./vault/seed";
@@ -45,6 +46,13 @@ store.subscribe((state) => {
 await store.reload();
 
 const hub = new SseHub();
+const demo = new DemoRunner({
+  store,
+  hub,
+  sampleDir: config.sampleDir,
+  demoDir: config.demoDir,
+  liveDir: config.vaultDir,
+});
 
 const app = await buildApp({
   store,
@@ -53,12 +61,15 @@ const app = await buildApp({
   apiPort: config.apiPort,
   worktree: config.worktree,
   vaultPath: relative(config.repoRoot, config.vaultDir),
+  demo,
 });
 
 // An edit to office files only sends office.updated, so the office changes without a reload.
 // Everything else sends a full snapshot.
 const stopWatching = watchVault(config.vaultDir, (all) => {
   // Our own writes already reloaded the vault and sent their event (routes/queue.ts).
+  // During Demo Day the page shows vault-demo/, so edits to your vault wait until it stops.
+  if (demo.status()) return;
   const changed = all.filter((path) => !isOwnWrite(path));
   if (changed.length === 0) return;
   const previous = store.state;
