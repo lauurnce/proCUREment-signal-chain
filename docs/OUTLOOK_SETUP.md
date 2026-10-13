@@ -46,7 +46,7 @@ We use the "Mobile and desktop" platform because the app runs on your laptop as 
 3. You do not need "Grant admin consent" for a personal account. You will approve the permissions yourself at the first sign-in.
 
 What each one is for, in plain English:
-- `User.Read`: show your name and email in the Mailroom tab.
+- `User.Read`: show your name and email in the Mail tab.
 - `Mail.ReadWrite`: create and edit drafts, and check new inbox emails. The permission itself allows more, but the app only reads subject lines, and opens the body only of emails tagged `[HQ]`.
 - `Mail.Send`: send a draft after you click "Send now".
 - `offline_access`: stay signed in between runs without asking every hour.
@@ -72,11 +72,11 @@ Use `https://login.microsoftonline.com/common` as the authority only if you regi
 
 ## Step 6. Connect and test (after Claude builds Phase 7)
 
-1. `pnpm dev`, open the app, go to the **Mailroom** tab, click **Connect Outlook**, sign in, and accept the permissions. On macOS you may get a Keychain prompt, click Allow.
-2. Approve the sample item "Follow-up to Luzon Precision Components". A draft appears in your Outlook **Drafts** folder (check https://outlook.live.com).
-3. Change `MAIL_MODE=send` in `.env`, restart `pnpm dev`, open the item, click **Send now**. Because of `MAIL_REDIRECT_TO`, the email comes to your test inbox with a "Demo redirect" banner, never to the fictional supplier.
+1. `pnpm dev`, open the app, go to the **Mail** tab, click **Connect Outlook**, sign in, and accept the permissions. On macOS you may get a Keychain prompt, click Allow.
+2. Approve the sample item "Luzon Precision missed a second firm date on PO-451208" (q-0001). When the undo bar closes, a draft appears in your Outlook **Drafts** folder (check https://outlook.live.com). With `MAIL_REDIRECT_TO` set, the draft is already addressed to you and starts with "Demo redirect". The Mail tab shows **Open draft in Outlook**.
+3. Change `MAIL_MODE=send` in `.env`, restart `pnpm dev`, open the **Mail** tab, click **Send now** on the draft, check the recipients in the confirm box, and click **Send**. Because of `MAIL_REDIRECT_TO`, the email comes to your test inbox with a "Demo redirect" banner, never to the fictional supplier.
 4. From any account, email your test mailbox with the subject `[HQ] Please chase PO-451208 with Luzon Precision`. Within about 2 minutes a task appears on the Board and an Ops helper walks to the Mail Dock.
-5. Click **Send digest now** in the Mailroom tab. The daily digest arrives.
+5. Click **Send digest now** in the Mail tab. The daily digest arrives.
 
 ## Troubleshooting
 

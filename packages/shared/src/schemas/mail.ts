@@ -24,6 +24,8 @@ export const MailRef = z.object({
   webLink: z.string().optional(),
   createdAt: IsoDateTime,
   sentAt: IsoDateTime.optional(),
+  /** The original recipients, when MAIL_REDIRECT_TO points the draft at you instead. */
+  redirectedFrom: z.array(z.string()).optional(),
   /** Plain English, when the draft could not be made. */
   problem: z.string().optional(),
 });
@@ -44,12 +46,29 @@ export const MailStatus = z.object({
   maxPerHour: z.number().int().min(0),
   /** Plain English, when something is not set up or is wrong. */
   problem: z.string().nullable(),
+  /** Plain English, when the sign-in is kept in a file instead of the Keychain. */
+  cacheWarning: z.string().nullable(),
 });
 export type MailStatus = z.infer<typeof MailStatus>;
+
+/** One send, in vault/.state/mail.json and the Mail tab's Sent list. Never the email body. */
+export const SentEntry = z.object({
+  at: IsoDateTime,
+  itemId: z.string(),
+  subject: z.string(),
+  /** Who it really went to. */
+  to: z.array(z.string()),
+  driver: MailDriverId,
+  /** The original recipients, when MAIL_REDIRECT_TO sent it to you instead. */
+  redirectedFrom: z.array(z.string()).optional(),
+});
+export type SentEntry = z.infer<typeof SentEntry>;
 
 /** GET /api/mail: what the Mail tab shows. Settings come from .env and are read-only here. */
 export const MailOverview = z.object({
   status: MailStatus,
+  /** The last 20 sends, newest first. */
+  sent: z.array(SentEntry),
   digest: z.object({ time: z.string(), timezone: z.string(), hasRecipient: z.boolean() }),
   inboxTag: z.string(),
 });

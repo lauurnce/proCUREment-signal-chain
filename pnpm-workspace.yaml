@@ -2,7 +2,11 @@ packages:
   - "apps/*"
   - "packages/*"
 allowBuilds:
+  # Its install script is only "exit 0".
+  '@azure/msal-node-extensions': false
   esbuild: true
+  # The macOS Keychain for the Outlook sign-in (D-122). Downloads or builds its native module.
+  keytar: true
 minimumReleaseAgeExclude:
   - '@vitest/mocker@5.0.2'
   - '@vitest/spy@5.0.2'

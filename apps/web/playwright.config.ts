@@ -32,7 +32,14 @@ export default defineConfig({
     command: "node scripts/dev.mjs",
     // A throwaway vault, fresh from vault.sample every run, so the tests that save decisions
     // never touch your real vault. A dev server you already run is reused as it is.
-    env: { HQ_VAULT: "vault-e2e", HQ_VAULT_FRESH: "1" },
+    // Mail stays on the outbox in drafts mode, so the tests never reach your Outlook even when
+    // your .env says MAIL_PROVIDER=graph (values set here win over .env).
+    env: {
+      HQ_VAULT: "vault-e2e",
+      HQ_VAULT_FRESH: "1",
+      MAIL_PROVIDER: "outbox",
+      MAIL_MODE: "drafts",
+    },
     cwd: repoRoot,
     url: `${baseURL}/api/health`,
     reuseExistingServer: true,

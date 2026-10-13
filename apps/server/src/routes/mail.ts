@@ -2,6 +2,8 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { composeEmail, Id } from "@hq/shared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { z } from "zod";
+import { SignInError } from "../auth/outlook";
 import { buildEml } from "../mail/eml";
 import type { MailService } from "../mail/service";
 import type { SseHub } from "../sse/hub";
@@ -25,6 +27,13 @@ export function registerMailRoutes(
     return true;
   };
   const itemId = (request: FastifyRequest) => Id.safeParse((request.params as { id?: string }).id);
+
+  const publish = async (line: string) => {
+    const state = await deps.store.reload();
+    deps.hub.broadcast({ type: "state.snapshot", state });
+    deps.hub.broadcast({ type: "log.appended", line });
+    return state;
+  };
 
   app.get("/api/mail", async () => deps.mail.overview());
 
@@ -54,9 +63,68 @@ export function registerMailRoutes(
     if (!id.success) return reply.code(400).send({ error: "That item id is not valid." });
     const result = await deps.mail.redraft(id.data);
     if ("error" in result) return reply.code(409).send(result);
-    const state = await deps.store.reload();
-    deps.hub.broadcast({ type: "state.snapshot", state });
-    deps.hub.broadcast({ type: "log.appended", line: result.line });
+    const state = await publish(result.line);
     return { item: state.queue.find((q) => q.id === id.data) ?? null, line: result.line };
+  });
+
+  // Send now, step 1: the real recipients from Outlook, or why sending is blocked.
+  app.get("/api/mail/items/:id/send-check", async (request, reply) => {
+    const id = itemId(request);
+    if (!id.success) return reply.code(400).send({ error: "That item id is not valid." });
+    const check = await deps.mail.sendCheck(id.data);
+    // A draft deleted in Outlook was marked failed, so the page shows Make the draft again.
+    if (!check.ok)
+      await deps.store
+        .reload()
+        .then((state) => deps.hub.broadcast({ type: "state.snapshot", state }));
+    return check;
+  });
+
+  // Send now, step 2: only the recipients you saw in the confirm dialog.
+  const SendBody = z.object({ recipients: z.array(z.string()).min(1).max(50) });
+  app.post("/api/mail/items/:id/send", async (request, reply) => {
+    if (!fromPage(request, reply)) return reply;
+    const id = itemId(request);
+    const body = SendBody.safeParse(request.body);
+    if (!id.success || !body.success) {
+      return reply.code(400).send({ error: "Check the recipients first, then confirm." });
+    }
+    const result = await deps.mail.send(id.data, body.data.recipients);
+    if ("error" in result) return reply.code(409).send(result);
+    const state = await publish(result.line);
+    return { item: state.queue.find((q) => q.id === id.data) ?? null, line: result.line };
+  });
+
+  app.post("/api/mail/signout", async (request, reply) => {
+    if (!fromPage(request, reply)) return reply;
+    await deps.mail.auth?.signOut();
+    return deps.mail.overview();
+  });
+
+  // Connect Outlook. The redirect URI always uses localhost: Microsoft matches the registered
+  // http://localhost/auth/callback for any port (OUTLOOK_SETUP step 3).
+  const redirectUri = `http://localhost:${deps.webPort}/auth/callback`;
+  const backToMail = (problem?: string) =>
+    `http://localhost:${deps.webPort}/?tab=mail${problem ? `&mailProblem=${encodeURIComponent(problem)}` : ""}`;
+
+  app.get("/auth/login", async (_request, reply) => {
+    const auth = deps.mail.auth;
+    if (!auth)
+      return reply.redirect(backToMail("MS_CLIENT_ID is not set, so Outlook cannot connect."));
+    if (deps.store.demo)
+      return reply.redirect(backToMail("Turn off Demo Day before you connect Outlook."));
+    return reply.redirect(await auth.loginUrl(redirectUri));
+  });
+
+  app.get("/auth/callback", async (request, reply) => {
+    const auth = deps.mail.auth;
+    if (!auth) return reply.redirect(backToMail());
+    try {
+      await auth.callback(request.query as Record<string, string | undefined>);
+      return reply.redirect(backToMail());
+    } catch (error) {
+      const message = error instanceof SignInError ? error.message : "The sign-in did not finish.";
+      return reply.redirect(backToMail(message));
+    }
   });
 }

@@ -13,6 +13,8 @@ export interface MailConfig {
   timezone: string;
   inboxTag: string;
   msClientId: string | null;
+  /** consumers (personal accounts) or common. Only login.microsoftonline.com is accepted. */
+  msAuthority: string;
   /** Plain-English problems with the settings. Each one falls back to a safe value. */
   problems: string[];
 }
@@ -65,6 +67,12 @@ export function loadMailConfig(env: NodeJS.ProcessEnv = process.env): MailConfig
     timezone: env.HQ_TIMEZONE?.trim() || "Asia/Manila",
     inboxTag: env.HQ_INBOX_TAG?.trim() || "[HQ]",
     msClientId: env.MS_CLIENT_ID?.trim() || null,
+    msAuthority:
+      /^https:\/\/login\.microsoftonline\.com\/(consumers|common|organizations|[0-9a-f-]{36})\/?$/.test(
+        env.MS_AUTHORITY?.trim() ?? "",
+      )
+        ? (env.MS_AUTHORITY?.trim() as string)
+        : "https://login.microsoftonline.com/consumers",
     problems,
   };
 }

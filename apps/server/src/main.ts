@@ -2,8 +2,10 @@ import { rm } from "node:fs/promises";
 import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildApp } from "./app";
+import { OutlookAuth } from "./auth/outlook";
 import { loadConfig } from "./config";
 import { loadMailConfig } from "./mail/config";
+import { GraphClient } from "./mail/graph";
 import { MailService } from "./mail/service";
 import { DemoRunner } from "./sim/runner";
 import { SseHub } from "./sse/hub";
@@ -56,9 +58,25 @@ const demo = new DemoRunner({
   liveDir: config.vaultDir,
 });
 
-const mail = new MailService({ config: loadMailConfig(), store });
+// Outlook (Phase 7): only with MAIL_PROVIDER=graph and MS_CLIENT_ID. Tokens stay on this server.
+const mailConfig = loadMailConfig();
+const auth =
+  mailConfig.provider === "graph" && mailConfig.msClientId
+    ? await OutlookAuth.create({
+        clientId: mailConfig.msClientId,
+        authority: mailConfig.msAuthority,
+        secretsDir: join(config.repoRoot, ".secrets"),
+      })
+    : null;
+const graph = auth ? new GraphClient({ token: (force) => auth.token(force) }) : null;
+const mail = new MailService({ config: mailConfig, store, auth, graph });
 for (const problem of mail.status().problem?.split(/(?<=\.) /) ?? [])
   console.warn(`Mail: ${problem}`);
+if (auth?.cacheWarning) console.warn(`Mail: ${auth.cacheWarning}`);
+if (auth)
+  console.log(
+    `Mail: Outlook ${auth.account ? `signed in as ${auth.account}` : "not connected yet"}.`,
+  );
 
 const app = await buildApp({
   store,

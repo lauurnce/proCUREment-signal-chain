@@ -18,6 +18,8 @@ export default defineConfig({
     // The browser only talks to this origin. /api (including the event stream) goes to the local server.
     proxy: {
       "/api": { target: api, changeOrigin: false },
+      // The Outlook sign-in: Connect Outlook and Microsoft's redirect back (D-122).
+      "/auth": { target: api, changeOrigin: false },
     },
   },
   preview: {
