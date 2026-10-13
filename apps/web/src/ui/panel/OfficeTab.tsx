@@ -127,7 +127,8 @@ function DemoDayControls() {
       />
       <div className="flex items-center justify-between gap-3 border-t border-hairline py-2">
         <span style={typeStyle("tagName")}>Speed</span>
-        <div className="flex gap-1" role="group" aria-label="Demo Day speed">
+        <fieldset className="m-0 flex gap-1 border-0 p-0">
+          <legend className="sr-only">Demo Day speed</legend>
           {SPEEDS.map((x) => (
             <button
               key={x}
@@ -148,7 +149,7 @@ function DemoDayControls() {
               {x}x
             </button>
           ))}
-        </div>
+        </fieldset>
       </div>
       <label className="flex items-center justify-between gap-3 border-t border-hairline py-2">
         <span style={typeStyle("tagName")}>Seed</span>
