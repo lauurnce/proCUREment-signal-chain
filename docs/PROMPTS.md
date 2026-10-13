@@ -394,6 +394,15 @@ Run a security and privacy review with the integration-engineer and brand-guardi
 
 ---
 
+## Resume after a break
+The project was paused on 13 Oct 2026 with Phase 7 on its branch, not yet merged. Read `docs/HANDOFF.md`, or paste this:
+```text
+/resume
+```
+Then follow the handoff: test Phase 7 on the Mac, merge it, and start Phase 8.
+
+---
+
 ## Phase 8. Polish and v0.1.0
 Where: `claude -w p8-polish`
 

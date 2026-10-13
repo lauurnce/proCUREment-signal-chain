@@ -106,6 +106,7 @@ Convene the council with `/design-council <topic>`. For one opinion, say for exa
 | `procurement-domain` | Glossary, the six real workflows, authority rule, fictional data |
 | `outlook-integration` | MailProvider contract, Graph calls, safety rules |
 | `worktree-flow` | Starting, running in parallel, merging, and cleaning up worktrees |
+| `/resume` | Coming back after a break: reads the handoff, checks the branches, says what is next |
 
 ## Worktrees
 
@@ -119,5 +120,7 @@ Convene the council with `/design-council <topic>`. For one opinion, say for exa
 Works in the browser, `pnpm check` passes, screenshots taken and reviewed if the UI changed, copy is plain English with no em dashes, `docs/PROGRESS.md` updated, and Lawrence said OK.
 
 ## Current status
+
+The project is paused. When you come back, start with `docs/HANDOFF.md`, or type `/resume`.
 
 @docs/PROGRESS.md
