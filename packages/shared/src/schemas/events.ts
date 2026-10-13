@@ -38,6 +38,8 @@ export const AppState = z.object({
   stats: Stats,
   /** Plain-English problems, like a vault file that could not be read. */
   warnings: z.array(z.string()),
+  /** The Obsidian vault name for "Open in Obsidian" links (OBSIDIAN_VAULT_NAME), or null. */
+  obsidianVault: z.string().nullable().default(null),
 });
 export type AppState = z.infer<typeof AppState>;
 

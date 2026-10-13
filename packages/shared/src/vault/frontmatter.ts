@@ -16,3 +16,9 @@ export function parseFrontmatter(text: string): Frontmatter {
   });
   return { data: parsed.data, body: parsed.content.replace(/^\n+/, "") };
 }
+
+/** Turns frontmatter data and a body back into a markdown file, readable in Obsidian. */
+export function toMarkdown(data: Record<string, unknown>, body: string): string {
+  const yaml = YAML.stringify(data, { lineWidth: 0 }).trimEnd();
+  return `---\n${yaml}\n---\n\n${body.replace(/^\n+/, "").trimEnd()}\n`;
+}

@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { retryNow } from "../../state/connection";
 import { PANEL_OVERLAY, useOverlayRect } from "../../state/overlays";
 import { useStore } from "../../state/store";
+import { saveToVault } from "../../state/vaultWrites";
 import { useLinkState } from "./linkState";
 import { Panel } from "./Panel";
 import { PanelSkeleton } from "./PanelSkeleton";
@@ -14,8 +15,8 @@ const TAB = TABS.find((t) => t.id === params.get("tab"))?.id;
 const OPEN_FIRST = params.get("open") === "1";
 const FILTER = params.get("filter") === "team" ? "team" : undefined;
 
-/** Decisions are mocked until the vault writes land (P5.2 and later). */
-export const OFFICE_NOTE = "Demo: decisions are not saved yet.";
+/** Decisions and instructions save to the vault when the undo bar closes (P6.1). */
+export const OFFICE_NOTE = "Saves to the vault when this bar closes.";
 
 /**
  * The HQ panel in the office, fed by GET /api/state and the live stream. Docked, it registers
@@ -45,6 +46,7 @@ export function OfficePanel({
           now={NOW ?? new Date()}
           note={OFFICE_NOTE}
           onRetry={retryNow}
+          onSave={saveToVault}
           onShowOffice={onShowOffice}
           initial={{ tab: TAB, openFirst: OPEN_FIRST, filter: FILTER }}
         />

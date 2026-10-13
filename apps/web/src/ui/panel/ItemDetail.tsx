@@ -22,6 +22,8 @@ type Props = {
   onNext: () => void;
   onDecide: (d: Decision) => void;
   paused?: boolean;
+  /** The Obsidian vault name (OBSIDIAN_VAULT_NAME). The link hides without it. */
+  obsidianVault?: string | null;
 };
 
 // Headings shown with a clearer name, and the ones handled elsewhere.
@@ -43,6 +45,11 @@ const LINK =
   "inline-flex min-h-6 min-w-6 items-center justify-center rounded-button px-2 py-1 hover:bg-panel focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
 /** One item in full: facts, why it came to you, the body, the email draft, and the decisions. */
+/** An obsidian:// link that opens the item's markdown file in your Obsidian vault. */
+export function obsidianUrl(vault: string, file: string): string {
+  return `obsidian://open?vault=${encodeURIComponent(vault)}&file=${encodeURIComponent(file.replace(/\.md$/, ""))}`;
+}
+
 export function ItemDetail({
   item,
   seats,
@@ -54,6 +61,7 @@ export function ItemDetail({
   onNext,
   onDecide,
   paused,
+  obsidianVault,
 }: Props) {
   const info = stepInfo(workflows, item);
   const body = sections(item.body);
@@ -122,6 +130,16 @@ export function ItemDetail({
           <p className="m-0 -mt-2" style={typeStyle("small")}>
             {info.stepLabel}
           </p>
+        )}
+        {obsidianVault && item.file && (
+          <a
+            data-testid="open-in-obsidian"
+            href={obsidianUrl(obsidianVault, item.file)}
+            className="self-start rounded-button underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            style={typeStyle("small", "accent")}
+          >
+            Open in Obsidian
+          </a>
         )}
         <dl className="m-0 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1">
           {facts.map((f) => (

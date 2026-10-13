@@ -1,6 +1,6 @@
 # Progress
 
-Now: Phases 4 and 5 done and merged (checkpoint d3b06e9). Next: Phase 6 in `p6-live` on the Mac, start from `docs/design/PHASE6_PLAN.md`.
+Now: Phase 6 in `p6-live`. P6.1 (the vault becomes live) built, checkpoint next. Then P6.2 Demo Day.
 
 ## Phases
 - [x] 0. Kickoff and alignment (main checkout)
@@ -21,6 +21,7 @@ Now: Phases 4 and 5 done and merged (checkpoint d3b06e9). Next: Phase 6 in `p6-l
 - Frame rate in Walk around mode on the M4 Pro: the cloud session measured only software rendering (see P4.3). Open `/?walk=1` with r3f-perf to check it on real hardware.
 
 ## Log
+- 13 Oct 2026, P6.1 (cloud session): decisions and instructions save to the vault when the undo bar closes (D-108), new routes for decisions and instructions with atomic writes, the sender back to work and a daily log line (D-109), "Open in Obsidian" (D-110), and a throwaway test vault for the browser tests (D-111). 31 server tests, 194 web tests and 25 browser tests pass, including approve end to end.
 - 30 Sep 2026, P45 council (`docs/design/reviews/2026-09-30-integrated-hq.md`, Clarity 4, Brand 4, Charm 4, Craft 3, Smooth 4, Realism 3). Applied the 5 Musts and every Should, plus the signature glance: "Stop walking" and Esc always end walking, nothing covers anything, a tighter Overview (89 percent of the free width), helpers and a lighter slab edge at night, one waiting wording, breaks as scenery only, a "Back to decision" link, one selected Team row (D-099 to D-107). 194 unit tests and 24 smoke tests pass.
 - 30 Sep 2026, P45 (cloud session): merged p5-panel, then p4-team, into `main`. Four files had both sides added in the same spot, all kept (Lawrence's choice). A camera break from the merge fixed: a selected helper is framed left of the docked panel (D-098). Connected the halves: a Team row selects the helper in the office, a click on a helper or E in Walk around opens their card in the panel, the Walk around pill starts walking (D-097). Walk values moved into the motion tokens. 22 smoke tests pass.
 - 29 Sep 2026, P4.4: Design Council review (`docs/design/reviews/2026-09-29-characters-movement.md`, Clarity 3, Brand 4, Charm 4, Craft 3, Smooth 3, Realism 4). Applied the 5 Must fixes and all Should fixes: "Recharging" and "Paused" (a paused helper keeps its chair), chips at the Overview with names only for key tags, "You" and the Talk hint kept clear, an amber "!" only for waiting on you and a hollow "..." for other waits, one waving helper, about 1.65 m standing, poses that glide, a night glow, calmer trips (at most 3 at a zone), one Esc order, canvas focus and a screen reader line in Walk around, and shots that fail on a lost canvas (D-075 to D-079). 29 draw calls, 75k triangles at the Overview. 174 unit tests and 14 smoke tests pass.

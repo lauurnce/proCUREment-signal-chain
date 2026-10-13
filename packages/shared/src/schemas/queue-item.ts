@@ -48,5 +48,7 @@ export const QueueItem = z.object({
   email: EmailDraft.optional(),
   decision: Decision.nullable(),
   body: z.string(),
+  /** Where the item lives in the vault, like "queue/q-0001-follow-up.md". Set by the loader. */
+  file: z.string().optional(),
 });
 export type QueueItem = z.infer<typeof QueueItem>;

@@ -1,4 +1,6 @@
-import { relative } from "node:path";
+import { rm } from "node:fs/promises";
+import { dirname, join, relative, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 import { buildApp } from "./app";
 import { loadConfig } from "./config";
 import { SseHub } from "./sse/hub";
@@ -6,15 +8,30 @@ import { eventForChange } from "./vault/events";
 import { seedVault } from "./vault/seed";
 import { VaultStore } from "./vault/store";
 import { watchVault } from "./vault/watch";
+import { isOwnWrite } from "./vault/write";
 
+// Settings like OBSIDIAN_VAULT_NAME live in .env (gitignored). Only the server reads it.
+try {
+  process.loadEnvFile(join(dirname(fileURLToPath(import.meta.url)), "../../../.env"));
+} catch {
+  // No .env: every setting has a safe default.
+}
 const config = loadConfig();
 
+// The browser tests start the server on a throwaway vault, fresh from the sample every run.
+if (process.env.HQ_VAULT_FRESH === "1" && !config.vaultDir.endsWith(`${sep}vault`)) {
+  await rm(config.vaultDir, { recursive: true, force: true });
+}
 const copied = await seedVault(config.sampleDir, config.vaultDir);
 if (copied.length > 0) {
   console.log(`Vault: copied ${copied.length} missing file(s) from vault.sample/`);
 }
 
-const store = new VaultStore({ vaultDir: config.vaultDir, dataDir: config.dataDir });
+const store = new VaultStore({
+  vaultDir: config.vaultDir,
+  dataDir: config.dataDir,
+  obsidianVault: config.obsidianVault,
+});
 
 // Print each warning once when it appears, and say when all warnings are gone.
 let shownWarnings = new Set<string>();
@@ -40,7 +57,10 @@ const app = await buildApp({
 
 // An edit to office files only sends office.updated, so the office changes without a reload.
 // Everything else sends a full snapshot.
-const stopWatching = watchVault(config.vaultDir, (changed) => {
+const stopWatching = watchVault(config.vaultDir, (all) => {
+  // Our own writes already reloaded the vault and sent their event (routes/queue.ts).
+  const changed = all.filter((path) => !isOwnWrite(path));
+  if (changed.length === 0) return;
   const previous = store.state;
   store
     .reload()

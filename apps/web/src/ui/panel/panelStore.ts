@@ -1,5 +1,6 @@
 import type { QueueItem } from "@hq/shared";
 import { create } from "zustand";
+import type { PendingWrite } from "../../state/vaultWrites";
 import type { Decision } from "../DecisionButton";
 import type { TabId } from "./PanelTabs";
 import { needsYou, type QueueFilter } from "./queue";
@@ -8,7 +9,12 @@ import { needsYou, type QueueFilter } from "./queue";
 export type PanelCounts = { needsYou: number; drafts: number; waitingOnOthers: number };
 
 /** The last decision or instruction, while its undo bar shows. `itemId` is null for an instruction. */
-export type Undo = { itemId: string | null; message: string };
+export type Undo = {
+  itemId: string | null;
+  message: string;
+  /** What to save when the undo window closes. None in the Lab. */
+  write?: PendingWrite;
+};
 
 /** Where keyboard focus should go after the next render: a card, an item detail, or the panel. */
 export type FocusRequest = { target: "card" | "detail" | "panel"; id?: string; quiet?: boolean };
@@ -50,7 +56,13 @@ type PanelActions = {
   setDetailOpen: (open: boolean) => void;
   requestFocus: (request: FocusRequest | null) => void;
   /** Records a mocked decision and moves on to `nextId`. */
-  decide: (itemId: string, decision: Decision, message: string, nextId: string | null) => void;
+  decide: (
+    itemId: string,
+    decision: Decision,
+    message: string,
+    nextId: string | null,
+    write?: PendingWrite,
+  ) => void;
   undoLast: () => void;
   expireUndo: () => void;
   setHelpOpen: (open: boolean) => void;
@@ -59,7 +71,9 @@ type PanelActions = {
   detach: () => void;
   setText: (text: string) => void;
   /** Shows what would have been sent, with undo. Nothing leaves the browser. */
-  send: (preview: string, message: string) => void;
+  send: (preview: string, message: string, write?: PendingWrite) => void;
+  /** A save failed: the item comes back, and the message says why. */
+  restore: (itemId: string | null, message: string) => void;
   say: (announce: string) => void;
 };
 
@@ -114,12 +128,12 @@ export const usePanelStore = create<PanelStore>()((set, get) => ({
   focusCard: (focusedId, request = null) => set({ focusedId, focusRequest: request }),
   setDetailOpen: (detailOpen) => set({ detailOpen }),
   requestFocus: (focusRequest) => set({ focusRequest }),
-  decide: (itemId, decision, message, nextId) => {
+  decide: (itemId, decision, message, nextId, write) => {
     const { detailOpen } = get();
     set((s) => ({
       decided: { ...s.decided, [itemId]: decision },
       focusedId: nextId,
-      undo: { itemId, message },
+      undo: { itemId, message, ...(write ? { write } : {}) },
       announce: `${message} Undo for 5 seconds, press U.`,
       detailOpen: nextId ? detailOpen : false,
       // After a decision, focus moves to the next card, never out of the panel (D-048).
@@ -153,8 +167,19 @@ export const usePanelStore = create<PanelStore>()((set, get) => ({
   attach: (audienceId, about) => set({ audienceId, about }),
   detach: () => set({ about: null }),
   setText: (text) => set({ text }),
-  send: (preview, message) =>
-    set({ preview, text: "", undo: { itemId: null, message }, announce: message }),
+  send: (preview, message, write) =>
+    set({
+      preview,
+      text: "",
+      undo: { itemId: null, message, ...(write ? { write } : {}) },
+      announce: message,
+    }),
+  restore: (itemId, message) =>
+    set((s) => {
+      if (!itemId) return { announce: message };
+      const { [itemId]: _, ...rest } = s.decided;
+      return { decided: rest, announce: message };
+    }),
   say: (announce) => set({ announce }),
 }));
 

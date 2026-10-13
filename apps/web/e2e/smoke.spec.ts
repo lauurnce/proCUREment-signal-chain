@@ -1,3 +1,6 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import { collectErrors, waitForReady } from "./helpers";
 
@@ -249,7 +252,9 @@ test("the panel works with the keyboard only, and nothing is sent", async ({ pag
   expect(errors).toEqual([]);
 });
 
-test("the office panel shows live items, and decisions are only a demo", async ({ page }) => {
+test("the office panel shows live items, and a decision waits for its undo window", async ({
+  page,
+}) => {
   const errors = collectErrors(page);
   const state = page.waitForResponse((r) => r.url().endsWith("/api/state") && r.ok());
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -267,9 +272,14 @@ test("the office panel shows live items, and decisions are only a demo", async (
   // Keys work at once, and the HUD and the page title follow each decision.
   await expect(page.getByTestId("decision-card")).toBeFocused();
   await page.keyboard.press("a");
-  await expect(page.getByTestId("undo-bar")).toContainText("Demo: decisions are not saved yet.");
+  await expect(page.getByTestId("undo-bar")).toContainText(
+    "Saves to the vault when this bar closes.",
+  );
   await expect(hud.getByRole("button", { name: /Needs you/ })).toContainText("2");
   await expect(page).toHaveTitle("Needs you (2) · SignalChain HQ");
+  // Undo inside the window: nothing is saved, and the item comes back.
+  await page.keyboard.press("u");
+  await expect(hud.getByRole("button", { name: /Needs you/ })).toContainText("3");
   await page.keyboard.press("]");
   await expect(page.getByRole("tab", { name: "Team" })).toHaveAttribute("aria-selected", "true");
 
@@ -527,4 +537,42 @@ test("a drag across a helper pans the camera and selects nobody", async ({ page 
   await page.mouse.up();
   const events = await page.evaluate(() => window.__HQ_SEATS__?.events);
   expect(events).toEqual([]);
+});
+
+// Last in this file: it saves a decision, so later tests in this run would see one item less.
+test("approving an item saves it to the vault, end to end", async ({ page, request }) => {
+  const health = (await (await request.get("/api/health")).json()) as { vaultPath: string };
+  test.skip(
+    health.vaultPath !== "vault-e2e",
+    "Runs only on the throwaway test vault. Stop pnpm dev, then run the tests again.",
+  );
+  const errors = collectErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/?shots=1");
+  await waitForReady(page);
+  const tab = page.getByRole("tab", { name: /Needs you/ });
+  await expect(tab).toContainText("3");
+  await expect(page.getByTestId("decision-card")).toBeFocused();
+  await page.keyboard.press("a");
+
+  // When the undo bar closes (5 s), the server saves it, and the item leaves Needs you.
+  const statusOf = async () => {
+    const state = (await (await request.get("/api/state")).json()) as {
+      queue: { id: string; status: string }[];
+    };
+    return state.queue.find((q) => q.id === "q-0001")?.status;
+  };
+  await expect.poll(statusOf, { timeout: 12_000 }).toBe("approved");
+  await expect(page.getByTestId("undo-bar")).toHaveCount(0);
+  await expect(tab).toContainText("2");
+
+  // The file and today's log say so too.
+  const vault = resolve(dirname(fileURLToPath(import.meta.url)), "../../../vault-e2e");
+  const queueFile = readdirSync(join(vault, "queue")).find((f) => f.startsWith("q-0001-"));
+  expect(readFileSync(join(vault, "queue", queueFile ?? ""), "utf8")).toContain("status: approved");
+  const day = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(new Date());
+  expect(readFileSync(join(vault, "log", `${day}.md`), "utf8")).toContain(
+    "you approved q-0001 from ops-03",
+  );
+  expect(errors).toEqual([]);
 });

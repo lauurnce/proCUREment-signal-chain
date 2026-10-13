@@ -18,6 +18,16 @@ export interface Config {
   sampleDir: string;
   dataDir: string;
   backupsDir: string;
+  /** OBSIDIAN_VAULT_NAME, for "Open in Obsidian" links. Null when it is not set. */
+  obsidianVault: string | null;
+}
+
+/**
+ * The vault folder: "vault" (yours), or a throwaway one like "vault-e2e" for the browser tests,
+ * so a test that approves an item never touches your real vault. Only vault-<name> is allowed.
+ */
+function vaultFolder(name: string | undefined): string {
+  return name && /^vault-[a-z0-9]+$/.test(name) ? name : "vault";
 }
 
 /** Reads ports and paths. pnpm dev passes WEB_PORT and API_PORT, otherwise they are worked out per worktree. */
@@ -29,9 +39,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     webPort: Port.parse(env.WEB_PORT || fallback.webPort),
     worktree: fallback.worktree,
     repoRoot,
-    vaultDir: join(repoRoot, "vault"),
+    vaultDir: join(repoRoot, vaultFolder(env.HQ_VAULT)),
     sampleDir: join(repoRoot, "vault.sample"),
     dataDir: join(repoRoot, "data"),
     backupsDir: join(repoRoot, "vault-backups"),
+    obsidianVault: env.OBSIDIAN_VAULT_NAME?.trim() || null,
   };
 }

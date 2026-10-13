@@ -3,6 +3,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import pkg from "../package.json" with { type: "json" };
 import { registerEventRoutes } from "./routes/events";
 import { registerHealthRoutes } from "./routes/health";
+import { registerQueueRoutes } from "./routes/queue";
 import { registerStateRoutes } from "./routes/state";
 import { registerHostCheck } from "./security/host";
 import type { SseHub } from "./sse/hub";
@@ -32,6 +33,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     worktree: deps.worktree,
   });
   registerStateRoutes(app, deps.store);
+  registerQueueRoutes(app, deps);
   registerEventRoutes(app, deps);
   // Open event streams would keep app.close() waiting, so end them first.
   app.addHook("preClose", async () => deps.hub.close());

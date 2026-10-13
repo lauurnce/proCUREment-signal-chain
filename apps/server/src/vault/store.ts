@@ -7,10 +7,14 @@ type Listener = (state: AppState) => void;
 export class VaultStore {
   #state: AppState | null = null;
   #listeners = new Set<Listener>();
-  readonly #options: { vaultDir: string; dataDir: string };
+  readonly #options: { vaultDir: string; dataDir: string; obsidianVault?: string | null };
 
-  constructor(options: { vaultDir: string; dataDir: string }) {
+  constructor(options: { vaultDir: string; dataDir: string; obsidianVault?: string | null }) {
     this.#options = options;
+  }
+
+  get vaultDir(): string {
+    return this.#options.vaultDir;
   }
 
   get state(): AppState {
@@ -19,7 +23,9 @@ export class VaultStore {
   }
 
   async reload(): Promise<AppState> {
-    const next = await loadVault({ ...this.#options, includeLocalRoster: true });
+    const { vaultDir, dataDir, obsidianVault = null } = this.#options;
+    const next = await loadVault({ vaultDir, dataDir, includeLocalRoster: true });
+    next.obsidianVault = obsidianVault;
     // A broken layout.json during a live edit keeps the last good floor plan (D-050).
     const lastGood = this.#state?.office.layout ?? null;
     if (next.office.layout === null && lastGood) {
