@@ -1,6 +1,6 @@
 # Progress
 
-Now: Phase 7 built in `p7-outlook` (P7.1 to P7.5), checkpoint done, waiting for Lawrence's OK and his real Outlook test on the Mac, then merge to `main`. Next: Phase 8 (polish and v0.1.0). Carried to Phase 8: from the P6.3 playtest, a Demo Day pill with the sim clock, daylight from the sim clock, one meaning for "waiting", the r3f-perf overlay in dev, a day that ends at 18:00, varied send-back notes; from the P7.5 brand review, Lawrence to decide the digest naming each helper's work, the Send now button style, and the redirect banner colors.
+Now: paused on 13 Oct 2026. Start again with `docs/HANDOFF.md` or `/resume`. Phase 7 is built and pushed on `worktree-p7-outlook`, not merged: Lawrence tests it on the Mac, then merges it. Next: Phase 8 (polish and v0.1.0). What Phase 8 should pick up, and the decisions waiting for Lawrence, are in the handoff.
 
 ## Phases
 - [x] 0. Kickoff and alignment (main checkout)
@@ -21,6 +21,7 @@ Now: Phase 7 built in `p7-outlook` (P7.1 to P7.5), checkpoint done, waiting for 
 - Frame rate in Walk around mode on the M4 Pro: the cloud session measured only software rendering (see P4.3). Open `/?walk=1` with r3f-perf to check it on real hardware.
 
 ## Log
+- 13 Oct 2026, handoff: Lawrence paused the project. Wrote `docs/HANDOFF.md` (what we built, how to test and merge Phase 7, Phase 8, open decisions) and the `/resume` skill.
 - 13 Oct 2026, P7.5 (cloud session): security review (1 high, 2 medium, 9 low) and brand review (2 musts, 18 shoulds and coulds), all fixed except 3 brand points left for Lawrence. The scheduled digest is now only a draft, nothing is sent without a click (D-127). Security fixes (D-128) and copy fixes (D-129). 88 server tests, 194 web tests, 47 shared tests, 26 browser tests pass. New shots: office-mail at 3 sizes.
 - 13 Oct 2026, P7.4 (cloud session): inbox to task, Outlook only, bodies opened only for [HQ] emails, keyword rules in `data/inbox-rules.json`, and the helper walks to the Mail Dock (D-125). The daily digest at DIGEST_TIME or with Send digest now, as a file, a draft or a send by mode (D-126). Built with Graph mocked: 85 server tests, 194 web tests, 47 shared tests, 26 browser tests pass.
 - 13 Oct 2026, P7.3 (cloud session): Outlook sign-in with MSAL and PKCE, the Keychain cache with a .secrets/ fallback (D-122), real drafts through Graph with the demo redirect built in, and Send now with a confirm box and every safety rule on the server (D-123). Browser tests stay on the outbox (D-124). Built with Graph and MSAL mocked: 78 server tests, 194 web tests, 47 shared tests, 26 browser tests pass. Not yet tried against a real mailbox.
