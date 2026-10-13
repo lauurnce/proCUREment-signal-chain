@@ -1,6 +1,6 @@
 # Progress
 
-Now: paused on 13 Oct 2026. Start again with `docs/HANDOFF.md` or `/resume`. Phase 7 is built and pushed on `worktree-p7-outlook`, not merged: Lawrence tests it on the Mac, then merges it. Next: Phase 8 (polish and v0.1.0). What Phase 8 should pick up, and the decisions waiting for Lawrence, are in the handoff.
+Now: closed on 13 Oct 2026 by Lawrence. Phases 0 to 7 built and merged into `main`, Phase 8 not started. Still open: the real Outlook test on the Mac. To start again, read `docs/HANDOFF.md` or type `/resume`: it lists what Phase 8 should pick up and the decisions waiting for Lawrence. The public, generic version is `lauurnce/signalchain-hq-showcase` (Phases 0 to 5 only, no ADI details).
 
 ## Phases
 - [x] 0. Kickoff and alignment (main checkout)
@@ -21,6 +21,7 @@ Now: paused on 13 Oct 2026. Start again with `docs/HANDOFF.md` or `/resume`. Pha
 - Frame rate in Walk around mode on the M4 Pro: the cloud session measured only software rendering (see P4.3). Open `/?walk=1` with r3f-perf to check it on real hardware.
 
 ## Log
+- 13 Oct 2026: project closed, and Phase 7 merged into `main`. Published a public showcase, `lauurnce/signalchain-hq-showcase`: a clean copy of `main` at Phase 5 with one fresh commit, no `CLAUDE.md`, `docs/` or `.claude/`, a generic domain (no ADI, no program sources, no Conga, DocuSign or ME57, sample rule limits of 10 percent and 50K), and its own README with screenshots. This repo stays private. CLAUDE.md now records the showcase as the approved way to share. README updated for the closing.
 - 13 Oct 2026, handoff: Lawrence paused the project. Wrote `docs/HANDOFF.md` (what we built, how to test and merge Phase 7, Phase 8, open decisions) and the `/resume` skill.
 - 13 Oct 2026, P7.5 (cloud session): security review (1 high, 2 medium, 9 low) and brand review (2 musts, 18 shoulds and coulds), all fixed except 3 brand points left for Lawrence. The scheduled digest is now only a draft, nothing is sent without a click (D-127). Security fixes (D-128) and copy fixes (D-129). 88 server tests, 194 web tests, 47 shared tests, 26 browser tests pass. New shots: office-mail at 3 sizes.
 - 13 Oct 2026, P7.4 (cloud session): inbox to task, Outlook only, bodies opened only for [HQ] emails, keyword rules in `data/inbox-rules.json`, and the helper walks to the Mail Dock (D-125). The daily digest at DIGEST_TIME or with Send digest now, as a file, a draft or a send by mode (D-126). Built with Graph mocked: 85 server tests, 194 web tests, 47 shared tests, 26 browser tests pass.
